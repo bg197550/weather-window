@@ -1,0 +1,24 @@
+name: Refresh long range guidance
+on:
+  schedule:
+    - cron: '25 0,6,12,18 * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node scripts/update-long-range.mjs
+      - name: Commit refreshed guidance
+        run: |
+          git add data/long-range.json
+          if git diff --cached --quiet; then exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Refresh CPC and ensemble guidance"
+          git push
