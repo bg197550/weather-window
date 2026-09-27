@@ -1,0 +1,212 @@
+{
+  "generatedAt": "2026-09-27T15:55:50.624Z",
+  "sources": {
+    "medium": "https://www.cpc.ncep.noaa.gov/products/predictions/610day/fxus06.html",
+    "extended": "https://www.cpc.ncep.noaa.gov/products/predictions/WK34/"
+  },
+  "periods": [
+    {
+      "name": "Days 6–10",
+      "start": 5,
+      "end": 10,
+      "source": "https://www.cpc.ncep.noaa.gov/products/predictions/610day/fxus06.html",
+      "utah": {
+        "temperature": "Probabilities of above normal temperatures have increased to above 70 percent across parts of the southwestern CONUS and the Great Basin as this ridge gains strength.",
+        "precipitation": "Conversely, as upstream ridging gains strength across the West, below normal precipitation is favored across the northwestern quadrant of the CONUS ."
+      },
+      "ne": {
+        "temperature": "Above normal temperatures are still favored for the eastern quarter of the CONUS due to transient ridging early in the period.",
+        "precipitation": "As cyclonic flow increases across the eastern CONUS, an active pattern is likely for much of the southeastern and south-central CONUS as well as for the Eastern Seaboard."
+      }
+    },
+    {
+      "name": "Days 8–14",
+      "start": 7,
+      "end": 14,
+      "source": "https://www.cpc.ncep.noaa.gov/products/predictions/610day/fxus06.html",
+      "utah": {
+        "temperature": "Above normal temperatures are likely across the West due to predicted expansive ridging.",
+        "precipitation": "Confidence is high (greater than 50 percent chance) for below normal precipitation across parts of the northern High Plains and adjacent areas of the Rockies, close to the predicted ridge center."
+      },
+      "ne": {
+        "temperature": "Conversely, as heights fall across the East, near normal temperatures are favored for most areas east of the Mississippi and extending southwestward to include much of the adjacent Southern Plains.",
+        "precipitation": "Above normal precipitation is favored across the Eastern Seaboard, Southeast, and Gulf Coast, due to predicted cyclonic flow downstream of the western ridge ."
+      }
+    },
+    {
+      "name": "Weeks 3–4",
+      "start": 14,
+      "end": 28,
+      "source": "https://www.cpc.ncep.noaa.gov/products/predictions/WK34/",
+      "utah": {
+        "temperature": "Driven by this anomalous ridging over the CONUS, the Week 3-4 Temperature Outlook indicates a tilt toward above-normal temperatures for much of western CONUS, with the highest probabilities centered over the Great Basin and southern California.",
+        "precipitation": "The Week 3-4 Precipitation Outlook continues to favor elevated chances of above-normal precipitation across the Desert Southwest, supported by weak troughing in the manual blend of tools."
+      },
+      "ne": {
+        "temperature": "Equal Chances (EC) of above-, near-, or below-normal temperatures are forecast for the rest of the CONUS.",
+        "precipitation": "Conversely, ahead of the anomalous ridging, a subtle lean toward below-normal precipitation is forecast for the Northeast."
+      }
+    }
+  ],
+  "guidance": {
+    "utah": [
+      {
+        "period": "Days 6–10",
+        "models": [
+          {
+            "name": "GEFS",
+            "values": {
+              "temp": 58.8,
+              "precip": 0.03
+            }
+          },
+          {
+            "name": "ECMWF ENS",
+            "values": {
+              "temp": 57.4,
+              "precip": 0.14
+            }
+          },
+          {
+            "name": "GEM ENS",
+            "values": {
+              "temp": 57.7,
+              "precip": 0.13
+            }
+          }
+        ]
+      },
+      {
+        "period": "Days 8–14",
+        "models": [
+          {
+            "name": "GEFS",
+            "values": {
+              "temp": 59.3,
+              "precip": 0.09
+            }
+          },
+          {
+            "name": "ECMWF ENS",
+            "values": {
+              "temp": 57,
+              "precip": 0.27
+            }
+          },
+          {
+            "name": "GEM ENS",
+            "values": {
+              "temp": 56,
+              "precip": 0.31
+            }
+          }
+        ]
+      },
+      {
+        "period": "Weeks 3–4",
+        "models": [
+          {
+            "name": "GEFS",
+            "values": {
+              "temp": 51.8,
+              "precip": 0.67
+            }
+          },
+          {
+            "name": "ECMWF ENS",
+            "values": null
+          },
+          {
+            "name": "GEM ENS",
+            "values": {
+              "temp": 45.3,
+              "precip": 1.09
+            }
+          }
+        ]
+      }
+    ],
+    "ne": [
+      {
+        "period": "Days 6–10",
+        "models": [
+          {
+            "name": "GEFS",
+            "values": {
+              "temp": 61.8,
+              "precip": 0.84
+            }
+          },
+          {
+            "name": "ECMWF ENS",
+            "values": {
+              "temp": 59.1,
+              "precip": 0.96
+            }
+          },
+          {
+            "name": "GEM ENS",
+            "values": {
+              "temp": 59.3,
+              "precip": 0.74
+            }
+          }
+        ]
+      },
+      {
+        "period": "Days 8–14",
+        "models": [
+          {
+            "name": "GEFS",
+            "values": {
+              "temp": 55.2,
+              "precip": 1.21
+            }
+          },
+          {
+            "name": "ECMWF ENS",
+            "values": {
+              "temp": 55.4,
+              "precip": 1.43
+            }
+          },
+          {
+            "name": "GEM ENS",
+            "values": {
+              "temp": 55,
+              "precip": 1.08
+            }
+          }
+        ]
+      },
+      {
+        "period": "Weeks 3–4",
+        "models": [
+          {
+            "name": "GEFS",
+            "values": {
+              "temp": 53.4,
+              "precip": 1.18
+            }
+          },
+          {
+            "name": "ECMWF ENS",
+            "values": null
+          },
+          {
+            "name": "GEM ENS",
+            "values": {
+              "temp": 54.1,
+              "precip": 1.36
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "modelNote": "Specifically, the GEFS depicts a broader region of positive height anomalies extending from the central CONUS to New England, whereas other dynamical models restrict these positive heights primarily to the central CONUS.",
+  "places": {
+    "utah": "Park City, UT",
+    "ne": "Boston, MA"
+  }
+}
