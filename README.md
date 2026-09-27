@@ -12,3 +12,5 @@ The URL keeps the current tab, location and view (for example `#utah/deer-valley
 
 The long-range script parses each CPC horizon and each region's ensemble guidance independently. If a source is unreachable or CPC's wording no longer matches, it keeps the previous data for that part and records it in `warnings` instead of failing the whole run.
 
+New England locations include NH Seacoast (North Hampton), which the Surf Window beaches in New Hampshire link to. The Resort snow view also has long-range snowfall from GFS, ECMWF, AIFS and GraphCast (carried over from the retired snow-intel project). The app bar and tabs come from the shared `suite.css`/`suite.js` served by Surf Window, and the site has a web app manifest for adding it to a phone's home screen.
+
