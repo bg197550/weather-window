@@ -14,3 +14,7 @@ The long-range script parses each CPC horizon and each region's ensemble guidanc
 
 New England locations include NH Seacoast (North Hampton), which the Surf Window beaches in New Hampshire link to. The Resort snow view also has long-range snowfall from GFS, ECMWF, AIFS and GraphCast (carried over from the retired snow-intel project). The app bar and tabs come from the shared `suite.css`/`suite.js` served by Surf Window, and the site has a web app manifest for adding it to a phone's home screen.
 
+
+## Snow Report (`/snow/`)
+
+A third dashboard at bg197550.github.io/weather-window/snow/ (replaces the old snow-intel page): Resorts (NWS gridded snowfall 24/48/72 h at mid-mountain and peak, snow level, avalanche links, mountain alerts), Models (16-day GFS/ECMWF/AIFS/GraphCast snowfall by resort), Snowpack (measured USDA NRCS SNOTEL depth, 24 h and 7-day change, SWE; refreshed hourly by `.github/workflows/update-snotel.yml` into the `data` branch) and Hourly (NWS 48-hour chart plus the point forecast for any resort).
