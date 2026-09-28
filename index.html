@@ -165,8 +165,8 @@ window.suiteContext=function(){const names={utah:'Utah forecasts',ne:'New Englan
 // ---------- Precip models: our own model maps from Open-Meteo grids (free, on demand) + Windy ----------
 let precipRegion='utah',precipModel='ecmwf_ifs025',precipLayer='rainAccu',precipWindyModel='ecmwf',precipProduct='precip',precipHours=72,precipView2='grid';
 const PRECIP_REGIONS={
- utah:{name:'Utah',lat:40.62,lon:-111.6,zoom:7,box:[38.9,-113.3,42.1,-109.5],n:20,tz:'America/Denver'},
- ne:{name:'New England',lat:42.6,lon:-71.4,zoom:7,box:[40.4,-75.2,47.5,-66.8],n:22,tz:'America/New_York'}};
+ utah:{name:'Utah',lat:40.62,lon:-111.6,zoom:7,box:[38.9,-113.3,42.1,-109.5],n:15,tz:'America/Denver'},
+ ne:{name:'New England',lat:42.6,lon:-71.4,zoom:7,box:[40.4,-75.2,47.5,-66.8],n:16,tz:'America/New_York'}};
 const PM=[ // [open-meteo id, label, group, forecast hours available, note]
  ['ncep_hrrr_conus','HRRR','US short range',48,'3 km, hourly updates; best for the next 1–2 days'],['ncep_nam_conus','NAM 3 km','US short range',60,'3 km; good at mountain and coastal detail to 2.5 days'],
  ['gem_regional','GEM regional','Short–medium range',84,"Canada's 10 km model; strong on northeast storms"],['ncep_nbm_conus','NBM (NOAA blend)','Blend',264,"NOAA's calibrated blend of many models; the NWS starting point"],
@@ -181,7 +181,7 @@ const gridCache=new Map();const GRID_CACHE_MIN=60;let precipMap=null,precipOverl
 function gridPoints(R){const [la0,lo0,la1,lo1]=R.box,pts=[];for(let i=0;i<R.n;i++)for(let j=0;j<R.n;j++)pts.push([la1-(la1-la0)*i/(R.n-1),lo0+(lo1-lo0)*j/(R.n-1)]);return pts}
 async function modelGrid(model,regionKey){const key=model+'|'+regionKey;const c=gridCache.get(key);if(c&&Date.now()-c.time<GRID_CACHE_MIN*60000)return c.promise;const R=PRECIP_REGIONS[regionKey],pts=gridPoints(R);
  const promise=(async()=>{const chunks=[];for(let i=0;i<pts.length;i+=64)chunks.push(pts.slice(i,i+64));
-  const parts=await Promise.all(chunks.map(async ch=>{const u=`https://api.open-meteo.com/v1/forecast?latitude=${ch.map(p=>p[0].toFixed(3)).join(',')}&longitude=${ch.map(p=>p[1].toFixed(3)).join(',')}&hourly=precipitation,snowfall,rain&models=${model}&forecast_days=${Math.min(14,Math.ceil((PM.find(x=>x[0]===model)?.[3]||168)/24)+1)}&precipitation_unit=inch&timezone=GMT`;const r=await fetch(u);if(!r.ok)throw Error(r.status);const j=await r.json();return Array.isArray(j)?j:[j]}));
+  const parts=[];for(const ch of chunks){const u=`https://api.open-meteo.com/v1/forecast?latitude=${ch.map(p=>p[0].toFixed(3)).join(',')}&longitude=${ch.map(p=>p[1].toFixed(3)).join(',')}&hourly=precipitation,snowfall,rain&models=${model}&forecast_days=${Math.min(14,Math.ceil((PM.find(x=>x[0]===model)?.[3]||168)/24)+1)}&precipitation_unit=inch&timezone=GMT`;const r=await fetch(u);const j=await r.json().catch(()=>({}));if(!r.ok){const e=new Error(j.reason||('HTTP '+r.status));e.status=r.status;throw e}parts.push(Array.isArray(j)?j:[j])}
   const locs=parts.flat();if(!locs.length||!locs[0].hourly)throw Error('no data');
   const snowCm=(locs[0].hourly_units?.snowfall||'').includes('cm');
   return {pts,time:locs[0].hourly.time.map(t=>Date.parse(t+'Z')),vals:locs.map(l=>({p:l.hourly.precipitation,s:l.hourly.snowfall.map(v=>v==null?null:(snowCm?v/2.54:v)),r:l.hourly.rain}))}})();
@@ -207,7 +207,7 @@ async function drawPrecipModel(){const R=PRECIP_REGIONS[precipRegion],st=documen
   if(precipOverlay)precipMap.removeLayer(precipOverlay);const [la0,lo0,la1,lo1]=R.box;precipOverlay=L.imageOverlay(drawGrid(w.values,R,scale),[[la0,lo0],[la1,lo1]],{opacity:.85,interactive:false}).addTo(precipMap);
   const vals=w.values.filter(v=>v!=null),mx=vals.length?Math.max(...vals):0,m=PM.find(x=>x[0]===precipModel);
   st.innerHTML=`${escapeHTML(m[1])} · max in view ${mx<.05?'0':mx.toFixed(mx<10?1:0)}″${m[3]<precipHours?` · <b>this model only runs ${m[3]} h</b>, so the total stops there`:''}`;document.querySelector('#pm-legend').innerHTML=legendHTML(scale);precipMap._pmGrid=g}
- catch(e){st.textContent=`${PM.find(x=>x[0]===precipModel)[1]} isn't available for this region right now.`;if(precipOverlay){precipMap.removeLayer(precipOverlay);precipOverlay=null}}}
+ catch(e){const nm=PM.find(x=>x[0]===precipModel)[1];st.textContent=e.status===429?`Open-Meteo's free limit is used up for now (${e.message}). Maps come back within the minute or hour; the daily limit resets at midnight UTC.`:`${nm} couldn't load: ${e.message}`;if(precipOverlay){precipMap.removeLayer(precipOverlay);precipOverlay=null}}}
 function precipView(){fitHours();const R=PRECIP_REGIONS[precipRegion];if(precipMap){try{precipMap.remove()}catch{}precipMap=null;precipOverlay=null}
  const windy=`https://embed.windy.com/embed2.html?lat=${R.lat}&lon=${R.lon}&detailLat=${R.lat}&detailLon=${R.lon}&zoom=${R.zoom}&level=surface&overlay=${precipLayer}&product=${precipWindyModel}&menu=&message=true&marker=&calendar=now&type=map&location=coordinates&metricRain=in&metricSnow=in&metricTemp=%C2%B0F&metricWind=mph`;
  const groups=[...new Set(PM.map(m=>m[2]))];
