@@ -16,14 +16,17 @@ jobs:
   refresh:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: '22'
-      - name: Fetch SNOTEL
-        run: node scripts/update-snotel.mjs "$RUNNER_TEMP/snotel.json"
+      - name: Fetch SNOTEL (keeps last good data if NRCS is down)
+        run: |
+          curl -fsSL "https://raw.githubusercontent.com/${{ github.repository }}/data/snotel.json" -o "$RUNNER_TEMP/prev.json" || true
+          node scripts/update-snotel.mjs "$RUNNER_TEMP/snotel.json" "$RUNNER_TEMP/prev.json"
       - name: Publish to data branch (single commit)
         run: |
+          [ -f "$RUNNER_TEMP/snotel.json" ] || { echo "Nothing new to publish"; exit 0; }
           mkdir "$RUNNER_TEMP/data" && cd "$RUNNER_TEMP/data"
           git init -q -b data
           cp "$RUNNER_TEMP/snotel.json" snotel.json
