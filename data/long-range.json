@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-09-29T13:05:45.101Z",
-  "checkedAt": "2026-09-29T13:05:45.101Z",
+  "generatedAt": "2026-09-29T22:23:41.336Z",
+  "checkedAt": "2026-09-29T22:23:41.336Z",
   "sources": {
     "medium": "https://www.cpc.ncep.noaa.gov/products/predictions/610day/fxus06.html",
     "extended": "https://www.cpc.ncep.noaa.gov/products/predictions/WK34/"
@@ -13,11 +13,11 @@
       "source": "https://www.cpc.ncep.noaa.gov/products/predictions/610day/fxus06.html",
       "utah": {
         "temperature": "There are high probabilities favoring above normal temperatures for the western CONUS, under the predicted ridge .",
-        "precipitation": "Near normal precipitation is favored for the Southwest, consistent with the precipitation anomaly forecast from the consolidation."
+        "precipitation": "High probabilities of below normal precipitation are forecast for the northwestern CONUS eastward across the Northern and Central Plains into the Midwest, under the predicted ridge ."
       },
       "ne": {
-        "temperature": "Below normal temperatures are favored for parts of the Northeast, as a trough pushed southward over the region in the 6-10 day period.",
-        "precipitation": "Above normal precipitation is likely for most of Texas, the southeastern CONUS, and the Eastern Seaboard, consistent with most precipitation forecast tools."
+        "temperature": "Below normal temperatures are favored for much of the northeastern CONUS, under variable troughing over the region in the 6-10 day period.",
+        "precipitation": "Above normal precipitation is likely for central and southern Texas, the southeastern CONUS, and parts of Maine, consistent with the consolidation anomaly forecast."
       }
     },
     {
@@ -26,11 +26,11 @@
       "end": 14,
       "source": "https://www.cpc.ncep.noaa.gov/products/predictions/610day/fxus06.html",
       "utah": {
-        "temperature": "The likelihood of above normal temperatures remains high for the western CONUS in week 2, under a persistent ridge .",
-        "precipitation": "As the ridge persists over the western CONUS, below normal precipitation is favored across the northwestern and northern central CONUS extending eastward across most of the Midwest into far western New York and Pennsylvania."
+        "temperature": null,
+        "precipitation": "As an amplified ridge persists over the western and northern central CONUS, below normal precipitation is favored from the northwestern CONUS extending eastward across most of the Great Plains, from the Red River Valley north, and most of the Midwest."
       },
       "ne": {
-        "temperature": "Below normal temperatures are slightly favored across a large area of the northeastern CONUS, under a predicted trough through much of the period.",
+        "temperature": "Below normal temperatures are slightly favored for parts of the northeastern CONUS, under a predicted trough through much of the period.",
         "precipitation": null
       }
     },
@@ -57,22 +57,22 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 60.1,
-              "precip": 0.05
+              "temp": 60.5,
+              "precip": 0.03
             }
           },
           {
             "name": "ECMWF ENS",
             "values": {
-              "temp": 58.3,
+              "temp": 58.1,
               "precip": 0.09
             }
           },
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 59.4,
-              "precip": 0.04
+              "temp": 59.6,
+              "precip": 0.13
             }
           }
         ]
@@ -83,8 +83,8 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 58.5,
-              "precip": 0.14
+              "temp": 59.6,
+              "precip": 0.1
             }
           },
           {
@@ -97,7 +97,7 @@
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 57.9,
+              "temp": 58.2,
               "precip": 0.17
             }
           }
@@ -109,8 +109,8 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 49.3,
-              "precip": 0.79
+              "temp": 50.2,
+              "precip": 0.74
             }
           },
           {
@@ -120,7 +120,7 @@
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 46,
+              "temp": 45.6,
               "precip": 1.22
             }
           }
@@ -134,22 +134,22 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 55.5,
-              "precip": 0.55
+              "temp": 54.1,
+              "precip": 0.52
             }
           },
           {
             "name": "ECMWF ENS",
             "values": {
-              "temp": 54.8,
-              "precip": 0.43
+              "temp": 54.9,
+              "precip": 0.48
             }
           },
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 54,
-              "precip": 0.59
+              "temp": 53,
+              "precip": 0.29
             }
           }
         ]
@@ -160,8 +160,8 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 54.4,
-              "precip": 0.49
+              "temp": 53.4,
+              "precip": 0.69
             }
           },
           {
@@ -174,8 +174,8 @@
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 53.9,
-              "precip": 0.95
+              "temp": 53,
+              "precip": 0.53
             }
           }
         ]
@@ -186,8 +186,8 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 52.7,
-              "precip": 1.19
+              "temp": 52.8,
+              "precip": 1.21
             }
           },
           {
@@ -197,8 +197,8 @@
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 53.1,
-              "precip": 1.43
+              "temp": 53.4,
+              "precip": 1.62
             }
           }
         ]
