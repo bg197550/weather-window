@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-10-01T13:31:11.510Z",
-  "checkedAt": "2026-10-01T13:31:11.510Z",
+  "generatedAt": "2026-10-01T22:48:42.987Z",
+  "checkedAt": "2026-10-01T22:48:42.987Z",
   "sources": {
     "medium": "https://www.cpc.ncep.noaa.gov/products/predictions/610day/fxus06.html",
     "extended": "https://www.cpc.ncep.noaa.gov/products/predictions/WK34/"
@@ -12,11 +12,11 @@
       "end": 10,
       "source": "https://www.cpc.ncep.noaa.gov/products/predictions/610day/fxus06.html",
       "utah": {
-        "temperature": "There are high probabilities favoring above normal temperatures for the western CONUS, under the predicted ridge .",
+        "temperature": null,
         "precipitation": "Elevated probabilities of below normal precipitation are forecast for the northwestern CONUS, across the Northern and Central Plains, and for most of the Midwest, under the predicted ridge ."
       },
       "ne": {
-        "temperature": "Below normal temperatures are favored for much of the northeastern CONUS, under a predicted trough over the region.",
+        "temperature": "Above normal temperatures are favored for most of the CONUS, under the predicted ridge and above normal 500-hPa heights, supported by most of the dynamical model temperature forecast tools, while near normal temperatures are favored for parts of the East, under a predicted trough .",
         "precipitation": null
       }
     },
@@ -27,10 +27,10 @@
       "source": "https://www.cpc.ncep.noaa.gov/products/predictions/610day/fxus06.html",
       "utah": {
         "temperature": null,
-        "precipitation": "Under a persistent ridge, below normal precipitation is favored over most of the northwestern CONUS, excluding far northwestern Washington."
+        "precipitation": "Under a persistent ridge, below normal precipitation is favored over most of the western CONUS, excluding far northwestern Washington."
       },
       "ne": {
-        "temperature": "Below normal temperatures are slightly favored for most of the northeastern CONUS, under a predicted trough through much of the period.",
+        "temperature": "Near normal temperatures are favored for the northeastern CONUS, under a weak trough .",
         "precipitation": null
       }
     },
@@ -57,22 +57,22 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 60.4,
-              "precip": 0.04
+              "temp": 60.3,
+              "precip": 0.03
             }
           },
           {
             "name": "ECMWF ENS",
             "values": {
-              "temp": 59,
+              "temp": 58.9,
               "precip": 0.05
             }
           },
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 59,
-              "precip": 0.06
+              "temp": 58.9,
+              "precip": 0.09
             }
           }
         ]
@@ -83,8 +83,8 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 58.9,
-              "precip": 0.05
+              "temp": 57.8,
+              "precip": 0.1
             }
           },
           {
@@ -94,8 +94,8 @@
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 56.1,
-              "precip": 0.16
+              "temp": 55,
+              "precip": 0.5
             }
           }
         ]
@@ -106,8 +106,8 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 49.3,
-              "precip": 0.73
+              "temp": 48.8,
+              "precip": 0.78
             }
           },
           {
@@ -117,8 +117,8 @@
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 47.1,
-              "precip": 1.01
+              "temp": 46.6,
+              "precip": 1.11
             }
           }
         ]
@@ -131,22 +131,22 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 54.9,
-              "precip": 0.11
+              "temp": 54.5,
+              "precip": 0.1
             }
           },
           {
             "name": "ECMWF ENS",
             "values": {
-              "temp": 53.5,
+              "temp": 53.6,
               "precip": 0.14
             }
           },
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 54.7,
-              "precip": 0.18
+              "temp": 55.5,
+              "precip": 0.05
             }
           }
         ]
@@ -157,8 +157,8 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 56.2,
-              "precip": 0.64
+              "temp": 56.9,
+              "precip": 0.51
             }
           },
           {
@@ -168,8 +168,8 @@
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 56.1,
-              "precip": 0.71
+              "temp": 56.5,
+              "precip": 0.74
             }
           }
         ]
@@ -180,8 +180,8 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 52.8,
-              "precip": 1.13
+              "temp": 52.7,
+              "precip": 1.32
             }
           },
           {
@@ -191,8 +191,8 @@
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 51.5,
-              "precip": 1.46
+              "temp": 51.8,
+              "precip": 1.61
             }
           }
         ]
