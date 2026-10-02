@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-10-02T12:50:03.298Z",
-  "checkedAt": "2026-10-02T12:50:03.298Z",
+  "generatedAt": "2026-10-02T22:21:01.141Z",
+  "checkedAt": "2026-10-02T22:21:01.141Z",
   "sources": {
     "medium": "https://www.cpc.ncep.noaa.gov/products/predictions/610day/fxus06.html",
     "extended": "https://www.cpc.ncep.noaa.gov/products/predictions/WK34/"
@@ -12,12 +12,12 @@
       "end": 10,
       "source": "https://www.cpc.ncep.noaa.gov/products/predictions/610day/fxus06.html",
       "utah": {
-        "temperature": null,
-        "precipitation": "Elevated probabilities of below normal precipitation are forecast for the northwestern CONUS, across the Northern and Central Plains, and for most of the Midwest, under the predicted ridge ."
+        "temperature": "Probabilities for above-normal temperatures are increased across most of the CONUS tied to transient mid-level ridging, with the highest probabilities forecast across the West supported by both the reforecast and uncalibrated tools.",
+        "precipitation": "Near-normal precipitation is more likely across portions of the Southwest tied to climatology and also the potential for a tropical disturbance over the eastern Pacific to approach the Gulf of California toward the end of the period."
       },
       "ne": {
-        "temperature": "Above normal temperatures are favored for most of the CONUS, under the predicted ridge and above normal 500-hPa heights, supported by most of the dynamical model temperature forecast tools, while near normal temperatures are favored for parts of the East, under a predicted trough .",
-        "precipitation": null
+        "temperature": "Compared to yesterday, above-normal temperatures are more likely over the Mid-Atlantic and Northeast as transient ridging moves across the region, with a predicted warm-up compared to the days prior to the start of the period.",
+        "precipitation": "Probabilities for above-normal precipitation decrease farther north along the East Coast, with near-normal precipitation more likely for the Great Lakes."
       }
     },
     {
@@ -27,11 +27,11 @@
       "source": "https://www.cpc.ncep.noaa.gov/products/predictions/610day/fxus06.html",
       "utah": {
         "temperature": null,
-        "precipitation": "Under a persistent ridge, below normal precipitation is favored over most of the western CONUS, excluding far northwestern Washington."
+        "precipitation": "Odds for below-normal precipitation are elevated across much of the western CONUS eastward into the Great Plains and Upper Midwest underneath ridging."
       },
       "ne": {
-        "temperature": "Near normal temperatures are favored for the northeastern CONUS, under a weak trough .",
-        "precipitation": null
+        "temperature": "Near-normal temperatures are more likely across the Northeast and northern Mid-Atlantic due to the potential for a period of troughing in the middle of the period.",
+        "precipitation": "Elevated chances for above-normal precipitation extend through the Tennessee Valley and Mid-Atlantic, with near-normal precipitation more likely farther to the north, across the Great Lakes and Northeast."
       }
     },
     {
@@ -40,12 +40,12 @@
       "end": 28,
       "source": "https://www.cpc.ncep.noaa.gov/products/predictions/WK34/",
       "utah": {
-        "temperature": "Driven by this anomalous ridging over the CONUS, the Week 3-4 Temperature Outlook indicates a tilt toward above-normal temperatures for much of western CONUS, with the highest probabilities centered over the Great Basin and southern California.",
-        "precipitation": "The Week 3-4 Precipitation Outlook continues to favor elevated chances of above-normal precipitation across the Desert Southwest, supported by weak troughing in the manual blend of tools."
+        "temperature": null,
+        "precipitation": null
       },
       "ne": {
-        "temperature": "Equal Chances (EC) of above-, near-, or below-normal temperatures are forecast for the rest of the CONUS.",
-        "precipitation": "Conversely, ahead of the anomalous ridging, a subtle lean toward below-normal precipitation is forecast for the Northeast."
+        "temperature": "Similarly, some models also indicate weak chances for below-normal temperatures over the East, but there was not enough evidence or support for a tilt toward below-normal temperatures in the Outlook.",
+        "precipitation": "A broad swath of elevated below-normal precipitation chances are indicated from the Northern Plains to the Northeast, dipping into the Lower Mississippi and Tennessee Valleys."
       }
     }
   ],
@@ -57,22 +57,22 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 60.2,
-              "precip": 0.14
+              "temp": 59.2,
+              "precip": 0.21
             }
           },
           {
             "name": "ECMWF ENS",
             "values": {
-              "temp": 58.3,
-              "precip": 0.05
+              "temp": 57.4,
+              "precip": 0.11
             }
           },
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 57.9,
-              "precip": 0.16
+              "temp": 57.7,
+              "precip": 0.39
             }
           }
         ]
@@ -83,19 +83,22 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 56.8,
-              "precip": 0.31
+              "temp": 55.3,
+              "precip": 0.38
             }
           },
           {
             "name": "ECMWF ENS",
-            "values": null
+            "values": {
+              "temp": 53.4,
+              "precip": 0.3
+            }
           },
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 53.3,
-              "precip": 0.47
+              "temp": 51.6,
+              "precip": 0.61
             }
           }
         ]
@@ -106,8 +109,8 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 48.7,
-              "precip": 0.66
+              "temp": 48.2,
+              "precip": 0.67
             }
           },
           {
@@ -118,7 +121,7 @@
             "name": "GEM ENS",
             "values": {
               "temp": 45.8,
-              "precip": 1.14
+              "precip": 1.21
             }
           }
         ]
@@ -131,22 +134,22 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 56,
-              "precip": 0.03
+              "temp": 56.6,
+              "precip": 0.05
             }
           },
           {
             "name": "ECMWF ENS",
             "values": {
-              "temp": 54.4,
-              "precip": 0.17
+              "temp": 55.8,
+              "precip": 0.1
             }
           },
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 56.5,
-              "precip": 0.04
+              "temp": 56.4,
+              "precip": 0.11
             }
           }
         ]
@@ -157,19 +160,22 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 57.4,
-              "precip": 0.53
+              "temp": 57.6,
+              "precip": 0.67
             }
           },
           {
             "name": "ECMWF ENS",
-            "values": null
+            "values": {
+              "temp": 56.4,
+              "precip": 0.54
+            }
           },
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 55.8,
-              "precip": 0.67
+              "temp": 57.2,
+              "precip": 0.94
             }
           }
         ]
@@ -181,7 +187,7 @@
             "name": "GEFS",
             "values": {
               "temp": 52.5,
-              "precip": 1.32
+              "precip": 1.3
             }
           },
           {
@@ -191,15 +197,15 @@
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 51.2,
-              "precip": 1.76
+              "temp": 50.9,
+              "precip": 2.01
             }
           }
         ]
       }
     ]
   },
-  "modelNote": "Specifically, the GEFS depicts a broader region of positive height anomalies extending from the central CONUS to New England, whereas other dynamical models restrict these positive heights primarily to the central CONUS.",
+  "modelNote": null,
   "warnings": [],
   "places": {
     "utah": "Park City, UT",
