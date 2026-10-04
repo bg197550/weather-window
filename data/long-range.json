@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-10-04T12:32:06.979Z",
-  "checkedAt": "2026-10-04T12:32:06.979Z",
+  "generatedAt": "2026-10-04T21:38:02.122Z",
+  "checkedAt": "2026-10-04T21:38:02.122Z",
   "sources": {
     "medium": "https://www.cpc.ncep.noaa.gov/products/predictions/610day/fxus06.html",
     "extended": "https://www.cpc.ncep.noaa.gov/products/predictions/WK34/"
@@ -12,12 +12,12 @@
       "end": 10,
       "source": "https://www.cpc.ncep.noaa.gov/products/predictions/610day/fxus06.html",
       "utah": {
-        "temperature": "Tied to this evolution, probabilities for above-normal temperatures exceed 60 percent across the Southwest and Four Corners, along with parts of the Midwest and Tennessee Valley.",
-        "precipitation": "The trend toward more troughing near the West Coast results in many forecast tools now leaning toward above-normal precipitation across the West."
+        "temperature": "Under transient ridging and positive 500-hPa height anomalies and consistent with reforecast calibrated GEFS and ECMWF temperatures, enhanced probabilities for above normal temperatures are predicted across much of the CONUS, excluding a large area of the northwestern CONUS .",
+        "precipitation": "Near to below normal precipitation is favored for much of the West Coast, west of the predicted trough axis and consistent with the precipitation consolidation."
       },
       "ne": {
         "temperature": null,
-        "precipitation": "Probabilities for above-normal precipitation decrease farther north along the East Coast."
+        "precipitation": "Above normal precipitation is favored across the eastern CONUS, with probabilities exceeding 60 percent for parts of the Southeast, consistent with precipitation anomaly forecasts from the consolidation."
       }
     },
     {
@@ -26,12 +26,12 @@
       "end": 14,
       "source": "https://www.cpc.ncep.noaa.gov/products/predictions/610day/fxus06.html",
       "utah": {
-        "temperature": "Above-normal temperature probabilities are increased over most of the CONUS during week-2 tied to generally weak mid-level flow, but with periods of increased ridging early in the period (East) and later in the period (West).",
-        "precipitation": "Near-normal precipitation is forecast across the Northern Rockies, much of the Great Plains, and into the Upper Midwest given increased uncertainty and a weak mid-level flow pattern ."
+        "temperature": "Probabilities for above normal temperatures are enhanced and exceed 50 percent for parts of the southwestern CONUS, where dynamical model forecasts are consistent.",
+        "precipitation": "Above normal precipitation continues to be favored for the Southwest extending into the central and southern Rockies, with the potential for an enhanced moisture flux from an active Eastern Pacific."
       },
       "ne": {
-        "temperature": "Near-normal temperatures are more likely across the Northeast due to the potential for a period of troughing in the middle of the period.",
-        "precipitation": "Odds for below-normal precipitation are elevated across the Pacific Northwest and northern California tied to enhanced ridging over the northeastern Pacific and northerly mid-level flow."
+        "temperature": "Near normal temperatures are favored for much of the northern central CONUS and above normal temperatures are favored for the southern central and eastern CONUS, under positive 500-hPa height anomalies through much of the forecast period and consistent with the consolidation temperature forecast probabilities.",
+        "precipitation": null
       }
     },
     {
@@ -57,22 +57,22 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 53.6,
-              "precip": 0.61
+              "temp": 53.5,
+              "precip": 0.35
             }
           },
           {
             "name": "ECMWF ENS",
             "values": {
-              "temp": 50.1,
+              "temp": 49.9,
               "precip": 0.62
             }
           },
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 51.1,
-              "precip": 1.13
+              "temp": 50.9,
+              "precip": 0.91
             }
           }
         ]
@@ -83,8 +83,8 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 48.4,
-              "precip": 0.83
+              "temp": 49.5,
+              "precip": 0.46
             }
           },
           {
@@ -97,8 +97,8 @@
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 45.6,
-              "precip": 1.25
+              "temp": 45.7,
+              "precip": 0.91
             }
           }
         ]
@@ -109,7 +109,7 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 47.9,
+              "temp": 48.5,
               "precip": 0.59
             }
           },
@@ -120,7 +120,7 @@
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 43.3,
+              "temp": 43.4,
               "precip": 1.32
             }
           }
@@ -141,15 +141,15 @@
           {
             "name": "ECMWF ENS",
             "values": {
-              "temp": 57.8,
-              "precip": 0.36
+              "temp": 57.5,
+              "precip": 0.44
             }
           },
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 56.5,
-              "precip": 0.33
+              "temp": 56.7,
+              "precip": 0.25
             }
           }
         ]
@@ -160,8 +160,8 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 55.4,
-              "precip": 0.82
+              "temp": 54.5,
+              "precip": 0.89
             }
           },
           {
@@ -174,8 +174,8 @@
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 53.8,
-              "precip": 0.95
+              "temp": 53.2,
+              "precip": 0.74
             }
           }
         ]
@@ -186,8 +186,8 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 50.9,
-              "precip": 1.68
+              "temp": 50.7,
+              "precip": 1.75
             }
           },
           {
@@ -197,8 +197,8 @@
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 50.2,
-              "precip": 1.57
+              "temp": 49.9,
+              "precip": 1.5
             }
           }
         ]
