@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-10-05T14:57:10.487Z",
-  "checkedAt": "2026-10-05T14:57:10.488Z",
+  "generatedAt": "2026-10-06T00:09:18.868Z",
+  "checkedAt": "2026-10-06T00:09:18.868Z",
   "sources": {
     "medium": "https://www.cpc.ncep.noaa.gov/products/predictions/610day/fxus06.html",
     "extended": "https://www.cpc.ncep.noaa.gov/products/predictions/WK34/"
@@ -12,12 +12,12 @@
       "end": 10,
       "source": "https://www.cpc.ncep.noaa.gov/products/predictions/610day/fxus06.html",
       "utah": {
-        "temperature": "Under transient ridging and positive 500-hPa height anomalies and consistent with reforecast calibrated GEFS and ECMWF temperatures, enhanced probabilities for above normal temperatures are predicted across much of the CONUS, excluding a large area of the northwestern CONUS .",
-        "precipitation": "Near to below normal precipitation is favored for much of the West Coast, west of the predicted trough axis and consistent with the precipitation consolidation."
+        "temperature": "Under transient ridging and positive 500-hPa height anomalies and consistent with the consolidation of reforecast calibrated GEFS and ECMWF temperatures, enhanced probabilities for above normal temperatures are predicted across the southwestern CONUS and most of the eastern CONUS, excluding northern New England where tools are less consistent.",
+        "precipitation": "Ahead of a predicted trough and with enhanced moisture flow from the tropical Pacific, probabilities for above normal precipitation are enhanced for the Southwest, the Four Corners region, and southern and central Rockies."
       },
       "ne": {
-        "temperature": null,
-        "precipitation": "Above normal precipitation is favored across the eastern CONUS, with probabilities exceeding 60 percent for parts of the Southeast, consistent with precipitation anomaly forecasts from the consolidation."
+        "temperature": "Under transient ridging and positive 500-hPa height anomalies and consistent with the consolidation of reforecast calibrated GEFS and ECMWF temperatures, enhanced probabilities for above normal temperatures are predicted across the southwestern CONUS and most of the eastern CONUS, excluding northern New England where tools are less consistent.",
+        "precipitation": "Above normal precipitation is favored across the central and eastern CONUS, consistent with reforecast calibrated precipitation forecasts from the ECMWF and GEFS ensembles."
       }
     },
     {
@@ -26,12 +26,12 @@
       "end": 14,
       "source": "https://www.cpc.ncep.noaa.gov/products/predictions/610day/fxus06.html",
       "utah": {
-        "temperature": "Probabilities for above normal temperatures are enhanced and exceed 50 percent for parts of the southwestern CONUS, where dynamical model forecasts are consistent.",
-        "precipitation": "Above normal precipitation continues to be favored for the Southwest extending into the central and southern Rockies, with the potential for an enhanced moisture flux from an active Eastern Pacific."
+        "temperature": "Above normal temperatures are likely for most of the western CONUS, as a ridge and positive 500-hPa height anomalies amplify over the region during the period.",
+        "precipitation": "Under a predicted ridge, below normal precipitation is favored over most of the northwestern CONUS, from most of the West Coast, excluding Southern California, northeastward across the northern Rockies into the northern High Plains."
       },
       "ne": {
-        "temperature": "Near normal temperatures are favored for much of the northern central CONUS and above normal temperatures are favored for the southern central and eastern CONUS, under positive 500-hPa height anomalies through much of the forecast period and consistent with the consolidation temperature forecast probabilities.",
-        "precipitation": null
+        "temperature": "Near normal temperatures are favored for much of the northern central and northeastern CONUS, where temperature tools are inconsistent or show weak signals.",
+        "precipitation": "Under a predicted ridge, below normal precipitation is favored over most of the northwestern CONUS, from most of the West Coast, excluding Southern California, northeastward across the northern Rockies into the northern High Plains."
       }
     },
     {
@@ -71,8 +71,8 @@
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 48.3,
-              "precip": 0.6
+              "temp": 47.7,
+              "precip": 0.93
             }
           }
         ]
@@ -97,8 +97,8 @@
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 46.2,
-              "precip": 0.54
+              "temp": 44.7,
+              "precip": 0.68
             }
           }
         ]
@@ -121,7 +121,7 @@
             "name": "GEM ENS",
             "values": {
               "temp": 42.1,
-              "precip": 1.85
+              "precip": 1.84
             }
           }
         ]
@@ -148,8 +148,8 @@
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 55.1,
-              "precip": 0.73
+              "temp": 55.9,
+              "precip": 0.76
             }
           }
         ]
@@ -174,8 +174,8 @@
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 52.4,
-              "precip": 1.55
+              "temp": 53.9,
+              "precip": 1.51
             }
           }
         ]
@@ -197,7 +197,7 @@
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 49.9,
+              "temp": 50.5,
               "precip": 2.24
             }
           }
