@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-10-07T13:36:26.250Z",
-  "checkedAt": "2026-10-07T13:36:26.250Z",
+  "generatedAt": "2026-10-07T23:11:24.562Z",
+  "checkedAt": "2026-10-07T23:11:24.562Z",
   "sources": {
     "medium": "https://www.cpc.ncep.noaa.gov/products/predictions/610day/fxus06.html",
     "extended": "https://www.cpc.ncep.noaa.gov/products/predictions/WK34/"
@@ -12,11 +12,11 @@
       "end": 10,
       "source": "https://www.cpc.ncep.noaa.gov/products/predictions/610day/fxus06.html",
       "utah": {
-        "temperature": null,
-        "precipitation": "Below normal precipitation is favored for the northwestern CONUS, consistent with precipitation anomaly forecasts from the consolidation."
+        "temperature": "Above normal temperatures are favored for portions of the northwestern CONUS, under positive 500-hPa height anomalies .",
+        "precipitation": "Below normal precipitation is favored for southwestern Oregon and northern California, consistent with precipitation anomaly forecasts from the consolidation."
       },
       "ne": {
-        "temperature": "Under transient ridging and positive 500-hPa height anomalies and consistent with the consolidation of reforecast calibrated GEFS and ECMWF temperatures, enhanced probabilities for above normal temperatures are predicted across the most of the south-central CONUS and the eastern CONUS, excluding Maine where tools are less consistent.",
+        "temperature": "Below normal temperatures are favored over the northeastern CONUS in association with a predicted trough and below normal 500-hPa heights over the region.",
         "precipitation": null
       }
     },
@@ -31,7 +31,7 @@
       },
       "ne": {
         "temperature": "Near to below normal temperatures are favored for much of the northeastern CONUS, supported by most of the dynamical temperature forecast tools.",
-        "precipitation": "Above normal precipitation is favored for much of the Southern Plains, and from the Gulf Coast northeastward across the southeastern CONUS into the Northeast, consistent with precipitation anomaly forecasts from the consolidation."
+        "precipitation": "Above normal precipitation is favored for much of the Southern Plains, and across the Gulf Coast northeastward into the southeastern CONUS, consistent with precipitation anomaly forecasts from the consolidation."
       }
     },
     {
@@ -57,22 +57,22 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 44.4,
-              "precip": 1.26
+              "temp": 44.7,
+              "precip": 1.05
             }
           },
           {
             "name": "ECMWF ENS",
             "values": {
-              "temp": 44.5,
-              "precip": 1.33
+              "temp": 44.4,
+              "precip": 1.37
             }
           },
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 40,
-              "precip": 1.24
+              "temp": 41.4,
+              "precip": 1.43
             }
           }
         ]
@@ -83,8 +83,8 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 43.9,
-              "precip": 0.69
+              "temp": 43.1,
+              "precip": 0.63
             }
           },
           {
@@ -97,8 +97,8 @@
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 40.7,
-              "precip": 0.6
+              "temp": 41.9,
+              "precip": 0.46
             }
           }
         ]
@@ -109,8 +109,8 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 43.4,
-              "precip": 1.2
+              "temp": 43.7,
+              "precip": 1.11
             }
           },
           {
@@ -120,8 +120,8 @@
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 39.7,
-              "precip": 1.99
+              "temp": 40.1,
+              "precip": 2.01
             }
           }
         ]
@@ -134,22 +134,22 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 55.4,
-              "precip": 0.93
+              "temp": 56.5,
+              "precip": 0.75
             }
           },
           {
             "name": "ECMWF ENS",
             "values": {
-              "temp": 53.2,
-              "precip": 0.67
+              "temp": 53.3,
+              "precip": 0.62
             }
           },
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 56.9,
-              "precip": 1.1
+              "temp": 53.6,
+              "precip": 1.02
             }
           }
         ]
@@ -160,8 +160,8 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 53.1,
-              "precip": 1.28
+              "temp": 54.1,
+              "precip": 0.75
             }
           },
           {
@@ -174,8 +174,8 @@
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 52.2,
-              "precip": 1.44
+              "temp": 49.7,
+              "precip": 0.88
             }
           }
         ]
@@ -186,8 +186,8 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 50.5,
-              "precip": 1.69
+              "temp": 50.8,
+              "precip": 1.75
             }
           },
           {
@@ -197,8 +197,8 @@
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 49.9,
-              "precip": 2.39
+              "temp": 50,
+              "precip": 2.45
             }
           }
         ]
