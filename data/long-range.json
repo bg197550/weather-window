@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-10-06T18:28:39.475Z",
-  "checkedAt": "2026-10-06T18:28:39.475Z",
+  "generatedAt": "2026-10-07T06:10:28.113Z",
+  "checkedAt": "2026-10-07T06:10:28.113Z",
   "sources": {
     "medium": "https://www.cpc.ncep.noaa.gov/products/predictions/610day/fxus06.html",
     "extended": "https://www.cpc.ncep.noaa.gov/products/predictions/WK34/"
@@ -12,12 +12,12 @@
       "end": 10,
       "source": "https://www.cpc.ncep.noaa.gov/products/predictions/610day/fxus06.html",
       "utah": {
-        "temperature": "Under transient ridging and positive 500-hPa height anomalies and consistent with the consolidation of reforecast calibrated GEFS and ECMWF temperatures, enhanced probabilities for above normal temperatures are predicted across the southwestern CONUS and most of the eastern CONUS, excluding northern New England where tools are less consistent.",
-        "precipitation": "Ahead of a predicted trough and with enhanced moisture flow from the tropical Pacific, probabilities for above normal precipitation are enhanced for the Southwest, the Four Corners region, and southern and central Rockies."
+        "temperature": null,
+        "precipitation": "Below normal precipitation is favored for the northwestern CONUS, consistent with precipitation anomaly forecasts from the consolidation."
       },
       "ne": {
-        "temperature": "Under transient ridging and positive 500-hPa height anomalies and consistent with the consolidation of reforecast calibrated GEFS and ECMWF temperatures, enhanced probabilities for above normal temperatures are predicted across the southwestern CONUS and most of the eastern CONUS, excluding northern New England where tools are less consistent.",
-        "precipitation": "Above normal precipitation is favored across the central and eastern CONUS, consistent with reforecast calibrated precipitation forecasts from the ECMWF and GEFS ensembles."
+        "temperature": "Under transient ridging and positive 500-hPa height anomalies and consistent with the consolidation of reforecast calibrated GEFS and ECMWF temperatures, enhanced probabilities for above normal temperatures are predicted across the most of the south-central CONUS and the eastern CONUS, excluding Maine where tools are less consistent.",
+        "precipitation": null
       }
     },
     {
@@ -27,11 +27,11 @@
       "source": "https://www.cpc.ncep.noaa.gov/products/predictions/610day/fxus06.html",
       "utah": {
         "temperature": "Above normal temperatures are likely for most of the western CONUS, as a ridge and positive 500-hPa height anomalies amplify over the region during the period.",
-        "precipitation": "Under a predicted ridge, below normal precipitation is favored over most of the northwestern CONUS, from most of the West Coast, excluding Southern California, northeastward across the northern Rockies into the northern High Plains."
+        "precipitation": "Under a predicted ridge, below normal precipitation is favored over much of the western CONUS, from most of the West Coast, excluding portions of Southern California, eastward across the Northern and Central Great Basin into the northern Rockies."
       },
       "ne": {
-        "temperature": "Near normal temperatures are favored for much of the northern central and northeastern CONUS, where temperature tools are inconsistent or show weak signals.",
-        "precipitation": "Under a predicted ridge, below normal precipitation is favored over most of the northwestern CONUS, from most of the West Coast, excluding Southern California, northeastward across the northern Rockies into the northern High Plains."
+        "temperature": "Near to below normal temperatures are favored for much of the northeastern CONUS, supported by most of the dynamical temperature forecast tools.",
+        "precipitation": "Above normal precipitation is favored for much of the Southern Plains, and from the Gulf Coast northeastward across the southeastern CONUS into the Northeast, consistent with precipitation anomaly forecasts from the consolidation."
       }
     },
     {
@@ -57,22 +57,22 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 47.1,
-              "precip": 1.15
+              "temp": 45.3,
+              "precip": 0.96
             }
           },
           {
             "name": "ECMWF ENS",
             "values": {
-              "temp": 44.3,
-              "precip": 1.44
+              "temp": 44.8,
+              "precip": 1.19
             }
           },
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 43,
-              "precip": 1.17
+              "temp": 41.9,
+              "precip": 0.76
             }
           }
         ]
@@ -83,22 +83,22 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 46.1,
-              "precip": 0.48
+              "temp": 46.8,
+              "precip": 0.37
             }
           },
           {
             "name": "ECMWF ENS",
             "values": {
-              "temp": 42.3,
-              "precip": 0.68
+              "temp": 44.8,
+              "precip": 0.48
             }
           },
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 41.9,
-              "precip": 0.91
+              "temp": 42.4,
+              "precip": 0.52
             }
           }
         ]
@@ -109,8 +109,8 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 46.1,
-              "precip": 0.76
+              "temp": 44.1,
+              "precip": 1.15
             }
           },
           {
@@ -120,8 +120,8 @@
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 41.2,
-              "precip": 1.94
+              "temp": 40.3,
+              "precip": 1.96
             }
           }
         ]
@@ -134,22 +134,22 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 60.3,
-              "precip": 0.51
+              "temp": 57,
+              "precip": 0.86
             }
           },
           {
             "name": "ECMWF ENS",
             "values": {
-              "temp": 58.2,
-              "precip": 0.64
+              "temp": 55.5,
+              "precip": 0.93
             }
           },
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 56.5,
-              "precip": 0.76
+              "temp": 55.7,
+              "precip": 0.97
             }
           }
         ]
@@ -160,22 +160,22 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 55.7,
-              "precip": 0.82
+              "temp": 54.6,
+              "precip": 0.71
             }
           },
           {
             "name": "ECMWF ENS",
             "values": {
-              "temp": 54.5,
-              "precip": 0.98
+              "temp": 51.7,
+              "precip": 0.91
             }
           },
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 54.1,
-              "precip": 1.12
+              "temp": 52.3,
+              "precip": 0.93
             }
           }
         ]
@@ -186,8 +186,8 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 50.1,
-              "precip": 1.52
+              "temp": 50.5,
+              "precip": 1.79
             }
           },
           {
@@ -197,7 +197,7 @@
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 50.2,
+              "temp": 50,
               "precip": 2.28
             }
           }
