@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-10-08T23:26:48.048Z",
-  "checkedAt": "2026-10-08T23:26:48.048Z",
+  "generatedAt": "2026-10-09T06:20:11.889Z",
+  "checkedAt": "2026-10-09T06:20:11.889Z",
   "sources": {
     "medium": "https://www.cpc.ncep.noaa.gov/products/predictions/610day/fxus06.html",
     "extended": "https://www.cpc.ncep.noaa.gov/products/predictions/WK34/"
@@ -57,22 +57,22 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 41.6,
-              "precip": 0.69
+              "temp": 43.1,
+              "precip": 0.51
             }
           },
           {
             "name": "ECMWF ENS",
             "values": {
-              "temp": 41.4,
-              "precip": 0.83
+              "temp": 42.2,
+              "precip": 0.29
             }
           },
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 40.8,
-              "precip": 0.67
+              "temp": 42.2,
+              "precip": 0.24
             }
           }
         ]
@@ -83,22 +83,22 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 45.1,
-              "precip": 0.26
+              "temp": 46.4,
+              "precip": 0.11
             }
           },
           {
             "name": "ECMWF ENS",
             "values": {
-              "temp": 43.2,
-              "precip": 0.38
+              "temp": 45,
+              "precip": 0.13
             }
           },
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 44.1,
-              "precip": 0.35
+              "temp": 44.7,
+              "precip": 0.55
             }
           }
         ]
@@ -109,8 +109,8 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 42.9,
-              "precip": 1.04
+              "temp": 41.8,
+              "precip": 1.25
             }
           },
           {
@@ -120,8 +120,8 @@
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 39.1,
-              "precip": 1.69
+              "temp": 38.5,
+              "precip": 1.5
             }
           }
         ]
@@ -134,22 +134,22 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 58.9,
-              "precip": 0.33
+              "temp": 56.5,
+              "precip": 0.53
             }
           },
           {
             "name": "ECMWF ENS",
             "values": {
-              "temp": 54.4,
-              "precip": 0.41
+              "temp": 53.8,
+              "precip": 0.63
             }
           },
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 52.5,
-              "precip": 1.02
+              "temp": 51.1,
+              "precip": 0.83
             }
           }
         ]
@@ -160,22 +160,22 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 54.8,
-              "precip": 0.78
+              "temp": 54.2,
+              "precip": 0.94
             }
           },
           {
             "name": "ECMWF ENS",
             "values": {
-              "temp": 51.9,
-              "precip": 0.75
+              "temp": 52.8,
+              "precip": 1
             }
           },
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 51.3,
-              "precip": 1.03
+              "temp": 51.8,
+              "precip": 1.12
             }
           }
         ]
@@ -186,8 +186,8 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 50,
-              "precip": 2.04
+              "temp": 49.7,
+              "precip": 1.55
             }
           },
           {
@@ -197,8 +197,8 @@
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 49.8,
-              "precip": 2.42
+              "temp": 49.3,
+              "precip": 2.49
             }
           }
         ]
