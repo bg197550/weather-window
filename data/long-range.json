@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-10-11T13:05:22.886Z",
-  "checkedAt": "2026-10-11T13:05:22.886Z",
+  "generatedAt": "2026-10-11T22:07:40.798Z",
+  "checkedAt": "2026-10-11T22:07:40.799Z",
   "sources": {
     "medium": "https://www.cpc.ncep.noaa.gov/products/predictions/610day/fxus06.html",
     "extended": "https://www.cpc.ncep.noaa.gov/products/predictions/WK34/"
@@ -16,7 +16,7 @@
         "precipitation": null
       },
       "ne": {
-        "temperature": "Near- to below-normal temperatures are also favored for much of the Northeast in northerly flow upstream of troughing over eastern Canada.",
+        "temperature": "Near- to below-normal temperatures are also favored for much of the Eastern Seaboard in northerly flow upstream of troughing over eastern Canada.",
         "precipitation": null
       }
     },
@@ -27,11 +27,11 @@
       "source": "https://www.cpc.ncep.noaa.gov/products/predictions/610day/fxus06.html",
       "utah": {
         "temperature": null,
-        "precipitation": "Above-normal precipitation is still favored over the Desert Southwest, along the Lower Rio Grande Valley and Gulf Coast where a potential stalled frontal boundary and increased moisture sourced from the tropical Eastern Pacific may result in enhanced rain."
+        "precipitation": "Above-normal precipitation is still favored over the Desert Southwest, over the Southern and Central Plains, and Gulf Coast where a potential stalled frontal boundary and increased moisture sourced from the tropical Eastern Pacific may result in enhanced rain."
       },
       "ne": {
-        "temperature": "Lower odds for above-normal temperatures are indicated over portions of the Southern Plains due to lingering cloudiness from a stalled frontal boundary, while weak troughing over eastern Canada maintains near-normal temperatures across much of the northeastern CONUS into the Mid-Atlantic.",
-        "precipitation": null
+        "temperature": "Lower odds for above-normal temperatures are indicated over portions of the Southern Plains due to lingering cloudiness from a stalled frontal boundary, and across much of the northeastern CONUS into the Mid-Atlantic under the influence of continued troughing over eastern Canada.",
+        "precipitation": "As ridging shifts eastward over the Great Lakes, much of the northeastern CONUS remains favored for below-normal precipitation, while near-normal is preferred for much of the remainder of the Northern Tier."
       }
     },
     {
@@ -57,8 +57,8 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 49.2,
-              "precip": 0.09
+              "temp": 48.7,
+              "precip": 0.13
             }
           },
           {
@@ -71,8 +71,8 @@
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 44,
-              "precip": 0.22
+              "temp": 43,
+              "precip": 0.19
             }
           }
         ]
@@ -83,8 +83,8 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 47.7,
-              "precip": 0.33
+              "temp": 45.7,
+              "precip": 0.47
             }
           },
           {
@@ -94,8 +94,8 @@
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 42.3,
-              "precip": 0.68
+              "temp": 41.4,
+              "precip": 0.52
             }
           }
         ]
@@ -106,8 +106,8 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 42.7,
-              "precip": 0.94
+              "temp": 42.4,
+              "precip": 0.96
             }
           },
           {
@@ -117,8 +117,8 @@
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 37.4,
-              "precip": 1.47
+              "temp": 37.6,
+              "precip": 1.44
             }
           }
         ]
@@ -132,7 +132,7 @@
             "name": "GEFS",
             "values": {
               "temp": 49,
-              "precip": 0.65
+              "precip": 0.51
             }
           },
           {
@@ -145,8 +145,8 @@
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 48.2,
-              "precip": 1.01
+              "temp": 48.8,
+              "precip": 0.69
             }
           }
         ]
@@ -157,8 +157,8 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 50.2,
-              "precip": 0.46
+              "temp": 51.3,
+              "precip": 0.64
             }
           },
           {
@@ -171,8 +171,8 @@
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 49.1,
-              "precip": 1.3
+              "temp": 50.5,
+              "precip": 0.54
             }
           }
         ]
@@ -183,8 +183,8 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 49,
-              "precip": 1.41
+              "temp": 49.1,
+              "precip": 1.27
             }
           },
           {
@@ -194,8 +194,8 @@
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 48.7,
-              "precip": 2.74
+              "temp": 49,
+              "precip": 2.44
             }
           }
         ]
