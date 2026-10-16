@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-10-16T16:46:44.652Z",
-  "checkedAt": "2026-10-16T16:46:44.653Z",
+  "generatedAt": "2026-10-16T21:21:43.815Z",
+  "checkedAt": "2026-10-16T21:21:43.815Z",
   "sources": {
     "medium": "https://www.cpc.ncep.noaa.gov/products/predictions/610day/fxus06.html",
     "extended": "https://www.cpc.ncep.noaa.gov/products/predictions/WK34/"
@@ -12,12 +12,12 @@
       "end": 10,
       "source": "https://www.cpc.ncep.noaa.gov/products/predictions/610day/fxus06.html",
       "utah": {
-        "temperature": "Conversely, below-normal temperature odds are elevated across much of the Southwest and Great Basin underneath troughing and with support from the uncalibrated 0z ECMWF and GEFS ensembles and analogs .",
-        "precipitation": "The primary feature in terms of enhanced precipitation is predicted to be surface low pressure developing across the Southwest and tracking across the Rockies."
+        "temperature": "Above-normal temperatures are strongly favored across nearly all of the CONUS from the Rockies to the East Coast, with probabilities exceeding 80 percent over parts of the Upper Midwest.",
+        "precipitation": "Conversely, near- to below-normal temperature odds are elevated west of the Rockies underneath troughing and due to the influence of increased cloud cover and precipitation."
       },
       "ne": {
-        "temperature": "Above-normal temperatures are strongly favored across nearly all of the CONUS east of the Rockies, with probabilities exceeding 80 percent over parts of the Upper Midwest.",
-        "precipitation": "Farther to the east, under the influence of ridging and surface high pressure, probabilities for below-normal precipitation are increased across the Northeast, Ohio Valley, and extending south to the Gulf Coast."
+        "temperature": "Above-normal temperatures are strongly favored across nearly all of the CONUS from the Rockies to the East Coast, with probabilities exceeding 80 percent over parts of the Upper Midwest.",
+        "precipitation": "Farther to the east, under the influence of ridging and surface high pressure, probabilities for below-normal precipitation are increased across the Northeast, Great Lakes, Ohio and Tennessee Valleys, and extending south to the Gulf Coast."
       }
     },
     {
@@ -26,12 +26,12 @@
       "end": 14,
       "source": "https://www.cpc.ncep.noaa.gov/products/predictions/610day/fxus06.html",
       "utah": {
-        "temperature": "Increased chances of above-normal temperatures are forecast to persist east of the Rockies, although the magnitude of the positive temperature anomalies is forecast to decrease with time as the mid-level ridge over the central and eastern CONUS weakens.",
-        "precipitation": "Above-normal precipitation chances are increased across much of the Interior West and central CONUS tied to surface low pressure early in the period."
+        "temperature": "Increased chances of above-normal temperatures are forecast to persist east of the Rockies, with higher probabilities expanded in coverage compared to yesterday due to a greater persistence of ridging.",
+        "precipitation": "Weak probabilities of below-normal temperatures are highlighted over the Interior West underneath troughing and considering potential wet conditions and higher elevation snow cover across the Rockies."
       },
       "ne": {
-        "temperature": "Increased chances of above-normal temperatures are forecast to persist east of the Rockies, although the magnitude of the positive temperature anomalies is forecast to decrease with time as the mid-level ridge over the central and eastern CONUS weakens.",
-        "precipitation": "Analogs and uncalibrated 0z ECMWF guidance continue to support increased chances for below-normal precipitation across the East underneath enhanced ridging early in the period."
+        "temperature": "Increased chances of above-normal temperatures are forecast to persist east of the Rockies, with higher probabilities expanded in coverage compared to yesterday due to a greater persistence of ridging.",
+        "precipitation": "Analogs and uncalibrated 0z ECMWF guidance continue to support increased chances for below-normal precipitation across the interior East southward to the central Gulf Coast and northeastward to northern New England, underneath enhanced ridging early in the period, with near- to above-normal precipitation odds increased across most of the Coastal Plain tied to a potential surface low over the western Atlantic."
       }
     },
     {
@@ -40,12 +40,12 @@
       "end": 28,
       "source": "https://www.cpc.ncep.noaa.gov/products/predictions/WK34/",
       "utah": {
-        "temperature": null,
-        "precipitation": null
+        "temperature": "Downstream over the CONUS, above normal temperatures are likely for much of the West, consistent with most dynamical models and the manual blend.",
+        "precipitation": "Above normal precipitation is slightly favored for most of the Pacific Northwest into the Northern Rockies, ahead of the amplified trough to the west."
       },
       "ne": {
-        "temperature": "Equal chances of above-, near-, or below-normal temperatures are indicated from Texas, across the Ohio Valley and up to New England, due to the uncertainty associated with the exact placement and amplitude of the maximum in the 500-hPa ridging over North America.",
-        "precipitation": "The Precipitation Outlook for the Weeks 3-4 period indicates heightened chances of drier-than-normal conditions over much of the northern and northeastern CONUS, extending from northern Montana, across the northern Great Plains and Midwest regions, and towards the mid-Atlantic and Carolinas, including the northeastern CONUS and New England."
+        "temperature": null,
+        "precipitation": "Above normal precipitation is favored across the southern tier into the Gulf Coast region, under weak negative 500-hPa height anomalies, and northward up the East Coast into southern New England, consistent with the JMA precipitation forecast."
       }
     }
   ],
@@ -57,22 +57,22 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 42.2,
-              "precip": 0.97
+              "temp": 41.3,
+              "precip": 1.08
             }
           },
           {
             "name": "ECMWF ENS",
             "values": {
-              "temp": 40.9,
-              "precip": 0.89
+              "temp": 42.5,
+              "precip": 0.77
             }
           },
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 40.8,
-              "precip": 1.03
+              "temp": 42.7,
+              "precip": 1.07
             }
           }
         ]
@@ -83,22 +83,22 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 41.1,
-              "precip": 0.72
+              "temp": 40,
+              "precip": 0.65
             }
           },
           {
             "name": "ECMWF ENS",
             "values": {
-              "temp": 37.7,
-              "precip": 0.89
+              "temp": 38.9,
+              "precip": 0.98
             }
           },
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 37.9,
-              "precip": 1.16
+              "temp": 38,
+              "precip": 1.52
             }
           }
         ]
@@ -109,8 +109,8 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 36.4,
-              "precip": 1.73
+              "temp": 36.5,
+              "precip": 1.65
             }
           },
           {
@@ -120,8 +120,8 @@
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 33,
-              "precip": 1.73
+              "temp": 32.9,
+              "precip": 1.72
             }
           }
         ]
@@ -134,22 +134,22 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 49,
-              "precip": 0.17
+              "temp": 48.9,
+              "precip": 0.06
             }
           },
           {
             "name": "ECMWF ENS",
             "values": {
-              "temp": 51.3,
-              "precip": 0.51
+              "temp": 51.6,
+              "precip": 0.91
             }
           },
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 51.1,
-              "precip": 0.11
+              "temp": 49.7,
+              "precip": 0.09
             }
           }
         ]
@@ -160,22 +160,22 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 50,
-              "precip": 0.62
+              "temp": 49.1,
+              "precip": 0.61
             }
           },
           {
             "name": "ECMWF ENS",
             "values": {
-              "temp": 51.3,
+              "temp": 50.8,
               "precip": 0.76
             }
           },
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 51.3,
-              "precip": 0.28
+              "temp": 49.5,
+              "precip": 0.68
             }
           }
         ]
@@ -186,8 +186,8 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 47.9,
-              "precip": 1.53
+              "temp": 47.8,
+              "precip": 1.8
             }
           },
           {
@@ -197,8 +197,8 @@
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 46.7,
-              "precip": 3
+              "temp": 46.8,
+              "precip": 3.09
             }
           }
         ]
