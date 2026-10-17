@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-10-17T15:43:07.137Z",
-  "checkedAt": "2026-10-17T15:43:07.138Z",
+  "generatedAt": "2026-10-17T20:44:17.681Z",
+  "checkedAt": "2026-10-17T20:44:17.681Z",
   "sources": {
     "medium": "https://www.cpc.ncep.noaa.gov/products/predictions/610day/fxus06.html",
     "extended": "https://www.cpc.ncep.noaa.gov/products/predictions/WK34/"
@@ -18,7 +18,8 @@
       "ne": {
         "temperature": "Above-normal temperatures are strongly favored across nearly all of the CONUS from the Rockies to the East Coast, with probabilities exceeding 80 percent over parts of the Upper Midwest.",
         "precipitation": "Farther to the east, under the influence of ridging and surface high pressure, probabilities for below-normal precipitation are increased across the Northeast, Great Lakes, Ohio and Tennessee Valleys, and extending south to the Gulf Coast."
-      }
+      },
+      "stale": true
     },
     {
       "name": "Days 8–14",
@@ -32,7 +33,8 @@
       "ne": {
         "temperature": "Increased chances of above-normal temperatures are forecast to persist east of the Rockies, with higher probabilities expanded in coverage compared to yesterday due to a greater persistence of ridging.",
         "precipitation": "Analogs and uncalibrated 0z ECMWF guidance continue to support increased chances for below-normal precipitation across the interior East southward to the central Gulf Coast and northeastward to northern New England, underneath enhanced ridging early in the period, with near- to above-normal precipitation odds increased across most of the Coastal Plain tied to a potential surface low over the western Atlantic."
-      }
+      },
+      "stale": true
     },
     {
       "name": "Weeks 3–4",
@@ -57,8 +59,8 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 42.5,
-              "precip": 0.93
+              "temp": 44.2,
+              "precip": 1.08
             }
           },
           {
@@ -71,8 +73,8 @@
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 43.5,
-              "precip": 1.27
+              "temp": 43.4,
+              "precip": 1.21
             }
           }
         ]
@@ -83,8 +85,8 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 41.1,
-              "precip": 0.71
+              "temp": 41.5,
+              "precip": 0.75
             }
           },
           {
@@ -97,8 +99,8 @@
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 39.5,
-              "precip": 1.19
+              "temp": 40.6,
+              "precip": 0.88
             }
           }
         ]
@@ -109,8 +111,8 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 37,
-              "precip": 1.46
+              "temp": 36.7,
+              "precip": 1.36
             }
           },
           {
@@ -120,8 +122,8 @@
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 32.6,
-              "precip": 1.89
+              "temp": 32.9,
+              "precip": 1.84
             }
           }
         ]
@@ -135,7 +137,7 @@
             "name": "GEFS",
             "values": {
               "temp": 49.2,
-              "precip": 0.17
+              "precip": 0.33
             }
           },
           {
@@ -148,8 +150,8 @@
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 49.9,
-              "precip": 0.77
+              "temp": 48.7,
+              "precip": 0.52
             }
           }
         ]
@@ -160,8 +162,8 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 51,
-              "precip": 0.35
+              "temp": 50.7,
+              "precip": 0.62
             }
           },
           {
@@ -174,8 +176,8 @@
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 49.6,
-              "precip": 1.08
+              "temp": 48.5,
+              "precip": 0.71
             }
           }
         ]
@@ -187,7 +189,7 @@
             "name": "GEFS",
             "values": {
               "temp": 48.5,
-              "precip": 1.4
+              "precip": 1.39
             }
           },
           {
@@ -197,8 +199,8 @@
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 46.5,
-              "precip": 3.14
+              "temp": 46.1,
+              "precip": 3.02
             }
           }
         ]
@@ -206,7 +208,10 @@
     ]
   },
   "modelNote": null,
-  "warnings": [],
+  "warnings": [
+    "Days 6–10 CPC text (showing previous)",
+    "Days 8–14 CPC text (showing previous)"
+  ],
   "places": {
     "utah": "Park City, UT",
     "ne": "Boston, MA"
