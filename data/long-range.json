@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-10-18T11:22:16.340Z",
-  "checkedAt": "2026-10-18T11:22:16.340Z",
+  "generatedAt": "2026-10-18T15:58:37.686Z",
+  "checkedAt": "2026-10-18T15:58:37.686Z",
   "sources": {
     "medium": "https://www.cpc.ncep.noaa.gov/products/predictions/610day/fxus06.html",
     "extended": "https://www.cpc.ncep.noaa.gov/products/predictions/WK34/"
@@ -59,15 +59,15 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 41.8,
-              "precip": 0.69
+              "temp": 42.4,
+              "precip": 0.76
             }
           },
           {
             "name": "ECMWF ENS",
             "values": {
-              "temp": 41.6,
-              "precip": 0.96
+              "temp": 41.1,
+              "precip": 0.91
             }
           },
           {
@@ -85,15 +85,15 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 40.8,
-              "precip": 0.61
+              "temp": 41.1,
+              "precip": 0.69
             }
           },
           {
             "name": "ECMWF ENS",
             "values": {
-              "temp": 39.3,
-              "precip": 0.94
+              "temp": 38.7,
+              "precip": 1.03
             }
           },
           {
@@ -111,8 +111,8 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 36.3,
-              "precip": 1.54
+              "temp": 36.2,
+              "precip": 1.49
             }
           },
           {
@@ -136,15 +136,15 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 48.9,
-              "precip": 0.08
+              "temp": 48.3,
+              "precip": 0.29
             }
           },
           {
             "name": "ECMWF ENS",
             "values": {
-              "temp": 49,
-              "precip": 0.53
+              "temp": 47.8,
+              "precip": 0.26
             }
           },
           {
@@ -162,15 +162,15 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 50.3,
-              "precip": 0.26
+              "temp": 49.4,
+              "precip": 0.32
             }
           },
           {
             "name": "ECMWF ENS",
             "values": {
-              "temp": 49.1,
-              "precip": 0.86
+              "temp": 48.9,
+              "precip": 0.65
             }
           },
           {
@@ -188,8 +188,8 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 48.8,
-              "precip": 1.71
+              "temp": 49.1,
+              "precip": 1.91
             }
           },
           {
