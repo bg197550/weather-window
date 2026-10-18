@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-10-18T15:58:37.686Z",
-  "checkedAt": "2026-10-18T15:58:37.686Z",
+  "generatedAt": "2026-10-18T20:53:31.412Z",
+  "checkedAt": "2026-10-18T20:53:31.412Z",
   "sources": {
     "medium": "https://www.cpc.ncep.noaa.gov/products/predictions/610day/fxus06.html",
     "extended": "https://www.cpc.ncep.noaa.gov/products/predictions/WK34/"
@@ -12,14 +12,13 @@
       "end": 10,
       "source": "https://www.cpc.ncep.noaa.gov/products/predictions/610day/fxus06.html",
       "utah": {
-        "temperature": "Above-normal temperatures are strongly favored across nearly all of the CONUS from the Rockies to the East Coast, with probabilities exceeding 80 percent over parts of the Upper Midwest.",
+        "temperature": "Above-normal temperatures are strongly favored across much of the CONUS from the Rockies to the East Coast, with probabilities exceeding 80 percent over parts of the Upper Midwest.",
         "precipitation": "Conversely, near- to below-normal temperature odds are elevated west of the Rockies underneath troughing and due to the influence of increased cloud cover and precipitation."
       },
       "ne": {
-        "temperature": "Above-normal temperatures are strongly favored across nearly all of the CONUS from the Rockies to the East Coast, with probabilities exceeding 80 percent over parts of the Upper Midwest.",
-        "precipitation": "Farther to the east, under the influence of ridging and surface high pressure, probabilities for below-normal precipitation are increased across the Northeast, Great Lakes, Ohio and Tennessee Valleys, and extending south to the Gulf Coast."
-      },
-      "stale": true
+        "temperature": "Troughing near Florida also pushes much of the Eastern Seaboard towards near-normal temperatures.",
+        "precipitation": "Given the typically lower precipitation climatologies in this region, high probabilities for above-normal precipitation are posted across much of the Interior West into the Great Plains, and diminishing in magnitude farther east toward the Mississippi Valley."
+      }
     },
     {
       "name": "Days 8–14",
@@ -28,13 +27,12 @@
       "source": "https://www.cpc.ncep.noaa.gov/products/predictions/610day/fxus06.html",
       "utah": {
         "temperature": "Increased chances of above-normal temperatures are forecast to persist east of the Rockies, with higher probabilities expanded in coverage compared to yesterday due to a greater persistence of ridging.",
-        "precipitation": "Weak probabilities of below-normal temperatures are highlighted over the Interior West underneath troughing and considering potential wet conditions and higher elevation snow cover across the Rockies."
+        "precipitation": "Weak probabilities of below-normal temperatures are highlighted over portions of the western CONUS underneath troughing and considering potential wet conditions and higher elevation snow cover across the Rockies."
       },
       "ne": {
         "temperature": "Increased chances of above-normal temperatures are forecast to persist east of the Rockies, with higher probabilities expanded in coverage compared to yesterday due to a greater persistence of ridging.",
-        "precipitation": "Analogs and uncalibrated 0z ECMWF guidance continue to support increased chances for below-normal precipitation across the interior East southward to the central Gulf Coast and northeastward to northern New England, underneath enhanced ridging early in the period, with near- to above-normal precipitation odds increased across most of the Coastal Plain tied to a potential surface low over the western Atlantic."
-      },
-      "stale": true
+        "precipitation": "Analogs and uncalibrated 0z ECMWF guidance continue to support increased chances for below-normal precipitation across the interior East southward to the central Gulf Coast and northeastward to northern New England, underneath enhanced ridging early in the period, with near-normal precipitation favored up the Mid-Atlantic coast and a slight tilt towards above-normal precipitation for the Florida Peninsula due to continued potential for tropical moisture inflow."
+      }
     },
     {
       "name": "Weeks 3–4",
@@ -59,8 +57,8 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 42.4,
-              "precip": 0.76
+              "temp": 42.3,
+              "precip": 0.8
             }
           },
           {
@@ -73,8 +71,8 @@
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 39.4,
-              "precip": 0.83
+              "temp": 39.3,
+              "precip": 0.89
             }
           }
         ]
@@ -85,8 +83,8 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 41.1,
-              "precip": 0.69
+              "temp": 42.3,
+              "precip": 0.54
             }
           },
           {
@@ -99,8 +97,8 @@
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 40,
-              "precip": 0.57
+              "temp": 39.3,
+              "precip": 0.81
             }
           }
         ]
@@ -111,8 +109,8 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 36.2,
-              "precip": 1.49
+              "temp": 36.7,
+              "precip": 1.5
             }
           },
           {
@@ -122,8 +120,8 @@
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 32.1,
-              "precip": 1.99
+              "temp": 32,
+              "precip": 2.14
             }
           }
         ]
@@ -136,8 +134,8 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 48.3,
-              "precip": 0.29
+              "temp": 50.1,
+              "precip": 0.06
             }
           },
           {
@@ -150,8 +148,8 @@
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 46.6,
-              "precip": 0.1
+              "temp": 47.4,
+              "precip": 0.09
             }
           }
         ]
@@ -162,8 +160,8 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 49.4,
-              "precip": 0.32
+              "temp": 50.3,
+              "precip": 0.2
             }
           },
           {
@@ -176,8 +174,8 @@
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 47,
-              "precip": 0.58
+              "temp": 48.1,
+              "precip": 0.15
             }
           }
         ]
@@ -188,8 +186,8 @@
           {
             "name": "GEFS",
             "values": {
-              "temp": 49.1,
-              "precip": 1.91
+              "temp": 48.9,
+              "precip": 2.06
             }
           },
           {
@@ -199,8 +197,8 @@
           {
             "name": "GEM ENS",
             "values": {
-              "temp": 45.5,
-              "precip": 2.85
+              "temp": 45.9,
+              "precip": 2.71
             }
           }
         ]
@@ -208,10 +206,7 @@
     ]
   },
   "modelNote": null,
-  "warnings": [
-    "Days 6–10 CPC text (showing previous)",
-    "Days 8–14 CPC text (showing previous)"
-  ],
+  "warnings": [],
   "places": {
     "utah": "Park City, UT",
     "ne": "Boston, MA"
