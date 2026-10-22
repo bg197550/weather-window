@@ -257,7 +257,7 @@ window.suiteContext = function () {
     app: "Snow Report",
     view: TABS[tab],
     text: parts.join("\n\n"),
-    note: "Resort snow totals are NWS gridded forecasts; the model tab is independent global model guidance (GFS, ECMWF, AIFS, GraphCast); SNOTEL values are measured. Times are Mountain.",
+    note: "Resort snow totals are NWS gridded forecasts; the model tab is independent global model guidance (GFS, ECMWF, AIFS, GEM); SNOTEL values are measured. Times are Mountain.",
   };
 };
 readHash();

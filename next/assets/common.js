@@ -112,8 +112,8 @@ const SEV_RANK = { Extreme: 0, Severe: 1, Moderate: 2, Minor: 3, Unknown: 4 };
 const SNOW_MODELS = [
   ["GFS", "gfs_seamless"],
   ["ECMWF", "ecmwf_ifs025"],
-  ["AIFS", "ecmwf_aifs025"],
-  ["GraphCast", "gfs_graphcast025"],
+  ["AIFS", "ecmwf_aifs025_single"],
+  ["GEM", "gem_global"],
 ];
 let cache = new Map();
 let mountainCache = new Map();
@@ -320,7 +320,7 @@ async function loadSnowModels() {
     );
     const tot = (sr, n) => (sr.end >= n - 1 ? sr.values[n - 1] : null),
       f = (v) => (v == null ? "–" : v < 0.05 ? "0" : v.toFixed(1));
-    el.innerHTML = `<h3>Long-range snowfall models · ${escapeHTML(r.name)} peak</h3><p class="afd-intro">Accumulated snowfall from four global models at ${escapeHTML(p[2])}. GFS runs 16 days; ECMWF, AIFS (ECMWF's AI model) and GraphCast (Google DeepMind's AI model) run about 10. Use for trend and agreement, not exact totals.</p><div class="day-pills" aria-label="Resort">${resorts.map((x, i) => `<button data-snow-resort="${i}" class="${i === snowModelResort ? "active" : ""}">${escapeHTML(x.name)}</button>`).join("")}</div>${makePlot(
+    el.innerHTML = `<h3>Long-range snowfall models · ${escapeHTML(r.name)} peak</h3><p class="afd-intro">Accumulated snowfall from four global models at ${escapeHTML(p[2])}. GFS runs 16 days; ECMWF, AIFS (ECMWF's AI model) and GEM (Environment Canada) run about 10. Use for trend and agreement, not exact totals.</p><div class="day-pills" aria-label="Resort">${resorts.map((x, i) => `<button data-snow-resort="${i}" class="${i === snowModelResort ? "active" : ""}">${escapeHTML(x.name)}</button>`).join("")}</div>${makePlot(
       series.map((x) => ({ name: x.name, values: x.values })),
       labels,
       " in",
