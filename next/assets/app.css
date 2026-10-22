@@ -915,7 +915,7 @@ p {
   color: #3a2600;
   border-radius: 999px;
   padding: 2px 8px;
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 800;
 }
 
@@ -934,7 +934,7 @@ p {
   opacity: 0.8;
 }
 .obs-label {
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -955,7 +955,7 @@ p {
   fill: #8ebee6;
 }
 .temp-lbl {
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 800;
   fill: #d4e6f2;
 }
@@ -964,7 +964,7 @@ p {
 }
 .end-lbl,
 .point-value {
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 800;
   paint-order: stroke;
   stroke: #112329;
@@ -982,12 +982,12 @@ p {
   display: block;
   color: #9badb8;
   font-weight: 500;
-  font-size: 12px;
+  font-size: 12.5px;
 }
 .most {
   display: inline-block;
   margin-left: 6px;
-  font-size: 12px;
+  font-size: 12.5px;
   background: #ffcf5c;
   color: #3a2600;
   border-radius: 999px;
@@ -1111,7 +1111,7 @@ p {
   background: #171717e6;
   border-radius: 8px;
   padding: 5px 9px;
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 700;
   color: #cbe0ec;
 }
@@ -1304,7 +1304,7 @@ p {
   position: relative;
   aspect-ratio: var(--pm-ar, 1);
   width: 100%;
-  max-width: calc(76vh * var(--pm-ar, 1));
+  max-width: calc(58vh * var(--pm-ar, 1));
   margin: 0 auto;
   border-radius: 11px;
   overflow: hidden;
@@ -1462,7 +1462,7 @@ p {
   display: inline;
   color: #9aacb5;
   font-weight: 500;
-  font-size: 12px;
+  font-size: 12.5px;
 }
 #model-comparison .chart-scroll {
   max-width: 100%;
@@ -1527,7 +1527,7 @@ p {
   #model-comparison .model-scroll-hint {
     display: block;
     color: #9eb8c4;
-    font-size: 12px;
+    font-size: 12.5px;
     margin: 4px 0 6px;
   }
   #model-comparison .forecast-chart {
@@ -1680,7 +1680,7 @@ p {
   .period-hourly-table td::before {
     content: attr(data-label);
     color: #9eb8c4;
-    font-size: 12px;
+    font-size: 12.5px;
   }
   .period-hourly-table td[data-label="Weather"] {
     grid-column: 1/-1;
@@ -1760,7 +1760,7 @@ p {
 .place-pills .location.has-alert::after {
   content: " ▲";
   color: #e0a400;
-  font-size: 12px;
+  font-size: 12.5px;
 }
 .fc-head {
   display: flex;
@@ -1932,7 +1932,7 @@ p {
   font-size: 16px;
 }
 .day-pop {
-  font-size: 12px;
+  font-size: 12.5px;
   color: #8fd3e6;
   min-height: 15px;
 }
@@ -1955,7 +1955,7 @@ p {
 }
 .row-link {
   margin-left: 8px;
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 700;
 }
 @media (max-width: 1050px) {
@@ -1982,8 +1982,9 @@ p {
     display: none;
   }
   .place-picker {
-    display: block;
+    display: inline-block;
     position: relative;
+    max-width: 100%;
   }
   .place-picker::after {
     content: "▾";
@@ -2008,6 +2009,7 @@ p {
     padding: 4px 26px 4px 0;
     max-width: 100%;
     min-height: 44px;
+    field-sizing: content;
   }
   .place-picker select option,
   .place-picker select optgroup {
@@ -2162,6 +2164,135 @@ p {
   }
 }
 .end-lbl {
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 800;
+}
+
+/* ---------- Precip models: table of every model at each location ---------- */
+.pm-table-wrap h3,
+.pm-map-title {
+  margin: 18px 0 8px;
+  font-size: 18px;
+}
+.pm-table-wrap h3 .muted {
+  font-weight: 500;
+  margin-left: 6px;
+}
+.pm-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid #23414f;
+  border-radius: 10px;
+}
+.pm-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.pm-table th,
+.pm-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #1f3a45;
+  text-align: right;
+  white-space: nowrap;
+}
+.pm-table thead th {
+  background: #0d2735;
+  vertical-align: bottom;
+}
+.pm-table thead th button {
+  border: 0;
+  background: none;
+  color: #a9c2d0;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 2px 0;
+  text-decoration: underline dotted #4b7385;
+  text-underline-offset: 3px;
+}
+.pm-table th:first-child {
+  text-align: left;
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: #0d2735;
+  font-weight: 700;
+}
+.pm-table tbody th {
+  background: #102c3b;
+}
+.pm-table td.top {
+  font-weight: 800;
+  color: #fff;
+}
+.pm-table .sel {
+  background: #173d4e;
+}
+.pm-table thead th.sel button {
+  color: #fff;
+  text-decoration: none;
+}
+.pm-table sup {
+  color: #e0a400;
+}
+@media (max-width: 760px) {
+  .pm-table {
+    font-size: 13px;
+  }
+  .pm-table th,
+  .pm-table td {
+    padding: 7px 8px;
+  }
+}
+.leaflet-tooltip.map-label {
+  background: #0b2130e0;
+  color: #eaf6f8;
+  border: 0;
+  box-shadow: none;
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+.leaflet-tooltip.map-label::before {
+  display: none;
+}
+
+/* Snow table on phones: one compact block per resort instead of a tall card. */
+@media (max-width: 760px) {
+  .model-table.snow-table tbody {
+    gap: 8px;
+  }
+  .model-table.snow-table tr {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 14px;
+    padding: 10px 12px;
+  }
+  .model-table.snow-table th {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 0;
+    font-size: 16px;
+  }
+  .model-table.snow-table td {
+    display: block;
+    padding: 0;
+    font-size: 14px;
+  }
+  .model-table.snow-table td::before {
+    display: block;
+    font-size: 12px;
+    color: #9fb1bc;
+    margin-bottom: 1px;
+  }
+  .model-table.snow-table td small {
+    display: block;
+    margin: 0;
+  }
 }

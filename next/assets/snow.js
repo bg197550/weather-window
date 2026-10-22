@@ -132,7 +132,8 @@ async function loadHourlyView() {
     el.innerHTML = `<div class="chart-controls"><h3>${escapeHTML(r.name)} · ${escapeHTML(p[2])}</h3>${sameGrid ? '<span class="muted">Peak and mid mountain share one NWS grid square here</span>' : `<div class="seg" aria-label="Elevation"><button data-hp="1" class="${hourlyPoint === 1 ? "active" : ""}" aria-pressed="${hourlyPoint === 1}">Peak</button><button data-hp="0" class="${hourlyPoint === 0 ? "active" : ""}" aria-pressed="${hourlyPoint === 0}">Mid mountain</button></div>`}</div><div class="hourly-chart"></div><div class="periods-list">${per.map((q) => `<div class="glance-period">${forecastIcon(q, "small")}<div><b>${escapeHTML(q.name)} · ${q.temperature}°</b><span>${escapeHTML(q.detailedForecast || q.shortForecast)}</span></div></div>`).join("")}</div><p class="source">NWS hourly and point forecast · updated ${new Date(h.updateTime).toLocaleString("en-US", { timeZone: "America/Denver" })} MT</p>`;
     const box = el.querySelector(".hourly-chart"),
       draw = () => {
-        if (box.isConnected) box.innerHTML = hourlyChart(h.periods || [], "America/Denver", 48, chartWidth(el));
+        if (box.isConnected)
+          box.innerHTML = hourlyChart(h.periods || [], "America/Denver", 48, chartWidth(el));
       };
     draw();
     redrawOnResize(el, draw);

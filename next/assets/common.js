@@ -348,11 +348,11 @@ async function loadSnowModels() {
 function hourlyChart(periods, zone, hours, width) {
   const hrs = periods.filter((q) => Date.parse(q.endTime) > Date.now()).slice(0, hours);
   if (hrs.length < 6) return '<p class="muted">Hourly forecast unavailable.</p>';
-  const avail = Math.max(280, Math.round(width || (hours === 48 ? 1500 : 760)));
+  const avail = Math.max(280, Math.round((width || (hours === 48 ? 1500 : 760)) - 4));
   const w = hours === 48 && avail < 700 ? avail * 2 : avail,
     h = 236,
     left = 38,
-    right = 30,
+    right = 38,
     top = 20,
     plotH = 120,
     n = hrs.length,

@@ -1,4 +1,6 @@
 const CPC = "https://www.cpc.ncep.noaa.gov/products/predictions/";
+/* Refreshed every 6 hours by .github/workflows/update-long-range.yml on the data branch. */
+const LONG_RANGE_URL = "https://raw.githubusercontent.com/bg197550/weather-window/data/long-range.json";
 const outlooks = [
   ["6–10 days", "610day/", "610temp.new.gif", "610prcp.new.gif", "Updated daily"],
   ["8–14 days", "814day/", "814temp.new.gif", "814prcp.new.gif", "Updated daily"],
@@ -107,9 +109,7 @@ async function loadLongRange() {
   const el = document.querySelector("#long-analysis");
   try {
     if (!longData || Date.now() - longDataTime > 600000) {
-      let u =
-        "https://raw.githubusercontent.com/bg197550/weather-window/main/data/long-range.json?t=" +
-        Math.floor(Date.now() / 600000);
+      let u = LONG_RANGE_URL + "?t=" + Math.floor(Date.now() / 600000);
       try {
         longData = await getJSON(u);
       } catch {
@@ -241,7 +241,9 @@ function placeLinks(place, section) {
   if (CAMS[place.name]) links.push(`<a class="xlink" href="webcams/#${CAMS[place.name]}">▣ Webcams ›</a>`);
   if (section === "utah" && place.p.length > 1) {
     links.push('<a class="xlink" href="snow/">❄ Snow report ›</a>');
-    links.push(`<a class="xlink" href="${uacURL(place.name)}" target="_blank" rel="noopener">Avalanche forecast ↗</a>`);
+    links.push(
+      `<a class="xlink" href="${uacURL(place.name)}" target="_blank" rel="noopener">Avalanche forecast ↗</a>`,
+    );
   }
   if (section === "ne") links.push(surfLink(place.name));
   return links.filter(Boolean).join("");
@@ -383,16 +385,20 @@ function pointElevFt(p) {
 }
 function pointDetail(pt, gridFt) {
   const where = (p) => (p[2].includes(" · ") ? p[2].split(" · ")[1] : "");
+  const note = (ft) => {
+    const diff = ft != null && gridFt != null ? ft - gridFt : 0;
+    return Math.abs(diff) >= 500
+      ? `<div class="grid-note">The NWS grid here averages about ${(Math.round(Math.abs(diff) / 100) * 100).toLocaleString()} ft ${diff > 0 ? "below" : "above"} ${pt.merged.length > 1 ? "the peak" : "this point"}, so ${diff > 0 ? "expect it colder and windier up top than shown" : "conditions at the point may be milder than shown"}.</div>`
+      : "";
+  };
   if (pt.merged.length > 1) {
-    return `<div class="muted">${pt.merged.map((x) => `${escapeHTML(x.p[2].split(" · ")[0])} ${escapeHTML(where(x.p))}`).join(" and ")}${gridFt != null ? ` share one NWS grid square averaging ${gridFt.toLocaleString()} ft` : " share one NWS grid square"}, so they have one forecast.</div>`;
+    const parts = pt.merged.map((x, k) => {
+      const role = x.p[2].split(" · ")[0];
+      return `${k ? role.toLowerCase() : role} (${escapeHTML(where(x.p))})`;
+    });
+    return `<div class="muted">${parts.join(" and ")} fall in one NWS grid square${gridFt != null ? ` averaging ${gridFt.toLocaleString()} ft` : ""}, so they share one forecast.</div>${note(Math.max(...pt.merged.map((x) => pointElevFt(x.p) ?? -1)))}`;
   }
-  const ft = pointElevFt(pt.p),
-    diff = ft != null && gridFt != null ? ft - gridFt : 0;
-  return `<div class="muted">Selected point${where(pt.p) ? " · " + escapeHTML(where(pt.p)) : ""}${gridFt != null ? ` · NWS grid ${gridFt.toLocaleString()} ft` : ""}</div>${
-    Math.abs(diff) >= 500
-      ? `<div class="grid-note">The NWS grid here averages about ${(Math.round(Math.abs(diff) / 100) * 100).toLocaleString()} ft ${diff > 0 ? "below" : "above"} this point, so ${diff > 0 ? "expect it colder and windier up top than shown" : "conditions at the point may be milder than shown"}.</div>`
-      : ""
-  }`;
+  return `<div class="muted">Selected point${where(pt.p) ? " · " + escapeHTML(where(pt.p)) : ""}${gridFt != null ? ` · NWS grid ${gridFt.toLocaleString()} ft` : ""}</div>${note(pointElevFt(pt.p))}`;
 }
 async function pointForecast(p) {
   const key = p.slice(0, 2).join(",");
@@ -440,7 +446,11 @@ function daysStrip(periods) {
       const lead = d.day || d.night,
         pops = [d.day, d.night].map((q) => q?.probabilityOfPrecipitation?.value || 0),
         pop = Math.max(...pops),
-        text = lead.shortForecast + (d.day && d.night && d.night.shortForecast !== d.day.shortForecast ? `, then ${d.night.shortForecast.toLowerCase()} at night` : "");
+        text =
+          lead.shortForecast +
+          (d.day && d.night && d.night.shortForecast !== d.day.shortForecast
+            ? `, then ${d.night.shortForecast.toLowerCase()} at night`
+            : "");
       return `<div class="day-tile" title="${escapeHTML(text)}"><b class="day-name">${escapeHTML(dayName(lead, i === 0))}</b>${forecastIcon(lead, "small")}<span class="day-text">${escapeHTML(lead.shortForecast)}</span><span class="day-temps">${d.day ? `<strong>${d.day.temperature}°</strong>` : ""}${d.night ? `<span class="lo">${d.night.temperature}°</span>` : ""}</span><span class="day-pop">${pop ? `${pop}% precip` : ""}</span></div>`;
     })
     .join("")}</div>`;
@@ -454,7 +464,13 @@ async function loadOverview(place, section) {
     pts = place.p
       .map((p, i) => ({ p, i }))
       .reverse()
-      .map((x, k) => ({ ...x, key: "p" + k, role: x.p[2].split(" · ")[0], label: x.p[2].split(" · ")[0], merged: [x] }));
+      .map((x, k) => ({
+        ...x,
+        key: "p" + k,
+        role: x.p[2].split(" · ")[0],
+        label: x.p[2].split(" · ")[0],
+        merged: [x],
+      }));
   }
   if (!el?.isConnected) return;
   const n = pts.length;
@@ -518,7 +534,8 @@ async function loadPointOverview(pt, k, section) {
     if (showObs) loadObs(p, now.querySelector(".obs-slot"));
   } catch {
     if (now?.isConnected) now.innerHTML = pointError(pt.label, p);
-    if (days?.isConnected) days.innerHTML = `<h3>7-day forecast</h3><div class="error">Unavailable right now.</div>`;
+    if (days?.isConnected)
+      days.innerHTML = `<h3>7-day forecast</h3><div class="error">Unavailable right now.</div>`;
   }
 }
 async function loadDiscussion(place, section) {
@@ -527,11 +544,16 @@ async function loadDiscussion(place, section) {
   try {
     pts = await uniquePoints(place);
   } catch {
-    pts = place.p.map((p, i) => ({ p, i, role: p[2].split(" · ")[0], label: p[2].split(" · ")[0], merged: [{ p, i }] })).reverse();
+    pts = place.p
+      .map((p, i) => ({ p, i, role: p[2].split(" · ")[0], label: p[2].split(" · ")[0], merged: [{ p, i }] }))
+      .reverse();
   }
   if (!wrap?.isConnected) return;
   wrap.innerHTML = pts
-    .map((x, k) => `<article class="card forecast" id="forecast-${k}"><h3>${escapeHTML(x.label)}</h3><div class="state">Loading NWS forecast…</div></article>`)
+    .map(
+      (x, k) =>
+        `<article class="card forecast" id="forecast-${k}"><h3>${escapeHTML(x.label)}</h3><div class="state">Loading NWS forecast…</div></article>`,
+    )
     .join("");
   pts.forEach(async (pt, k) => {
     const el = wrap.querySelector("#forecast-" + k),
@@ -931,14 +953,12 @@ function renderMountain(el, place, result) {
   const rows = result.map((d, j) => ({
     name: j ? "Peak" : "Mid mountain",
     gridFt: d.forecast.elevation?.value != null ? Math.round(d.forecast.elevation.value * 3.28084) : null,
-    periods: d.forecast.periods
-      .slice(0, 6)
-      .map((q) => ({
-        name: q.name,
-        temp: q.temperature,
-        wind: parseInt(q.windSpeed, 10) || 0,
-        snow: periodSnow(d.grid.snowfallAmount?.values, Date.parse(q.startTime), Date.parse(q.endTime)),
-      })),
+    periods: d.forecast.periods.slice(0, 6).map((q) => ({
+      name: q.name,
+      temp: q.temperature,
+      wind: parseInt(q.windSpeed, 10) || 0,
+      snow: periodSnow(d.grid.snowfallAmount?.values, Date.parse(q.startTime), Date.parse(q.endTime)),
+    })),
     gridId: d.point.forecastGridData,
   }));
   const metric = profileMetric,
@@ -1092,15 +1112,18 @@ async function loadAlertBanner(place) {
    Readings older than OBS_MAX_AGE are not shown, because a stale reading looks like current conditions. */
 const OBS_MAX_AGE = 2 * 3600000;
 async function latestObs(id, name, elevM) {
-  const o = (
-    await getJSON(`https://api.weather.gov/stations/${id}/observations/latest?require_qc=false`)
-  ).properties;
+  const o = (await getJSON(`https://api.weather.gov/stations/${id}/observations/latest?require_qc=false`))
+    .properties;
   const t = cToF(o.temperature?.value);
   if (t == null) return null;
   return {
     station: name || o.stationName || id,
     id,
-    elevFt: Number.isFinite(elevM) ? Math.round(elevM * 3.28084) : Number.isFinite(o.elevation?.value) ? Math.round(o.elevation.value * 3.28084) : null,
+    elevFt: Number.isFinite(elevM)
+      ? Math.round(elevM * 3.28084)
+      : Number.isFinite(o.elevation?.value)
+        ? Math.round(o.elevation.value * 3.28084)
+        : null,
     time: Date.parse(o.timestamp),
     temp: t,
     text: o.textDescription,
@@ -1138,7 +1161,7 @@ async function observation(p) {
 }
 function obsLine(o) {
   if (o.stale)
-    return `<div class="obs stale"><span class="obs-label">Observed</span> No nearby station has reported in the last 2 hours<div class="muted">Newest: ${escapeHTML(o.station)} · ${ago(o.time)}. NWS observation feeds are sometimes delayed.</div></div>`;
+    return `<div class="obs stale"><span class="obs-label">Observed</span> No report in the last 2 hours<div class="muted">Newest: ${escapeHTML(o.station)}, ${ago(o.time)} (NWS feeds are sometimes delayed)</div></div>`;
   return `<div class="obs"><span class="obs-label">Observed</span> <b>${o.temp}°F</b>${o.text ? " · " + escapeHTML(o.text) : ""}${o.wind != null ? ` · wind ${o.wind === 0 ? "calm" : compass(o.dir) + " " + o.wind + " mph"}${o.gust ? `, gusts ${o.gust}` : ""}` : ""}<div class="muted">${escapeHTML(o.station)} (${escapeHTML(o.id)}${o.elevFt ? `, ${o.elevFt.toLocaleString()} ft` : ""}) · ${ago(o.time)}</div></div>`;
 }
 async function loadObs(p, target) {
@@ -1212,7 +1235,8 @@ async function loadHourly(place, section, pts) {
     }</div></div><div class="hourly-chart"></div><p class="source">NWS hourly forecast issued ${regionTime(d.updateTime, section, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</p>`;
     const box = el.querySelector(".hourly-chart"),
       draw = () => {
-        if (box.isConnected) box.innerHTML = hourlyChart(d.periods || [], regionZone(section), hours, chartWidth(el));
+        if (box.isConnected)
+          box.innerHTML = hourlyChart(d.periods || [], regionZone(section), hours, chartWidth(el));
       };
     draw();
     redrawOnResize(el, draw);
@@ -1283,6 +1307,42 @@ function loadLeaflet() {
 }
 function windyURL(p) {
   return `https://embed.windy.com/embed.html?type=map&location=coordinates&metricRain=in&metricTemp=%C2%B0F&metricWind=mph&zoom=${Math.min(p.z, 10)}&overlay=radar&product=radar&level=surface&lat=${p.c[0]}&lon=${p.c[1]}&message=true`;
+}
+/* Dots for the forecast places with always-visible name labels. Labels that would overlap a label
+   already shown are hidden (phones have no hover), and reappear as you zoom in. */
+function placeLabels(map, places, radius) {
+  const items = places.map((pl) => {
+    const m = L.circleMarker([pl.p[0][0], pl.p[0][1]], {
+      radius,
+      color: "#fff",
+      weight: 2,
+      fillColor: "#10283a",
+      fillOpacity: 1,
+    })
+      .bindTooltip(pl.name.replace(/, (MA|CT|NH|RI|ME|VT)$/, ""), {
+        permanent: true,
+        direction: "right",
+        offset: [6, 0],
+        className: "map-label",
+      })
+      .addTo(map);
+    return m;
+  });
+  const layout = () => {
+    const shown = [];
+    items.forEach((m) => {
+      const el = m.getTooltip()?.getElement();
+      if (!el) return;
+      el.style.visibility = "visible";
+      const r = el.getBoundingClientRect(),
+        box = { l: r.left - 3, r: r.right + 3, t: r.top - 2, b: r.bottom + 2 };
+      const hit = shown.some((o) => box.l < o.r && box.r > o.l && box.t < o.b && box.b > o.t);
+      if (hit) el.style.visibility = "hidden";
+      else shown.push(box);
+    });
+  };
+  map.on("zoomend moveend", layout);
+  setTimeout(layout, 80);
 }
 function radarURL(m, stamp) {
   return `https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/nexrad-n0q-900913${m ? `-m${String(m).padStart(2, "0")}m` : ""}/{z}/{x}/{y}.png?_=${stamp}`;
@@ -1392,17 +1452,7 @@ function radarView() {
       const layers = RADAR_FRAMES.map((m) =>
         L.tileLayer(radarURL(m, stamp), { opacity: 0, maxZoom: 12 }).addTo(map),
       );
-      (region === "utah" ? utah : ne).forEach((pl) =>
-        L.circleMarker([pl.p[0][0], pl.p[0][1]], {
-          radius: 5,
-          color: "#fff",
-          weight: 2,
-          fillColor: "#10283a",
-          fillOpacity: 1,
-        })
-          .bindTooltip(pl.name, { direction: "top" })
-          .addTo(map),
-      );
+      placeLabels(map, region === "utah" ? utah : ne, 5);
       const label = document.querySelector(".radar-time"),
         status = document.querySelector(".radar-status"),
         btn = document.querySelector(".radar-play");
@@ -1826,10 +1876,7 @@ window.suiteContext = function (question) {
     let long = longData;
     if (!long) {
       try {
-        long = await getJSON(
-          "https://raw.githubusercontent.com/bg197550/weather-window/main/data/long-range.json?t=" +
-            Math.floor(Date.now() / 600000),
-        );
+        long = await getJSON(LONG_RANGE_URL + "?t=" + Math.floor(Date.now() / 600000));
       } catch {}
     }
     const outlook = long
@@ -2305,7 +2352,97 @@ async function compareAt(lat, lon, el) {
   const max = Math.max(...rows.map((r) => r.v || 0));
   el.innerHTML = `<h4>All models at ${lat.toFixed(2)}, ${lon.toFixed(2)} · ${PRODUCTS.find((p) => p[0] === precipProduct)[1]} · ${range.label}</h4><div class="pm-compare">${rows.map((r) => `<div class="pm-bar"><span>${escapeHTML(r.name)}${r.short ? ` <small>(only ${hrsLabel(r.maxH)})</small>` : ""}</span><i style="width:${max ? Math.max(1, ((r.v || 0) / max) * 100) : 0}%"></i><b>${f(r.v)}</b></div>`).join("")}</div>`;
 }
+
+/* Model totals at each forecast location (town or mid-mountain point), one request per model. */
+const placeGridCache = new Map();
+function placeGrid(model, regionKey) {
+  const key = model + "|" + regionKey;
+  const c = placeGridCache.get(key);
+  if (c && Date.now() < c.expires) return c.promise;
+  const pts = (regionKey === "utah" ? utah : ne).map((pl) => pl.p[0]);
+  const maxH = PM.find((x) => x[0] === model)?.[3] || 168;
+  const promise = (async () => {
+    const u = `https://api.open-meteo.com/v1/forecast?latitude=${pts.map((p) => p[0].toFixed(3)).join(",")}&longitude=${pts.map((p) => p[1].toFixed(3)).join(",")}&hourly=precipitation,snowfall,rain&models=${model}&forecast_days=${Math.min(14, Math.ceil(maxH / 24) + 1)}&precipitation_unit=inch&timezone=GMT`;
+    const r = await fetch(u);
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      const e = new Error(j.reason || "HTTP " + r.status);
+      e.status = r.status;
+      throw e;
+    }
+    const locs = Array.isArray(j) ? j : [j];
+    const snowCm = (locs[0].hourly_units?.snowfall || "").includes("cm");
+    return {
+      time: locs[0].hourly.time.map((t) => Date.parse(t + "Z")),
+      block: 1,
+      vals: locs.map((l) => ({
+        p: l.hourly.precipitation,
+        s: l.hourly.snowfall.map((v) => (v == null ? null : snowCm ? v / 2.54 : v)),
+        r: l.hourly.rain,
+      })),
+    };
+  })();
+  placeGridCache.set(key, { expires: nextRunAvailable(model), promise });
+  promise.catch(() => placeGridCache.delete(key));
+  return promise;
+}
+let precipTableRun = 0;
+async function drawPrecipTable() {
+  const table = document.querySelector("#pm-table");
+  if (!table) return;
+  const run = ++precipTableRun,
+    region = precipRegion,
+    places = region === "utah" ? utah : ne,
+    range = precipRange(),
+    product = precipProduct;
+  const label = document.querySelector("#pm-table-label");
+  if (label) label.textContent = `${PRODUCTS.find((p) => p[0] === product)[1]} · ${range.label}`;
+  const cols = await Promise.all(
+    PM.map(async (m) => {
+      try {
+        const g = await placeGrid(m[0], region),
+          short = range.endMs > Date.now() + m[3] * 3600000;
+        if (short && precipPeriod === "day") return { m, short, vals: null };
+        return { m, short, vals: windowSums(g, range, product).values };
+      } catch (e) {
+        return { m, err: e };
+      }
+    }),
+  );
+  if (run !== precipTableRun || !table.isConnected) return;
+  const f = (v) => (v == null ? "–" : v < 0.05 ? "0" : v.toFixed(v < 10 ? 1 : 0) + "″");
+  const anyShort = cols.some((c) => c.short && c.vals);
+  table.innerHTML = `<thead><tr><th scope="col">Location</th>${cols
+    .map(
+      (c) =>
+        `<th scope="col" class="${c.m[0] === precipModel ? "sel" : ""}"><button type="button" data-pm-col="${c.m[0]}" title="Show ${escapeHTML(c.m[1])} on the map">${escapeHTML(c.m[1])}</button></th>`,
+    )
+    .join("")}</tr></thead><tbody>${places
+    .map((pl, i) => {
+      const row = cols.map((c) => (c.vals ? c.vals[i] : null)),
+        max = Math.max(...row.filter((v) => v != null && v >= 0.05));
+      return `<tr><th scope="row">${escapeHTML(pl.name)}</th>${cols
+        .map((c, k) => {
+          const v = row[k];
+          return `<td class="${c.m[0] === precipModel ? "sel" : ""}${v != null && v === max ? " top" : ""}">${c.err ? '<span class="muted">n/a</span>' : f(v) + (c.short && c.vals ? "<sup>*</sup>" : "")}</td>`;
+        })
+        .join("")}</tr>`;
+    })
+    .join("")}</tbody>`;
+  const note = document.querySelector("#pm-table-note");
+  if (note)
+    note.innerHTML = `Bold marks the highest model at each location.${anyShort ? " <sup>*</sup>The model's forecast ends before this window, so its total covers less time." : ""}${cols.some((c) => c.err) ? " n/a: that model didn't load (Open-Meteo's free limit may be used up)." : ""} Utah resorts use their mid-mountain point.`;
+  table.querySelectorAll("[data-pm-col]").forEach(
+    (b) =>
+      (b.onclick = () => {
+        precipModel = b.dataset.pmCol;
+        fitHours();
+        render();
+      }),
+  );
+}
 async function drawPrecipModel() {
+  drawPrecipTable();
   const R = PRECIP_REGIONS[precipRegion],
     st = document.querySelector("#pm-status");
   if (!precipMap) return;
@@ -2394,8 +2531,8 @@ function precipView() {
                )
                .join("")}</div>`
            : `<div class="pm-day-nav" aria-label="Forecast date"><button type="button" data-day-step="-1" aria-label="Previous day" ${precipDay === 0 ? "disabled" : ""}>‹</button><span id="pm-day-label" aria-live="polite">${modelDayOptions(PM.find((x) => x[0] === precipModel)[3], R.tz)[precipDay].label}</span><button type="button" data-day-step="1" aria-label="Next day" ${precipDay === modelDayOptions(PM.find((x) => x[0] === precipModel)[3], R.tz).length - 1 ? "disabled" : ""}>›</button></div>`
-       }</div>${precipPeriod === "day" && modelStep(precipModel) ? `<div id="pm-slots" class="pm-slots" aria-label="Short range forecast periods"></div>` : ""}<p class="pm-note">${escapeHTML(PM.find((x) => x[0] === precipModel)[4])} · data to ${hrsLabel(PM.find((x) => x[0] === precipModel)[3])}</p>
- <div class="pm-mapwrap" style="--pm-ar:${(((R.box[3] - R.box[1]) * Math.cos((((R.box[0] + R.box[2]) / 2) * Math.PI) / 180)) / (R.box[2] - R.box[0])).toFixed(3)}"><div id="pm-map"></div></div><div class="pm-meta"><span id="pm-status">Loading…</span><span id="pm-legend"></span></div><p class="pm-hint">Tap anywhere on the map to compare all 10 models at that spot.</p><div id="pm-compare"></div><p class="source">Model data: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo ↗</a> (NOAA, ECMWF, Environment Canada, DWD, UK Met Office), sampled on a ${R.n}×${R.n} grid (about ${Math.round(((R.box[3] - R.box[1]) / (R.n - 1)) * 85)} km apart) and smoothed, so small terrain features are approximate. Snowfall is each model's own estimate. Total mode accumulates from now. Individual day uses local calendar dates: today covers the remaining hours, and later dates cover midnight to midnight. Short-range maps use hourly model values; longer-range maps use six-hour blocks apportioned at period boundaries. Amounts remain approximate because the map samples a coarse grid.</p></section>`
+       }</div>${precipPeriod === "day" && modelStep(precipModel) ? `<div id="pm-slots" class="pm-slots" aria-label="Short range forecast periods"></div>` : ""}<div class="pm-table-wrap"><h3>All models by location <span class="muted" id="pm-table-label"></span></h3><div class="model-table-wrap pm-scroll"><table class="pm-table" id="pm-table"><tbody><tr><td class="state">Loading every model…</td></tr></tbody></table></div><p class="source" id="pm-table-note"></p></div><h3 class="pm-map-title">Map · ${escapeHTML(PM.find((x) => x[0] === precipModel)[1])}</h3><p class="pm-note">${escapeHTML(PM.find((x) => x[0] === precipModel)[4])} · data to ${hrsLabel(PM.find((x) => x[0] === precipModel)[3])}</p>
+ <div class="pm-meta"><span id="pm-status">Loading…</span><span id="pm-legend"></span></div><div class="pm-mapwrap" style="--pm-ar:${(((R.box[3] - R.box[1]) * Math.cos((((R.box[0] + R.box[2]) / 2) * Math.PI) / 180)) / (R.box[2] - R.box[0])).toFixed(3)}"><div id="pm-map"></div></div><p class="pm-hint">Tap anywhere on the map to compare all 10 models at that spot.</p><div id="pm-compare"></div><p class="source">Model data: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo ↗</a> (NOAA, ECMWF, Environment Canada, DWD, UK Met Office), sampled on a ${R.n}×${R.n} grid (about ${Math.round(((R.box[3] - R.box[1]) / (R.n - 1)) * 85)} km apart) and smoothed, so small terrain features are approximate. Snowfall is each model's own estimate. Total mode accumulates from now. Individual day uses local calendar dates: today covers the remaining hours, and later dates cover midnight to midnight. Short-range maps use hourly model values; longer-range maps use six-hour blocks apportioned at period boundaries. Amounts remain approximate because the map samples a coarse grid.</p></section>`
      : `<section class="card afd-card"><div class="chart-controls"><h3>Windy · ${R.name}</h3><div class="seg" aria-label="Model">${[
          ["ecmwf", "ECMWF"],
          ["gfs", "GFS"],
@@ -2511,6 +2648,7 @@ function precipView() {
         drawPrecipModel();
       }),
   );
+  drawPrecipTable();
   loadLeaflet()
     .then(() => {
       const box = document.querySelector("#pm-map");
@@ -2546,17 +2684,7 @@ function precipView() {
         maxZoom: 12,
         attribution: "© OpenStreetMap",
       }).addTo(precipMap);
-      (precipRegion === "utah" ? utah : ne).forEach((pl) =>
-        L.circleMarker([pl.p[0][0], pl.p[0][1]], {
-          radius: 4,
-          color: "#fff",
-          weight: 2,
-          fillColor: "#10283a",
-          fillOpacity: 1,
-        })
-          .bindTooltip(pl.name, { direction: "top" })
-          .addTo(precipMap),
-      );
+      placeLabels(precipMap, precipRegion === "utah" ? utah : ne, 4);
       precipMap.on("click", (e) => {
         const g = precipMap._pmGrid;
         const c = document.querySelector("#pm-compare");
@@ -2600,10 +2728,7 @@ render();
 if (openedWithoutForecastLink) showClosestForecast(true);
 refreshAllAlerts();
 if (!longData) {
-  getJSON(
-    "https://raw.githubusercontent.com/bg197550/weather-window/main/data/long-range.json?t=" +
-      Math.floor(Date.now() / 600000),
-  )
+  getJSON(LONG_RANGE_URL + "?t=" + Math.floor(Date.now() / 600000))
     .then((d) => {
       if (!longData) {
         longData = d;

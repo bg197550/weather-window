@@ -7,7 +7,12 @@ window.WW = (function () {
   const REGIONS = { utah: "Utah", ne: "New England" };
   const SECTIONS = [
     { key: "forecast", label: "Forecast", icon: "☀", href: (b, r) => `${b}#${r}` },
-    { key: "radar", label: "Radar", icon: "◎", href: (b, r) => `${b}#radar/${r === "ne" ? "sne" : "wasatch"}` },
+    {
+      key: "radar",
+      label: "Radar",
+      icon: "◎",
+      href: (b, r) => `${b}#radar/${r === "ne" ? "sne" : "wasatch"}`,
+    },
     { key: "cams", label: "Webcams", short: "Cams", icon: "▣", href: (b, r) => `${b}webcams/#${r}` },
     { key: "snow", label: "Snow report", short: "Snow", icon: "❄", href: (b) => `${b}snow/` },
     { key: "precip", label: "Precip models", icon: "☂", href: (b, r) => `${b}#precip/${r}`, more: true },
@@ -43,10 +48,7 @@ window.WW = (function () {
     if (regionLocked) return `<span class="ww-region-fixed ${cls}">${REGIONS[regionLocked]} only</span>`;
     const r = region();
     return `<div class="ww-region ${cls}" role="group" aria-label="Region">${Object.entries(REGIONS)
-      .map(
-        ([k, n]) =>
-          `<button type="button" data-ww-region="${k}" aria-pressed="${k === r}">${n}</button>`,
-      )
+      .map(([k, n]) => `<button type="button" data-ww-region="${k}" aria-pressed="${k === r}">${n}</button>`)
       .join("")}</div>`;
   }
   function link(s, r, cls) {
@@ -83,9 +85,13 @@ window.WW = (function () {
       sheet.hidden = true;
       document.body.appendChild(sheet);
     }
-    sheet.innerHTML = `<div class="ww-sheet-panel" role="dialog" aria-label="More sections"><div class="ww-sheet-head"><b>Region</b><button type="button" class="ww-sheet-close" aria-label="Close">✕</button></div>${regionSwitch("ww-region-sheet")}<div class="ww-sheet-links">${SECTIONS.filter((s) => s.more)
+    sheet.innerHTML = `<div class="ww-sheet-panel" role="dialog" aria-label="More sections"><div class="ww-sheet-head"><b>Region</b><button type="button" class="ww-sheet-close" aria-label="Close">✕</button></div>${regionSwitch("ww-region-sheet")}<div class="ww-sheet-links">${SECTIONS.filter(
+      (s) => s.more,
+    )
       .map((s) => link(s, r, "ww-sheet-link"))
-      .join("")}<a class="ww-sheet-link" href="https://bg197550.github.io/surf-window/"><span class="ww-ico" aria-hidden="true">≈</span><span class="ww-lbl">Surf</span></a></div></div>`;
+      .join(
+        "",
+      )}<a class="ww-sheet-link" href="https://bg197550.github.io/surf-window/"><span class="ww-ico" aria-hidden="true">≈</span><span class="ww-lbl">Surf</span></a></div></div>`;
     wire();
   }
   function openSheet(open) {
@@ -109,7 +115,8 @@ window.WW = (function () {
     const sheet = document.querySelector("#ww-sheet");
     if (sheet) {
       sheet.onclick = (e) => {
-        if (e.target === sheet || e.target.closest(".ww-sheet-close") || e.target.closest("a")) openSheet(false);
+        if (e.target === sheet || e.target.closest(".ww-sheet-close") || e.target.closest("a"))
+          openSheet(false);
       };
     }
   }

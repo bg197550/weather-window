@@ -3,7 +3,12 @@
    Forecast data (NWS, Open-Meteo, the long-range and SNOTEL files): network first with a saved fallback,
    so the last forecast still shows without signal. Map tiles, radar, webcams and videos are never cached. */
 const CACHE = "ww-v1";
-const DATA_HOSTS = ["api.weather.gov", "api.open-meteo.com", "ensemble-api.open-meteo.com", "raw.githubusercontent.com"];
+const DATA_HOSTS = [
+  "api.weather.gov",
+  "api.open-meteo.com",
+  "ensemble-api.open-meteo.com",
+  "raw.githubusercontent.com",
+];
 const NEVER = /\.(m3u8|ts|mp4|png|jpe?g|gif|webp)(\?|$)|\/tile|tile\.|\/cache\/tile\.py|\/icons\/land\//i;
 
 self.addEventListener("install", () => self.skipWaiting());
@@ -34,7 +39,10 @@ self.addEventListener("fetch", (e) => {
       .then((res) => {
         if (res.ok) {
           const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(key, copy)).catch(() => {});
+          caches
+            .open(CACHE)
+            .then((c) => c.put(key, copy))
+            .catch(() => {});
         }
         return res;
       })
