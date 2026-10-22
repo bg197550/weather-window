@@ -1,0 +1,204 @@
+/* Shared section navigation (see nav.js). Loaded after the page stylesheet. */
+.suite-nav-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: nowrap;
+}
+.ww-links {
+  display: flex;
+  gap: 2px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.ww-links::-webkit-scrollbar {
+  display: none;
+}
+.ww-top {
+  gap: 6px;
+  padding: 14px 10px 12px;
+  font-size: 14px;
+}
+.ww-top .ww-ico {
+  font-size: 13px;
+  opacity: 0.75;
+}
+.ww-region {
+  display: flex;
+  flex: none;
+  background: #15344a;
+  border-radius: 10px;
+  padding: 3px;
+  gap: 2px;
+}
+.ww-region button {
+  border: 0;
+  background: transparent;
+  color: #b8cbd5;
+  font: inherit;
+  font-weight: 700;
+  font-size: 13px;
+  padding: 7px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ww-region button[aria-pressed="true"] {
+  background: #d4f4ee;
+  color: #082832;
+}
+.ww-region-fixed {
+  flex: none;
+  color: #a9c2d0;
+  font-size: 13px;
+  font-weight: 650;
+}
+.ww-tabbar,
+.ww-sheet {
+  display: none;
+}
+.ww-offline {
+  background: #3a2e12;
+  color: #f3dfae;
+  font-size: 14px;
+  text-align: center;
+  padding: 9px 16px;
+}
+.tab-alerts {
+  margin-left: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  color: #ffd27a;
+}
+
+/* Phones: bottom tab bar replaces the section row. */
+@media (max-width: 760px) {
+  .suite-nav {
+    display: none;
+  }
+  .suite-app {
+    min-height: 44px;
+  }
+  html.ww-has-tabbar body {
+    padding-bottom: calc(66px + env(safe-area-inset-bottom));
+  }
+  .ww-tabbar {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1600;
+    background: #0b2130f2;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-top: 1px solid #1f3d50;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .ww-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    min-height: 60px;
+    border: 0;
+    background: transparent;
+    color: #a9c2d0;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    text-decoration: none;
+    position: relative;
+  }
+  .ww-tab .ww-ico {
+    font-size: 20px;
+    line-height: 1;
+  }
+  .ww-tab[aria-current="page"] {
+    color: #fff;
+  }
+  .ww-tab[aria-current="page"]::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 28%;
+    right: 28%;
+    height: 3px;
+    border-radius: 0 0 3px 3px;
+    background: #57c5df;
+  }
+  .ww-tab .tab-alerts {
+    position: absolute;
+    top: 6px;
+    right: 14%;
+    margin: 0;
+    font-size: 10px;
+  }
+  .ww-sheet:not([hidden]) {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 1700;
+    background: #0009;
+  }
+  .ww-sheet-panel {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: #10283a;
+    border-top: 1px solid #2c4c5e;
+    border-radius: 18px 18px 0 0;
+    padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
+    display: grid;
+    gap: 14px;
+  }
+  .ww-sheet-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #d9ecf8;
+  }
+  .ww-sheet-close {
+    border: 0;
+    background: #1a3a4d;
+    color: #d9ecf8;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    font-size: 18px;
+  }
+  .ww-region-sheet button {
+    flex: 1;
+    min-height: 44px;
+    font-size: 15px;
+  }
+  .ww-sheet-links {
+    display: grid;
+    gap: 6px;
+  }
+  .ww-sheet-link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 52px;
+    padding: 0 14px;
+    border-radius: 12px;
+    background: #15344a;
+    color: #eaf6f8;
+    font-weight: 700;
+    text-decoration: none;
+  }
+  .ww-sheet-link[aria-current="page"] {
+    outline: 2px solid #57c5df;
+  }
+  .ww-sheet-link .ww-ico {
+    width: 22px;
+    text-align: center;
+    font-size: 18px;
+  }
+}

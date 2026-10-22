@@ -1,0 +1,24 @@
+/* Snow Report extras. The page also loads app.css (shared with the Weather page). */
+.forecast-chart [data-chart-day] {
+  cursor: pointer;
+}
+.detail-actions .xlink {
+  color: #c0e9fc;
+  background: #143b44;
+  border-color: #226577;
+}
+.periods-list {
+  margin-top: 12px;
+}
+.detail-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.xlink {
+  color: #c0e9fc;
+  background: #133a4c;
+  border-color: #7cc6da;
+}
