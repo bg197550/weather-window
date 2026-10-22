@@ -1,24 +1,42 @@
 name: Refresh long range guidance
+
 on:
   schedule:
     - cron: '25 0,6,12,18 * * *'
   workflow_dispatch:
+
 permissions:
   contents: write
+
+# Publishes to the data branch (not main), so refreshes don't add commits to the site's history.
+concurrency:
+  group: data-branch
+  cancel-in-progress: false
+
 jobs:
   refresh:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: '22'
-      - run: node scripts/update-long-range.mjs
-      - name: Commit refreshed guidance
+      - name: Build guidance (keeps earlier parts if a source is down)
         run: |
-          git add data/long-range.json
-          if git diff --cached --quiet; then exit 0; fi
+          mkdir -p data
+          curl -fsSL "https://raw.githubusercontent.com/${{ github.repository }}/data/long-range.json" -o data/long-range.json || true
+          node scripts/update-long-range.mjs
+      - name: Publish to data branch (single commit, keeps the other data files)
+        run: |
+          cp data/long-range.json "$RUNNER_TEMP/long-range.json"
+          mkdir "$RUNNER_TEMP/data" && cd "$RUNNER_TEMP/data"
+          git init -q -b data
+          git remote add origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          git fetch -q --depth 1 origin data && git checkout -q FETCH_HEAD -- . || true
+          cp "$RUNNER_TEMP/long-range.json" long-range.json
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "Refresh CPC and ensemble guidance"
-          git push
+          git add -A
+          git diff --cached --quiet && { echo "No change"; exit 0; }
+          git commit -q -m "Long range guidance $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push -q -f origin data
