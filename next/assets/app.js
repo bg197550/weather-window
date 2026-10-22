@@ -100,6 +100,7 @@ function longView() {
     (b) =>
       (b.onclick = () => {
         longRegion = b.dataset.longRegion;
+        WW.setRegion(longRegion, true);
         longView();
       }),
   );
@@ -204,6 +205,7 @@ function renderLongBrief(el, d) {
     (b) =>
       (b.onclick = () => {
         longRegion = b.dataset.signalRegion;
+        WW.setRegion(longRegion, true);
         longPeriod = +b.dataset.signalPeriod;
         renderLongBrief(el, d);
       }),
@@ -237,12 +239,14 @@ const VIEW_NOTES = {
 };
 /* Links to the same place elsewhere on the site: webcams, snow report, avalanche forecast, surf. */
 function placeLinks(place, section) {
+  const lbl = (long, short) => `<span class="lg">${long}</span><span class="sm">${short}</span>`;
   const links = [];
-  if (CAMS[place.name]) links.push(`<a class="xlink" href="webcams/#${CAMS[place.name]}">▣ Webcams ›</a>`);
+  if (CAMS[place.name])
+    links.push(`<a class="xlink" href="webcams/#${CAMS[place.name]}">▣ ${lbl("Webcams", "Cams")} ›</a>`);
   if (section === "utah" && place.p.length > 1) {
-    links.push('<a class="xlink" href="snow/">❄ Snow report ›</a>');
+    links.push(`<a class="xlink" href="snow/">❄ ${lbl("Snow report", "Snow")} ›</a>`);
     links.push(
-      `<a class="xlink" href="${uacURL(place.name)}" target="_blank" rel="noopener">Avalanche forecast ↗</a>`,
+      `<a class="xlink" href="${uacURL(place.name)}" target="_blank" rel="noopener">${lbl("Avalanche forecast", "Avalanche")} ↗</a>`,
     );
   }
   if (section === "ne") links.push(surfLink(place.name));
@@ -970,7 +974,7 @@ function renderMountain(el, place, result) {
     .map((x) => (x.name.length > 10 ? x.name.slice(0, 9) + "…" : x.name));
   let series = rows.map((x) => ({ name: x.name, values: x.periods.slice(0, n).map((q) => q[metric]) }));
   const noSnow = metric === "snow" && series.some((x) => x.values.some((v) => v == null));
-  el.innerHTML = `<h3>${escapeHTML(place.name)} · mid mountain and peak</h3><p class="afd-intro">Select a resort on the left, then tap a metric or forecast period. NWS gridded snowfall is summed over each day/night period.</p><div class="chart-controls"><div class="seg">${[
+  el.innerHTML = `<h3>${escapeHTML(place.name)} · mid mountain and peak</h3><p class="afd-intro">Pick a resort above, then tap a metric or forecast period. NWS gridded snowfall is summed over each day/night period.</p><div class="chart-controls"><div class="seg">${[
     ["temp", "Temperature"],
     ["wind", "Wind"],
     ["snow", "Snow"],
@@ -1391,6 +1395,7 @@ function radarView() {
       (b.onclick = () => {
         radarPreset = RADAR_PRESETS[b.dataset.radarRegion][0].id;
         radarStation[b.dataset.radarRegion] = b.dataset.radarRegion === "utah" ? "KMTX" : "KBOX";
+        WW.setRegion(b.dataset.radarRegion, true);
         radarView();
         syncHash();
       }),

@@ -1825,6 +1825,9 @@ p {
 .place-links:empty {
   display: none;
 }
+.place-links .sm {
+  display: none;
+}
 .place-links .xlink {
   min-height: 38px;
   color: #c0e9fc;
@@ -2024,17 +2027,16 @@ p {
     margin-bottom: 8px;
   }
   .place-links {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    scrollbar-width: none;
-    margin: 0 -14px 14px;
-    padding: 0 14px;
-  }
-  .place-links::-webkit-scrollbar {
-    display: none;
+    margin-bottom: 14px;
   }
   .place-links .xlink {
-    flex: none;
+    padding: 7px 12px;
+  }
+  .place-links .lg {
+    display: none;
+  }
+  .place-links .sm {
+    display: inline;
   }
   .back-overview {
     display: inline-flex;
