@@ -2298,3 +2298,20 @@ p {
     margin: 0;
   }
 }
+
+/* Segmented controls never widen the page; long ones scroll sideways inside themselves. */
+.seg {
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.seg::-webkit-scrollbar {
+  display: none;
+}
+.seg button {
+  flex: none;
+  white-space: nowrap;
+}
+.elev-toggle button {
+  flex: 1;
+}
