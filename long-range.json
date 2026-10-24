@@ -1,0 +1,214 @@
+{
+  "generatedAt": "2026-10-24T11:16:00.969Z",
+  "checkedAt": "2026-10-24T11:16:00.969Z",
+  "sources": {
+    "medium": "https://www.cpc.ncep.noaa.gov/products/predictions/610day/fxus06.html",
+    "extended": "https://www.cpc.ncep.noaa.gov/products/predictions/WK34/"
+  },
+  "periods": [
+    {
+      "name": "Days 6–10",
+      "start": 5,
+      "end": 10,
+      "source": "https://www.cpc.ncep.noaa.gov/products/predictions/610day/fxus06.html",
+      "utah": {
+        "temperature": null,
+        "precipitation": "Wetter-than-normal conditions are favored from California eastward and northeastward across the central and southern Rockies, most of the Plains and Mississippi Valley, and remaining areas east of the Mississippi River except for New England, where near normal precipitation is favored."
+      },
+      "ne": {
+        "temperature": "Under primarily positive 500-hPa height anomalies through much of the 6-10 day period, above normal temperatures are favored for most of the Four Corners region and adjacent portions of Idaho and Wyoming to the north, the central and southern Plains including eastern South Dakota, and continuing eastward across the Mississippi Valley all the way to the East Coast.",
+        "precipitation": "Some of this drier, east-northeast anomalous flow is favored to bring below normal precipitation as far south as northwestern portions of the CONUS ."
+      }
+    },
+    {
+      "name": "Days 8–14",
+      "start": 7,
+      "end": 14,
+      "source": "https://www.cpc.ncep.noaa.gov/products/predictions/610day/fxus06.html",
+      "utah": {
+        "temperature": "West of the Divide, a general one-category moderation of the forecasted 6-10 day temperature pattern is anticipated.",
+        "precipitation": null
+      },
+      "ne": {
+        "temperature": "Above normal temperatures are favored for nearly all areas east of the Continental Divide, under persistent flat ridging and positive 500-hPa height anomalies .",
+        "precipitation": null
+      }
+    },
+    {
+      "name": "Weeks 3–4",
+      "start": 14,
+      "end": 28,
+      "source": "https://www.cpc.ncep.noaa.gov/products/predictions/WK34/",
+      "utah": {
+        "temperature": "Downstream over the CONUS, above normal temperatures are likely for much of the West, consistent with most dynamical models and the manual blend.",
+        "precipitation": "Above normal precipitation is slightly favored for most of the Pacific Northwest into the Northern Rockies, ahead of the amplified trough to the west."
+      },
+      "ne": {
+        "temperature": null,
+        "precipitation": "Above normal precipitation is favored across the southern tier into the Gulf Coast region, under weak negative 500-hPa height anomalies, and northward up the East Coast into southern New England, consistent with the JMA precipitation forecast."
+      },
+      "stale": true
+    }
+  ],
+  "guidance": {
+    "utah": [
+      {
+        "period": "Days 6–10",
+        "models": [
+          {
+            "name": "GEFS",
+            "values": {
+              "temp": 40.6,
+              "precip": 0.59
+            }
+          },
+          {
+            "name": "ECMWF ENS",
+            "values": {
+              "temp": 39.8,
+              "precip": 0.62
+            }
+          },
+          {
+            "name": "GEM ENS",
+            "values": {
+              "temp": 35.8,
+              "precip": 1.02
+            }
+          }
+        ]
+      },
+      {
+        "period": "Days 8–14",
+        "models": [
+          {
+            "name": "GEFS",
+            "values": {
+              "temp": 40,
+              "precip": 0.86
+            }
+          },
+          {
+            "name": "ECMWF ENS",
+            "values": null
+          },
+          {
+            "name": "GEM ENS",
+            "values": {
+              "temp": 32.2,
+              "precip": 1.52
+            }
+          }
+        ]
+      },
+      {
+        "period": "Weeks 3–4",
+        "models": [
+          {
+            "name": "GEFS",
+            "values": {
+              "temp": 35.2,
+              "precip": 1.71
+            }
+          },
+          {
+            "name": "ECMWF ENS",
+            "values": null
+          },
+          {
+            "name": "GEM ENS",
+            "values": {
+              "temp": 30.4,
+              "precip": 2.01
+            }
+          }
+        ]
+      }
+    ],
+    "ne": [
+      {
+        "period": "Days 6–10",
+        "models": [
+          {
+            "name": "GEFS",
+            "values": {
+              "temp": 53.3,
+              "precip": 0.14
+            }
+          },
+          {
+            "name": "ECMWF ENS",
+            "values": {
+              "temp": 52.1,
+              "precip": 0.35
+            }
+          },
+          {
+            "name": "GEM ENS",
+            "values": {
+              "temp": 57.2,
+              "precip": 0.36
+            }
+          }
+        ]
+      },
+      {
+        "period": "Days 8–14",
+        "models": [
+          {
+            "name": "GEFS",
+            "values": {
+              "temp": 52.9,
+              "precip": 0.85
+            }
+          },
+          {
+            "name": "ECMWF ENS",
+            "values": {
+              "temp": 49.8,
+              "precip": 0.93
+            }
+          },
+          {
+            "name": "GEM ENS",
+            "values": {
+              "temp": 54.2,
+              "precip": 1.1
+            }
+          }
+        ]
+      },
+      {
+        "period": "Weeks 3–4",
+        "models": [
+          {
+            "name": "GEFS",
+            "values": {
+              "temp": 46.8,
+              "precip": 1.71
+            }
+          },
+          {
+            "name": "ECMWF ENS",
+            "values": null
+          },
+          {
+            "name": "GEM ENS",
+            "values": {
+              "temp": 44.2,
+              "precip": 2.77
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "modelNote": null,
+  "warnings": [
+    "Weeks 3–4 CPC text (showing previous)"
+  ],
+  "places": {
+    "utah": "Park City, UT",
+    "ne": "Boston, MA"
+  }
+}
