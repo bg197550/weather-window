@@ -61,12 +61,12 @@ test("all original resort camera views retain source links and escaped labels",(
  const r={name:'<script>',area:'<img>',id:"test",source:"https://example.com",cams:[{name:'A " camera',snapshot:"https://example.com/image.jpg"}]};
  assert.ok(!s.cameraCard(r,r.cams[0]).includes("<script>"));
 });
-test("search and type filters hide cards without replacing their feeds",()=>{
- const s=cams();const cards=[{dataset:{cameraSearch:"alta summit",cameraKind:"video"}},{dataset:{cameraSearch:"alta base",cameraKind:"still"}},{dataset:{cameraSearch:"stowe summit",cameraKind:"player"}}],status={},buttons=[];
- s.content={querySelectorAll:q=>q===".camera-card"?cards:q===".camera-area"?[]:buttons,querySelector:()=>status};
- s.cameraSearch="alta";s.cameraType="video";s.applyCameraFilters();assert.deepEqual(cards.map(c=>c.hidden),[false,true,true]);
- assert.ok(status.textContent.includes("1 camera card"));
- s.cameraSearch="no match";s.applyCameraFilters();assert.ok(status.textContent.includes("No matching"));
+test("webcam pages omit search, feed filters, result counts and explanation",()=>{
+ assert.ok(!webcams.includes("webcamFilters"));
+ assert.ok(!webcams.includes("camera-search"));
+ assert.ok(!webcams.includes("camera-results"));
+ assert.ok(!webcams.includes("Video playback is confirmed only"));
+ const s=cams();assert.ok(s.groupedResorts(s.resorts).includes('class="grid"'));
 });
 test("still-image recovery clears unavailable state and records load time only",()=>{
  const s=cams(),failure={hidden:true},badge={dataset:{}},cam={querySelector:q=>q===".badge"?badge:failure};
