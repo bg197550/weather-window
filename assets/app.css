@@ -2371,3 +2371,36 @@ p {
 .mountain-metrics span { font-size: 12px; color: #a9c2cd; }
 .mountain-metrics strong { font-size: 21px; overflow-wrap: anywhere; }
 @media(max-width:760px) { .guidance-summary { grid-template-columns: 1fr; gap: 10px; } .guidance-summary > div { padding: 16px; } .guidance-summary strong { font-size: 22px; } .mountain-cards > section { padding: 16px; } .mountain-metrics { grid-template-columns: 1fr; } .chart-controls .seg { flex-wrap: wrap; } }
+
+/* Mobile readability: larger copy and labels without changing desktop density. */
+@media (max-width: 760px) {
+  body { font-size: 18px; line-height: 1.6; }
+  button, select, input { font-size: 17px; }
+  .card p, .discussion-period p, .afd-intro, .pattern-summary li { font-size: 18px; line-height: 1.65; }
+  .source, .muted, .note, .fc-sub, .grid-note, .same-grid, .chart-legend,
+  .day-text, .day-pop, .period-metrics, .hourly-period-caption,
+  .guidance-summary span, .mountain-metrics span { font-size: 16px; line-height: 1.6; }
+  .forecast-tabs button, .day-pills button, .seg button, .model-switch button { font-size: 16px; line-height: 1.4; min-height: 48px; }
+  .forecast-date { font-size: 21px !important; }
+  .period-title { font-size: 19px; }
+  .period-title strong { font-size: 28px; }
+  .guidance-summary strong, .mountain-metrics strong { font-size: 25px; }
+  .period-hourly-table, .period-hourly-table td, .period-hourly-table th { font-size: 17px; line-height: 1.6; }
+  .period-hourly-table td::before { font-size: 16px; }
+  #model-comparison .model-values, #model-comparison .model-values small,
+  #model-comparison .model-scroll-hint, #model-comparison .model-table,
+  #model-comparison .chart-details span, #model-comparison .chart-details span b,
+  #model-comparison .model-highlight, .model-table.snow-table td,
+  .model-table.snow-table td::before, .model-table.snow-table td small { font-size: 16px; line-height: 1.6; }
+  #model-comparison .chart-controls .seg { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .chart-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  #model-comparison .forecast-chart, #mountain-profile .forecast-chart { min-width: 760px; }
+  .axis-label { font-size: 16px; }
+  .forecast-chart .end-lbl, .forecast-chart .point-value { font-size: 16px; }
+  .insights-chart svg { min-width: 520px; }
+}
+
+@media (max-width: 760px) {
+  .obs { font-size: 18px; line-height: 1.6; }
+  .obs-label, .metric span, .day-name, .model-table td::before { font-size: 16px; line-height: 1.5; }
+}
