@@ -45,14 +45,18 @@ function cams(){
  vm.runInContext(webcams.slice(0,webcams.indexOf('const content ='))+'globalThis.resorts=RESORTS;',s);
  vm.runInContext(webcams.slice(webcams.indexOf('const safe ='),webcams.indexOf('const REGIONS =')),s);return s;
 }
-test("embedded players are not reported as confirmed live",()=>{
- const s=cams();assert.ok(s.cameraStatus({embed:"https://example.com"}).includes("unverified"));
- assert.equal(s.cameraStatus({hls:"stream"}),"Loading video");assert.equal(s.cameraKind({snapshot:"still"}),"still");
- assert.equal(s.cameraKind({offline:true}),"offline");
+test("video and embedded players have no visible status notes; stills retain labels",()=>{
+ const s=cams();
+ assert.equal(s.cameraStatus({embed:"https://example.com"}),"");
+ assert.equal(s.cameraStatus({hls:"stream"}),"");
+ assert.equal(s.cameraStatus({snapshot:"still"}),"Loading still");
  for(const r of s.resorts)for(const c of r.cams){
+  if(c.offline)continue;
   const html=s.camera(r,c);
-  if(!c.offline)assert.ok(html.includes('role="status"'));
-  if(c.embed&&!c.hls&&!c.snapshot)assert.ok(!html.includes("LIVE VIDEO"));
+  const badge=html.match(/<span class="badge"[^>]*>/)?.[0];
+  assert.ok(badge);
+  assert.equal(badge.includes(" hidden"),!(c.snapshot&&!c.hls));
+  if(c.hls||(!c.snapshot&&c.embed))assert.ok(!s.cameraCard(r,c).includes("feed-kind"));
  }
 });
 test("all original resort camera views retain source links and escaped labels",()=>{
