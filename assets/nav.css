@@ -202,3 +202,11 @@
     font-size: 18px;
   }
 }
+
+/* Keep phone navigation legible alongside the larger page copy. */
+@media (max-width: 760px) {
+  .ww-tab { font-size: 14px; line-height: 1.4; min-height: 72px; }
+  .ww-tab .tab-alerts { font-size: 12px; }
+  .ww-region-sheet button, .ww-sheet-link, .ww-offline { font-size: 16px; line-height: 1.5; }
+  html.ww-has-tabbar body { padding-bottom: calc(80px + env(safe-area-inset-bottom)); }
+}
