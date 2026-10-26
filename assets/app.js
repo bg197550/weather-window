@@ -733,48 +733,46 @@ function modelURL(p, section, id) {
   return u.toString();
 }
 function modelRows(data, section) {
-  const ds = data.map((x) => x.data.daily);
-  const dates = ds[0].time;
-  return dates
-    .map((date, i) => ({
-      date,
-      values: ds.map((d, n) => ({
-        name: data[n].name,
-        high: d.temperature_2m_max?.[i],
-        low: d.temperature_2m_min?.[i],
-        rain: d.precipitation_sum?.[i],
-        snow: Number.isFinite(d.snowfall_sum?.[i])
-          ? data[n].data.daily_units?.snowfall_sum === "cm"
-            ? d.snowfall_sum[i] / 2.54
-            : d.snowfall_sum[i]
-          : null,
-      })),
-    }))
-    .filter((x) =>
-      x.values.every((v) => Number.isFinite(v.high) && Number.isFinite(v.low) && Number.isFinite(v.rain)),
-    );
+  const dates = [...new Set(data.flatMap(x => x.data.daily.time || []))].sort();
+  return dates.map(date => ({
+    date,
+    values: data.map(model => {
+      const d = model.data.daily, i = d.time.indexOf(date);
+      const value = key => i >= 0 && Number.isFinite(d[key]?.[i]) ? d[key][i] : null;
+      const snow = value("snowfall_sum");
+      return { name: model.name, high: value("temperature_2m_max"), low: value("temperature_2m_min"),
+        rain: value("precipitation_sum"), snow: snow == null ? null : model.data.daily_units?.snowfall_sum === "cm" ? snow / 2.54 : snow };
+    }),
+  })).filter(row => row.values.some(v => [v.high, v.low, v.rain, v.snow].some(Number.isFinite)));
 }
 function modelFlags(row, section) {
-  const vals = row.values,
-    highs = vals.map((x) => x.high),
-    lows = vals.map((x) => x.low),
-    rains = vals.map((x) => x.rain),
-    snows = vals.map((x) => x.snow).filter(Number.isFinite);
-  let out = [];
-  if (Math.max(...rains) - Math.min(...rains) >= 0.35) {
-    let wet = vals.reduce((a, b) => (b.rain > a.rain ? b : a)),
-      dry = vals.reduce((a, b) => (b.rain < a.rain ? b : a));
-    out.push(
-      `${wet.name} is wettest (${wet.rain.toFixed(2)} in) versus ${dry.name} (${dry.rain.toFixed(2)} in)`,
-    );
+  const out = [];
+  const rain = row.values.filter(v => Number.isFinite(v.rain));
+  if (rain.length >= 2) {
+    const wet = rain.reduce((a,b) => a.rain > b.rain ? a : b), dry = rain.reduce((a,b) => a.rain < b.rain ? a : b);
+    if (wet.rain - dry.rain >= .35) out.push(`${wet.name} is wettest (${wet.rain.toFixed(2)} in) versus ${dry.name} (${dry.rain.toFixed(2)} in)`);
   }
-  if (Math.max(...highs) - Math.min(...highs) >= 8)
-    out.push(`high temperatures differ by ${Math.round(Math.max(...highs) - Math.min(...highs))}°F`);
-  if (Math.max(...lows) - Math.min(...lows) >= 8)
-    out.push(`low temperatures differ by ${Math.round(Math.max(...lows) - Math.min(...lows))}°F`);
-  if (section === "utah" && snows.length === vals.length && Math.max(...snows) - Math.min(...snows) >= 3)
-    out.push(`snowfall estimates range ${Math.min(...snows).toFixed(1)}–${Math.max(...snows).toFixed(1)} in`);
+  for (const [key,label] of [["high","high"],["low","low"]]) {
+    const values = row.values.map(v => v[key]).filter(Number.isFinite);
+    if (values.length >= 2 && Math.max(...values)-Math.min(...values) >= 8)
+      out.push(`${label} temperatures differ by ${Math.round(Math.max(...values)-Math.min(...values))}°F`);
+  }
+  const snow = row.values.map(v => v.snow).filter(Number.isFinite);
+  if (section === "utah" && snow.length >= 2 && Math.max(...snow)-Math.min(...snow) >= 3)
+    out.push(`snowfall estimates range ${Math.min(...snow).toFixed(1)}–${Math.max(...snow).toFixed(1)} in`);
   return out;
+}
+function guidanceValue(value, unit, digits = 0) {
+  return Number.isFinite(value) ? value.toFixed(digits) + unit : "Unavailable";
+}
+function guidanceRange(values, unit, digits = 0) {
+  const valid = values.filter(Number.isFinite);
+  if (!valid.length) return "Unavailable";
+  const min = Math.min(...valid), max = Math.max(...valid);
+  return min === max ? guidanceValue(min, unit, digits) : min.toFixed(digits) + "–" + max.toFixed(digits) + unit;
+}
+function modelFreshness(entry, data) {
+  return `<p class="source guidance-freshness">Retrieved ${escapeHTML(new Date(entry.time).toLocaleString("en-US", {hour:"numeric",minute:"2-digit",timeZoneName:"short"}))} · ${data.length} of ${MODELS.length} models available. Retrieval time is not the model run time; source run times are not provided.</p>`;
 }
 async function loadModels(place, section) {
   const el = document.querySelector("#model-comparison"),
@@ -803,7 +801,8 @@ async function loadModels(place, section) {
         .map((r) => ({ row: r, notes: modelFlags(r, section) }))
         .filter((x) => x.notes.length)
         .slice(0, 4);
-    el.innerHTML = `<h3>Model comparison · ${escapeHTML(place.name)}</h3><p class="afd-intro">Daily model guidance at the selected coordinate. These are independent scenarios, not the official NWS forecast.</p>${place.p.length > 1 ? `<div class="model-switch" aria-label="Model point"><button data-model-point="0" class="${idx === 0 ? "active" : ""}">Mid mountain</button><button data-model-point="1" class="${idx === 1 ? "active" : ""}">Peak</button></div>` : ""}<div class="muted">${escapeHTML(p[2])} · next ${rows.length} days · ${data.map((x) => x.name).join(", ")}${data.length < 3 ? " (one model unavailable)" : ""}</div><div id="model-visual"></div><h3 style="margin-top:24px">Differences to watch</h3><div class="model-highlights">${flagged.length ? flagged.map(({ row, notes }) => `<div class="model-highlight"><strong>${escapeHTML(dateLabel(row.date))}</strong> · ${escapeHTML(notes.join("; "))}</div>`).join("") : "<p>No large day-by-day differences cross the comparison thresholds right now.</p>"}</div><div class="model-table-wrap"><table class="model-table"><thead><tr><th>Day</th>${data.map((x) => `<th>${escapeHTML(x.name)}<small>High / low / precip.${section === "utah" ? " / snow" : ""}</small></th>`).join("")}</tr></thead><tbody>${rows.map((r) => `<tr class="${modelFlags(r, section).length ? "flag" : ""}"><th>${escapeHTML(dateLabel(r.date))}</th>${r.values.map((v) => `<td data-label="${escapeHTML(v.name)}"><span class="model-values"><b>${Math.round(v.high)}°F <small>high</small></b><b>${Math.round(v.low)}°F <small>low</small></b><span>${v.rain.toFixed(2)} in <small>precip</small></span>${section === "utah" && Number.isFinite(v.snow) ? `<span>${v.snow.toFixed(1)} in <small>snow</small></span>` : ""}</span></td>`).join("")}</tr>`).join("")}</tbody></table></div><p class="source">Precipitation is liquid equivalent; snow is model-estimated depth. Terrain and model grid elevation can differ from the selected mountain elevation. Highlight thresholds: 8°F high- or low-temperature spread, 0.35 in daily precipitation spread, or 3 in snow spread. Compare timing and trend; avoid treating one model as certain. Data: <a href="https://open-meteo.com/en/docs" target="_blank" rel="noopener">Open-Meteo model API ↗</a>. Official baseline: <a href="https://forecast.weather.gov/MapClick.php?lat=${p[0]}&lon=${p[1]}" target="_blank" rel="noopener">NWS point forecast ↗</a>.</p>`;
+    if (!rows.length) throw Error("No daily guidance");
+    el.innerHTML = `<h3>Model comparison · ${escapeHTML(place.name)}</h3><p class="afd-intro">Daily model guidance at the selected coordinate. These are independent scenarios, not the official NWS forecast.</p>${place.p.length > 1 ? `<div class="model-switch" aria-label="Model point"><button data-model-point="0" class="${idx === 0 ? "active" : ""}">Mid mountain</button><button data-model-point="1" class="${idx === 1 ? "active" : ""}">Peak</button></div>` : ""}<div class="muted">${escapeHTML(p[2])} · next ${rows.length} days · ${data.map((x) => x.name).join(", ")}${data.length < 3 ? " (one model unavailable)" : ""}</div>${modelFreshness(entry, data)}<div class="guidance-intro"><b>Compare scenarios, not certainty</b><span>Choose a day to compare values. Highlighted differences are model spread, not forecast probabilities.</span></div><div id="model-visual"></div><h3 style="margin-top:24px">Differences to watch</h3><div class="model-highlights">${flagged.length ? flagged.map(({ row, notes }) => `<div class="model-highlight"><strong>${escapeHTML(dateLabel(row.date))}</strong> · ${escapeHTML(notes.join("; "))}</div>`).join("") : "<p>No large day-by-day differences cross the comparison thresholds right now.</p>"}</div><div class="model-table-wrap"><table class="model-table"><thead><tr><th>Day</th>${data.map((x) => `<th>${escapeHTML(x.name)}<small>High / low / precip.${section === "utah" ? " / snow" : ""}</small></th>`).join("")}</tr></thead><tbody>${rows.map((r) => `<tr class="${modelFlags(r, section).length ? "flag" : ""}"><th>${escapeHTML(dateLabel(r.date))}</th>${r.values.map((v) => `<td data-label="${escapeHTML(v.name)}"><span class="model-values"><b>${guidanceValue(v.high,"°F")} <small>high</small></b><b>${guidanceValue(v.low,"°F")} <small>low</small></b><span>${guidanceValue(v.rain," in",2)} <small>precip</small></span>${section === "utah" && Number.isFinite(v.snow) ? `<span>${v.snow.toFixed(1)} in <small>snow</small></span>` : ""}</span></td>`).join("")}</tr>`).join("")}</tbody></table></div><p class="source">Precipitation is liquid equivalent; snow is model-estimated depth. Terrain and model grid elevation can differ from the selected mountain elevation. Highlight thresholds: 8°F high- or low-temperature spread, 0.35 in daily precipitation spread, or 3 in snow spread. Compare timing and trend; avoid treating one model as certain. Data: <a href="https://open-meteo.com/en/docs" target="_blank" rel="noopener">Open-Meteo model API ↗</a>. Official baseline: <a href="https://forecast.weather.gov/MapClick.php?lat=${p[0]}&lon=${p[1]}" target="_blank" rel="noopener">NWS point forecast ↗</a>.</p>`;
     el.querySelectorAll("[data-model-point]").forEach(
       (b) =>
         (b.onclick = () => {
@@ -814,7 +813,7 @@ async function loadModels(place, section) {
     renderModelChart(el, rows, section);
   } catch (err) {
     if (el && el.isConnected)
-      el.innerHTML = `<h3>Model comparison</h3><div class="error">Live model guidance is temporarily unavailable. The official NWS forecast remains in Overview.</div><a href="https://open-meteo.com/en/docs" target="_blank" rel="noopener">Open model source ↗</a>`;
+      el.innerHTML = `<h3>Model comparison</h3><div class="error">Live model guidance is temporarily unavailable. The official NWS forecast remains in Forecast.</div><a href="https://open-meteo.com/en/docs" target="_blank" rel="noopener">Open model source ↗</a>`;
   }
 }
 function dateLabel(date) {
@@ -834,6 +833,7 @@ function makePlot(series, labels, unit, type, selected, annotate = false) {
     bottom = 47,
     plotW = w - left - right,
     plotH = h - top - bottom;
+  if (!n || !series.some(s => s.values.some(Number.isFinite))) return '<p class="note">Chart data unavailable for this metric. Choose another metric or consult the values below.</p>';
   let values = series.flatMap((x) => x.values).filter(Number.isFinite),
     inchLine = type === "line" && unit === " in",
     lo = type === "bar" || inchLine ? 0 : Math.floor(Math.min(...values) - 2),
@@ -843,9 +843,9 @@ function makePlot(series, labels, unit, type, selected, annotate = false) {
   else hi = Math.ceil(hi + 2);
   const x = (i) => left + (n === 1 ? plotW / 2 : (i * plotW) / (n - 1)),
     y = (v) => top + ((hi - v) / (hi - lo)) * plotH,
-    colors = ["#56b4e9", "#e69f00", "#e6e6e6", "#cc79a7"],
-    dashes = ["", "9 5", "2 5", "12 4 2 4"],
-    shapes = ["circle", "square", "triangle", "diamond"],
+    colors = series.map((s,i) => ({GFS:"#79d7e5",ECMWF:"#f2c780",GEM:"#d1b3f1"}[s.name] || ["#79d7e5","#f2c780","#d1b3f1","#a8d6b0"][i])),
+    dashes = series.map((s,i) => ({GFS:"",ECMWF:"9 5",GEM:"2 5"}[s.name] ?? ["","9 5","2 5","12 4 2 4"][i])),
+    shapes = series.map((s,i) => ({GFS:"circle",ECMWF:"square",GEM:"triangle"}[s.name] || ["circle","square","triangle","diamond"][i])),
     mark = (j, cx, cy, r, i) =>
       shapes[j] === "circle"
         ? `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${colors[j]}" stroke="#102c3b" stroke-width="2" data-chart-day="${i}"/>`
@@ -865,7 +865,7 @@ function makePlot(series, labels, unit, type, selected, annotate = false) {
                 : "",
             )
             .join("")
-        : `<path d="${item.values.map((v, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ")}" fill="none" stroke="${colors[j]}" stroke-width="3" stroke-dasharray="${dashes[j]}"/>${item.values.map((v, i) => (Number.isFinite(v) ? mark(j, x(i), y(v), selected === i ? 7 : 5, i) : "")).join("")}`,
+        : `<path d="${item.values.map((v, i) => Number.isFinite(v) ? `${i && Number.isFinite(item.values[i-1]) ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}` : "").join(" ")}" fill="none" stroke="${colors[j]}" stroke-width="3" stroke-dasharray="${dashes[j]}"/>${item.values.map((v, i) => (Number.isFinite(v) ? mark(j, x(i), y(v), selected === i ? 7 : 5, i) : "")).join("")}`,
     )
     .join("");
   let ends =
@@ -979,7 +979,7 @@ function renderModelChart(el, rows, section) {
   const labels = rows.map((r) =>
     new Date(`${r.date}T12:00:00`).toLocaleDateString("en-US", { weekday: "short", day: "numeric" }),
   );
-  target.innerHTML = `<div class="model-visual-layout"><div class="chart-controls"><h3>Daily model paths</h3><div class="seg"><button data-chart-metric="high" class="${metric === "high" ? "active" : ""}">High temperature</button><button data-chart-metric="low" class="${metric === "low" ? "active" : ""}">Low temperature</button><button data-chart-metric="rain" class="${metric === "rain" ? "active" : ""}">Precipitation</button></div></div><div class="model-chart-area"><p class="model-scroll-hint">Swipe chart sideways to see all forecast days. Tap a dot for values.</p>${makePlot(series, labels, metric === "rain" ? " in" : "°F", "line", day, true)}</div><div class="day-pills" aria-label="Select forecast day">${rows.map((r, i) => `<button data-chart-day="${i}" class="${i === day ? "active" : ""}">${escapeHTML(labels[i])}</button>`).join("")}</div><div class="chart-details"><strong>${escapeHTML(dateLabel(rows[day].date))}</strong><div>${rows[day].values.map((v) => `<span><b>${escapeHTML(v.name)}</b> ${Math.round(v.high)}°F high · ${Math.round(v.low)}°F low · ${v.rain.toFixed(2)} in precipitation${section === "utah" && Number.isFinite(v.snow) ? ` · ${v.snow.toFixed(1)} in snow` : ""}</span>`).join("")}</div></div></div>`;
+  target.innerHTML = `<div class="guidance-summary"><div><span>High temperature range</span><strong>${guidanceRange(rows[day].values.map(v=>v.high),"°F")}</strong></div><div><span>Precipitation range</span><strong>${guidanceRange(rows[day].values.map(v=>v.rain)," in",2)}</strong></div><div><span>Models reporting this metric</span><strong>${rows[day].values.filter(v=>Number.isFinite(v[metric])).length} / ${names.length}</strong></div></div><div class="model-visual-layout"><div class="chart-controls"><h3>Daily model paths</h3><div class="seg"><button data-chart-metric="high" class="${metric === "high" ? "active" : ""}">High temperature</button><button data-chart-metric="low" class="${metric === "low" ? "active" : ""}">Low temperature</button><button data-chart-metric="rain" class="${metric === "rain" ? "active" : ""}">Precipitation</button>${section === "utah" ? `<button data-chart-metric="snow" class="${metric === "snow" ? "active" : ""}">Snowfall</button>` : ""}</div></div><div class="model-chart-area"><p class="model-scroll-hint">Swipe chart sideways to see all forecast days. Tap a dot for values.</p>${makePlot(series, labels, metric === "rain" || metric === "snow" ? " in" : "°F", metric === "rain" || metric === "snow" ? "bar" : "line", day, true)}</div><div class="day-pills" aria-label="Select forecast day">${rows.map((r, i) => `<button data-chart-day="${i}" class="${i === day ? "active" : ""}">${escapeHTML(labels[i])}</button>`).join("")}</div><div class="chart-details"><strong>${escapeHTML(dateLabel(rows[day].date))}</strong><div>${rows[day].values.map((v) => `<span><b>${escapeHTML(v.name)}</b> ${guidanceValue(v.high,"°F")} high · ${guidanceValue(v.low,"°F")} low · ${guidanceValue(v.rain," in",2)} precipitation${section === "utah" && Number.isFinite(v.snow) ? ` · ${v.snow.toFixed(1)} in snow` : ""}</span>`).join("")}</div></div></div>`;
   target.querySelectorAll("[data-chart-metric]").forEach(
     (b) =>
       (b.onclick = () => {
@@ -1033,56 +1033,47 @@ async function loadMountain(place) {
   } catch (err) {
     if (el && el.isConnected)
       el.innerHTML =
-        '<h3>Mountain profile</h3><div class="error">NWS mountain grid data is temporarily unavailable. Select Overview for the point forecast.</div>';
+        '<h3>Mountain profile</h3><div class="error">NWS mountain grid data is temporarily unavailable. Select Forecast for the point forecast.</div>';
   }
 }
-function renderMountain(el, place, result) {
-  const rows = result.map((d, j) => ({
-    name: j ? "Peak" : "Mid mountain",
-    gridFt: d.forecast.elevation?.value != null ? Math.round(d.forecast.elevation.value * 3.28084) : null,
-    periods: d.forecast.periods.slice(0, 6).map((q) => ({
-      name: q.name,
-      temp: q.temperature,
-      wind: parseInt(q.windSpeed, 10) || 0,
-      snow: periodSnow(d.grid.snowfallAmount?.values, Date.parse(q.startTime), Date.parse(q.endTime)),
-    })),
-    gridId: d.point.forecastGridData,
+function mountainRows(place, result) {
+  const starts = [...new Set(result.flatMap(d => d.forecast.periods.map(q => q.startTime)))].sort((a,b)=>Date.parse(a)-Date.parse(b)).slice(0,6);
+  return result.map((d,j) => ({
+    name:j ? "Peak" : "Mid mountain", selected:place.p[j][2],
+    gridFt:Number.isFinite(d.forecast.elevation?.value) ? Math.round(d.forecast.elevation.value*3.28084) : null,
+    issued:d.forecast.updateTime, gridId:d.point.forecastGridData, snowLevel:snowLevelLow(d.grid),
+    periods:starts.map(start => {
+      const q=d.forecast.periods.find(q=>q.startTime===start);
+      return q ? {name:q.name,start:q.startTime,temp:Number.isFinite(q.temperature)?q.temperature:null,
+        wind:windNum(q.windSpeed),snow:periodSnow(d.grid.snowfallAmount?.values,Date.parse(q.startTime),Date.parse(q.endTime))}
+        : {name:"Period unavailable",start,temp:null,wind:null,snow:null};
+    }),
   }));
-  const metric = profileMetric,
-    day = Math.min(profileDay, ...rows.map((x) => x.periods.length - 1));
-  profileDay = day;
-  const n = Math.min(...rows.map((x) => x.periods.length));
-  const labels = rows[0].periods
-    .slice(0, n)
-    .map((x) => (x.name.length > 10 ? x.name.slice(0, 9) + "…" : x.name));
-  let series = rows.map((x) => ({ name: x.name, values: x.periods.slice(0, n).map((q) => q[metric]) }));
-  const noSnow = metric === "snow" && series.some((x) => x.values.some((v) => v == null));
-  el.innerHTML = `<h3>${escapeHTML(place.name)} · mid mountain and peak</h3><p class="afd-intro">Pick a resort above, then tap a metric or forecast period. NWS gridded snowfall is summed over each day/night period.</p><div class="chart-controls"><div class="seg">${[
-    ["temp", "Temperature"],
-    ["wind", "Wind"],
-    ["snow", "Snow"],
-  ]
-    .map(
-      ([id, label]) =>
-        `<button data-mountain-metric="${id}" class="${metric === id ? "active" : ""}">${label}</button>`,
-    )
-    .join(
-      "",
-    )}</div></div>${!noSnow && n ? makePlot(series, labels, metric === "temp" ? "°F" : metric === "wind" ? " mph" : " in", metric === "snow" ? "bar" : "line", day) : '<div class="note">Snow grid values are unavailable for one of these points.</div>'}<div class="day-pills" aria-label="Select forecast period">${labels.map((label, i) => `<button data-mountain-day="${i}" class="${i === day ? "active" : ""}">${escapeHTML(label)}</button>`).join("")}</div><div class="mountain-cards">${rows.map((x) => `<div><h4>${escapeHTML(x.name)} · ${escapeHTML(x.gridFt ? x.gridFt.toLocaleString() + " ft NWS grid" : "grid elevation unavailable")}</h4><p>${escapeHTML(x.periods[day]?.name || "")} · <b>${x.periods[day]?.temp ?? "–"}°F</b> · wind ${x.periods[day]?.wind ?? "–"} mph · grid snow ${x.periods[day]?.snow != null ? x.periods[day].snow.toFixed(1) + " in" : "unavailable"}</p><small>Selected point: ${escapeHTML(x.name === "Peak" ? place.p[1][2] : place.p[0][2])}</small></div>`).join("")}</div><p class="source">${rows[0].gridId === rows[1].gridId ? "Both selected points share the same NWS forecast grid, so their gridded forecast may be identical. " : ""}Grid elevation can differ from actual mountain elevation. Snow values are NWS gridded snow amount estimates, not resort measurements. <a href="https://www.weather.gov/documentation/services-web-api" target="_blank" rel="noopener">NWS API ↗</a></p>`;
-  el.querySelectorAll("[data-mountain-metric]").forEach(
-    (b) =>
-      (b.onclick = () => {
-        profileMetric = b.dataset.mountainMetric;
-        renderMountain(el, place, result);
-      }),
-  );
-  el.querySelectorAll("[data-mountain-day]").forEach(
-    (b) =>
-      (b.onclick = () => {
-        profileDay = +b.dataset.mountainDay;
-        renderMountain(el, place, result);
-      }),
-  );
+}
+function renderMountain(el, place, result) {
+  const rows=mountainRows(place,result), metric=profileMetric, n=rows[0]?.periods.length || 0;
+  if(!n){el.innerHTML='<h3>Mountain profile</h3><p class="note">No forecast periods available.</p>';return;}
+  const day=Math.max(0,Math.min(profileDay,n-1));profileDay=day;
+  const labels=rows[0].periods.map(q=>regionTime(q.start,"utah",{weekday:"short",hour:"numeric"}));
+  const series=rows.map(x=>({name:x.name,values:x.periods.map(q=>q[metric])}));
+  const sameGrid=rows.length>1 && rows[0].gridId===rows[1].gridId;
+  const levels=rows.map(x=>x.snowLevel?.ft).filter(Number.isFinite);
+  const temps=rows.map(x=>x.periods[day].temp);
+  el.innerHTML=`<h3>${escapeHTML(place.name)} · mountain profile</h3><p class="afd-intro">Compare mid mountain and peak on the same time axis. Choose a metric and forecast period below.</p>
+    ${sameGrid?'<p class="note grid-comparison-note">Both points share one NWS grid. Identical guidance does not mean identical conditions at each elevation.</p>':""}
+    <div class="guidance-summary"><div><span>Selected-period temperature range</span><strong>${guidanceRange(temps,"°F")}</strong></div><div><span>At or below freezing</span><strong>${rows.filter(x=>Number.isFinite(x.periods[day].temp)&&x.periods[day].temp<=32).map(x=>x.name).join(" · ")||(temps.some(Number.isFinite)?"None among available points":"Unavailable")}</strong></div><div><span>Lowest snow level during snowfall · next 72 h</span><strong>${levels.length?Math.round(Math.min(...levels)).toLocaleString()+" ft":"Not available"}</strong></div></div>
+    <div class="chart-controls"><div class="seg" aria-label="Mountain metric">${[["temp","Temperature"],["wind","Wind"],["snow","Snowfall"]].map(([id,label])=>`<button data-mountain-metric="${id}" class="${metric===id?"active":""}" aria-pressed="${metric===id}">${label}</button>`).join("")}</div></div>
+    ${makePlot(series,labels,metric==="temp"?"°F":metric==="wind"?" mph":" in",metric==="snow"?"bar":"line",day,true)}
+    <div class="day-pills" aria-label="Select forecast period">${labels.map((label,i)=>`<button data-mountain-day="${i}" class="${i===day?"active":""}" aria-pressed="${i===day}">${escapeHTML(label)}</button>`).join("")}</div>
+    <div class="mountain-cards">${rows.map(x=>{const q=x.periods[day];return `<section><h4>${escapeHTML(x.name)}</h4><p class="mountain-elevation">${x.gridFt==null?"NWS grid elevation unavailable":x.gridFt.toLocaleString()+" ft · NWS grid"}</p><p class="source">Selected point: ${escapeHTML(x.selected)}</p><h5>${escapeHTML(q.name)}</h5><div class="mountain-metrics"><div><span>Temperature</span><strong>${guidanceValue(q.temp,"°F")}</strong></div><div><span>Wind</span><strong>${guidanceValue(q.wind," mph")}</strong></div><div><span>Forecast snow</span><strong>${guidanceValue(q.snow," in",1)}</strong></div></div><p class="source">NWS forecast issued ${x.issued?escapeHTML(regionTime(x.issued,"utah",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})):"time unavailable"}</p></section>`;}).join("")}</div>
+    <p class="source">NWS gridded snow is summed over each forecast period; it is not measured resort snowfall. Snow level is the lowest forecast level during snowfall within 72 hours, not a precise rain/snow boundary. Grid elevation may differ from the selected point. <a href="https://www.weather.gov/documentation/services-web-api" target="_blank" rel="noopener">NWS source ↗</a></p>`;
+  el.querySelectorAll("[data-mountain-metric]").forEach(b=>b.onclick=()=>{profileMetric=b.dataset.mountainMetric;renderMountain(el,place,result);});
+  el.querySelectorAll("[data-mountain-day]").forEach(b=>b.onclick=()=>{profileDay=+b.dataset.mountainDay;renderMountain(el,place,result);});
+  el.querySelectorAll("[data-chart-day]").forEach(b=>{
+    const choose=()=>{const i=+b.dataset.chartDay;if(Number.isInteger(i)&&i>=0&&i<n){profileDay=i;renderMountain(el,place,result);}};
+    b.onclick=choose;
+    b.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();choose();}};
+  });
 }
 // ===================== Additions: alerts, observations, hourly, resort snow, at-a-glance, radar, URL state, auto-refresh =====================
 const REFRESH_MIN = 15;

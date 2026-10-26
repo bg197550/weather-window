@@ -50,3 +50,10 @@ The copy of `data/long-range.json` on `main` is only a fallback.
 Asset links carry a `?v=` date; bump it in the three HTML files when you change an asset so phones don't mix old and new files.
 
 The app bar (Weather / Surf / Snow and Ask AI) comes from the shared `suite.css`/`suite.js` served by Surf Window. New England locations include NH Seacoast (North Hampton), which the Surf Window beaches in New Hampshire link to.
+
+## Comparison and webcam updates
+
+- Model comparison aligns model guidance by date, retains missing-data gaps, uses consistent GFS / ECMWF / GEM colors, adds snowfall comparison in Utah, and shows selected-day ranges and data retrieval context. Retrieval time is not a model run timestamp.
+- Mountain profile aligns mid/peak periods, retains wind-range maxima and unavailable values, and shows grid elevations, forecast issue times, selected-period freezing context, and the lowest snow level during snowfall in the next 72 hours when provided.
+- Webcam directories group resorts by area and support search and feed-type filters without reloading feeds. A resort player is unverified until playback can be observed; HLS video is labeled playing only on a playback event. Still-image labels report load time, not camera capture time, and recover after a successful reload.
+- Run regression checks with `node --test tests/*.test.mjs`.

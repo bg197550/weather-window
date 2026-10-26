@@ -586,6 +586,7 @@ let active = "utah",
   players = [],
   observer = null;
 let hlsLoader = null;
+let cameraSearch = "", cameraType = "all";
 const safe = (x) =>
   String(x).replace(
     /[&<>"']/g,
@@ -594,10 +595,54 @@ const safe = (x) =>
 function snapshotURL(u) {
   return u + (u.includes("?") ? "&" : "?") + "t=" + Math.floor(Date.now() / 30000);
 }
+function cameraKind(c) {
+  return c.offline ? "offline" : c.hls ? "video" : c.snapshot ? "still" : "player";
+}
+function cameraStatus(c) {
+  return c.offline ? "Unavailable" : c.hls ? "Loading video" : c.snapshot ? "Loading still" : "Resort player · status unverified";
+}
+function setCameraStatus(cam, text, state) {
+  const badge=cam.querySelector(".badge");
+  if(badge){badge.textContent=text;badge.dataset.state=state;}
+}
+function wireStill(img) {
+  const cam=img.closest(".cam");
+  img.onerror=()=>{cam.querySelector(".cam-failure").hidden=false;setCameraStatus(cam,"Still unavailable","error");};
+  img.onload=()=>{
+    cam.querySelector(".cam-failure").hidden=true;
+    setCameraStatus(cam,"Still · loaded "+new Date().toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"}),"still");
+  };
+  if(img.complete && img.naturalWidth>0) img.onload();
+}
+function webcamFilters() {
+  return `<section class="camera-tools" aria-label="Find camera views"><label for="camera-search">Find a resort or view<input id="camera-search" type="search" placeholder="Search by resort, area or camera" value="${safe(cameraSearch)}"></label><div class="camera-type-filters" role="group" aria-label="Feed type">${[["all","All views"],["video","Video feeds"],["still","Stills"],["offline","Unavailable"]].map(([id,label])=>`<button type="button" data-camera-type="${id}" aria-pressed="${cameraType===id}">${label}</button>`).join("")}</div><p id="camera-results" role="status"></p></section><p class="camera-key">Video playback is confirmed only when a feed plays. Embedded resort-player status cannot be verified here. “Loaded” is when your browser received a still, not when the camera captured it.</p>`;
+}
+function cameraCard(r,c,overview=false) {
+  const kind=cameraKind(c);
+  return `<article class="card camera-card" data-camera-search="${safe([r.name,r.area,c.name].join(" ").toLowerCase())}" data-camera-kind="${kind}"><div class="pad cardhead"><div><p class="card-eyebrow">${safe(r.area)}</p><h2>${overview?`<a href="#${r.id}">${safe(r.name)} ›</a>`:safe(c.name)}</h2>${overview?`<p class="muted">${safe(c.name)}</p>`:""}</div>${overview?`<a class="camera-count" href="#${r.id}">${r.cams.length} views</a>`:`<span class="feed-kind">${kind==="player"?"Resort player":kind==="video"?"Video feed":kind==="still"?"Still image":"Unavailable"}</span>`}</div>${camera(r,c)}${footer(r,c)}</article>`;
+}
+function groupedResorts(list) {
+  const groups=new Map();
+  list.forEach(r=>{if(!groups.has(r.area))groups.set(r.area,[]);groups.get(r.area).push(r);});
+  return [...groups].map(([area,resorts])=>`<section class="camera-area"><div class="area-heading"><h2>${safe(area)}</h2><span>${resorts.length} resort${resorts.length===1?"":"s"}</span></div><div class="grid">${resorts.map(r=>cameraCard(r,r.cams.find(c=>!c.offline)||r.cams[0],true)).join("")}</div></section>`).join("");
+}
+function applyCameraFilters() {
+  const query=cameraSearch.trim().toLowerCase();let visible=0;
+  content.querySelectorAll(".camera-card").forEach(card=>{
+    const type=card.dataset.cameraKind;
+    const match=(!query || card.dataset.cameraSearch.includes(query)) && (cameraType==="all" || (cameraType==="video"?(type==="video"||type==="player"):type===cameraType));
+    card.hidden=!match;if(match)visible++;
+  });
+  content.querySelectorAll(".camera-area").forEach(area=>{area.hidden=![...area.querySelectorAll(".camera-card")].some(card=>!card.hidden);});
+  const status=content.querySelector("#camera-results");
+  if(status)status.textContent=visible?visible+" camera card"+(visible===1?"":"s")+" shown":"No matching views. Clear your search or choose All views.";
+  content.querySelectorAll("[data-camera-type]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.cameraType===cameraType)));
+}
+
 function camera(r, c) {
   if (c.offline)
-    return `<div class="cam"><div class="cam-failure"><strong>${safe(c.name)} is currently offline</strong><a href="${safe(r.source)}" target="_blank" rel="noopener">Check resort camera updates ↗</a></div></div>`;
-  return `<div class="cam">${c.hls ? `<video data-hls="${safe(c.hls)}" data-fallback="${safe(c.snapshot)}" poster="${safe(c.snapshot)}" muted autoplay playsinline controls aria-label="${safe(r.name + " · " + c.name + " webcam")}"></video>` : c.snapshot ? `<img data-snapshot="${safe(c.snapshot)}" src="${safe(snapshotURL(c.snapshot))}" alt="${safe(r.name + " · " + c.name + " webcam")}" loading="lazy" referrerpolicy="no-referrer">` : `<iframe ${c.embed.includes("{W}") ? "data-sized" : "src"}="${safe(c.embed)}"${c.wetmet ? ' class="crop" scrolling="no"' : ""} title="${safe(r.name + " · " + c.name + " webcam")}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe>`}<span class="badge">${safe(c.badge || (c.snapshot && !c.hls ? "CAMERA STILL · 30s REFRESH" : "LIVE VIDEO"))}</span><div class="cam-failure" hidden><strong>Camera image unavailable</strong><a href="${safe(r.source)}" target="_blank" rel="noopener">Open resort webcams ↗</a></div></div>`;
+    return `<div class="cam"><span class="badge" data-state="error" role="status">Unavailable</span><div class="cam-failure"><strong>${safe(c.name)} is currently offline</strong><a href="${safe(r.source)}" target="_blank" rel="noopener">Check resort camera updates ↗</a></div></div>`;
+  return `<div class="cam">${c.hls ? `<video data-hls="${safe(c.hls)}" data-fallback="${safe(c.snapshot)}" poster="${safe(c.snapshot)}" muted autoplay playsinline controls aria-label="${safe(r.name + " · " + c.name + " webcam")}"></video>` : c.snapshot ? `<img data-snapshot="${safe(c.snapshot)}" src="${safe(snapshotURL(c.snapshot))}" alt="${safe(r.name + " · " + c.name + " webcam")}" loading="lazy" referrerpolicy="no-referrer">` : `<iframe ${c.embed.includes("{W}") ? "data-sized" : "src"}="${safe(c.embed)}"${c.wetmet ? ' class="crop" scrolling="no"' : ""} title="${safe(r.name + " · " + c.name + " webcam")}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe>`}<span class="badge" data-state="loading" role="status">${safe(cameraStatus(c))}</span><div class="cam-failure" hidden><strong>Camera feed unavailable</strong><a href="${safe(r.source)}" target="_blank" rel="noopener">Open resort webcams ↗</a></div></div>`;
 }
 function footer(r, c) {
   return `<div class="cam-footer"><span>${safe(c.name)}</span><a href="${safe(r.source)}" target="_blank" rel="noopener">Resort feed ↗</a></div>`;
@@ -620,7 +665,7 @@ function regionOf(id) {
   return REGIONS[id] ? id : RESORTS.find((x) => x.id === id)?.region || "utah";
 }
 function forecastLink(r) {
-  return r.forecast ? `../#${r.region}/${r.forecast}/overview` : REGIONS[r.region].forecast;
+  return r.forecast ? `../#${r.region}/${r.forecast}/forecast` : REGIONS[r.region].forecast;
 }
 function render() {
   observer?.disconnect();
@@ -635,26 +680,20 @@ function render() {
   document.querySelector("#regions").innerHTML = Object.entries(REGIONS)
     .map(([k, v]) => `<a href="#${k}" ${k === reg ? 'aria-current="page"' : ""}>${v.name}</a>`)
     .join("");
-  document.querySelector("#resorts").innerHTML = [{ id: reg, name: "Overview" }, ...list]
+  document.querySelector("#resorts").innerHTML = [{ id: reg, name: "All resorts" }, ...list]
     .map((x) => `<a href="#${x.id}" ${x.id === active ? 'aria-current="page"' : ""}>${safe(x.name)}</a>`)
     .join("");
   if (r) {
-    content.innerHTML = `<div class="toolbar"><p class="muted">${r.cams.length} camera view${r.cams.length === 1 ? "" : "s"}</p><div class="resort-links"><a class="xlink" href="${forecastLink(r)}">☀ ${r.forecast ? "Forecast" : R.name + " forecasts"} ›</a>${r.region === "utah" ? `<a class="xlink" href="../snow/">❄ Snow report ›</a>${r.id !== "park-city" ? `<a class="xlink" href="${safe(`https://utahavalanchecenter.org/forecast/${r.id === "snowbasin" ? "ogden" : "salt-lake"}`)}" target="_blank" rel="noopener">Avalanche forecast ↗</a>` : ""}` : ""}</div></div><div class="grid" aria-label="${safe(r.name)} cameras">${r.cams.map((c) => `<article class="card"><div class="pad cardhead"><h2>${safe(c.name)}</h2></div>${camera(r, c)}${footer(r, c)}</article>`).join("")}</div>`;
+    content.innerHTML = `<div class="toolbar"><p class="muted">${r.cams.length} camera view${r.cams.length === 1 ? "" : "s"}</p><div class="resort-links"><a class="xlink" href="${forecastLink(r)}">☀ ${r.forecast ? "Forecast" : R.name + " forecasts"} ›</a>${r.region === "utah" ? `<a class="xlink" href="../snow/">❄ Snow report ›</a>${r.id !== "park-city" ? `<a class="xlink" href="${safe(`https://utahavalanchecenter.org/forecast/${r.id === "snowbasin" ? "ogden" : "salt-lake"}`)}" target="_blank" rel="noopener">Avalanche forecast ↗</a>` : ""}` : ""}</div></div>${webcamFilters()}<div class="grid" aria-label="${safe(r.name)} cameras">${r.cams.map(c=>cameraCard(r,c)).join("")}</div>`;
   } else {
-    content.innerHTML = `<div class="grid">${list
-      .map((x) => {
-        const c = x.cams[0];
-        return `<article class="card"><div class="pad cardhead"><div><h2><a href="#${x.id}">${safe(x.name)} ›</a></h2><div class="muted">${safe(x.area)}</div></div><a class="camera-count" href="#${x.id}">${x.cams.length} camera${x.cams.length === 1 ? "" : "s"}</a></div>${camera(x, c)}${footer(x, c)}</article>`;
-      })
-      .join("")}</div>`;
+    content.innerHTML = webcamFilters() + groupedResorts(list);
   }
-  content.querySelectorAll("[data-snapshot]").forEach((img) => {
-    img.onerror = () => {
-      img.parentElement.querySelector(".cam-failure").hidden = false;
-    };
-    img.onload = () => {
-      img.parentElement.querySelector(".cam-failure").hidden = true;
-    };
+  content.querySelectorAll("[data-snapshot]").forEach(wireStill);
+  content.querySelector("#camera-search").oninput=e=>{cameraSearch=e.target.value;applyCameraFilters();};
+  content.querySelectorAll("[data-camera-type]").forEach(b=>b.onclick=()=>{cameraType=b.dataset.cameraType;applyCameraFilters();});
+  applyCameraFilters();
+  content.querySelectorAll(".cam iframe").forEach(f=>{
+    f.onerror=()=>{const cam=f.closest(".cam");cam.querySelector(".cam-failure").hidden=false;setCameraStatus(cam,"Resort player unavailable","error");};
   });
   content.querySelectorAll("iframe[data-sized]").forEach((f) => {
     const w = Math.max(320, Math.round(f.parentElement.clientWidth)),
@@ -685,9 +724,9 @@ function videoStill(v) {
   img.alt = v.getAttribute("aria-label") + " · camera still";
   img.dataset.snapshot = v.dataset.fallback;
   img.src = snapshotURL(v.dataset.fallback);
-  img.onerror = () => (cam.querySelector(".cam-failure").hidden = false);
   v.replaceWith(img);
-  cam.querySelector(".badge").textContent = "CAMERA STILL · 30s REFRESH";
+  setCameraStatus(cam,"Loading fallback still","loading");
+  wireStill(img);
 }
 function startVideos() {
   observer = new IntersectionObserver(
@@ -695,6 +734,10 @@ function startVideos() {
       entries.forEach(async (entry) => {
         if (!entry.isIntersecting) return;
         const v = entry.target;
+        const cam=v.closest(".cam");
+        v.onplaying=()=>setCameraStatus(cam,"Live video · playing","video");
+        v.onwaiting=()=>setCameraStatus(cam,"Video buffering","loading");
+        v.onpause=()=>setCameraStatus(cam,"Video paused","paused");
         observer.unobserve(v);
         try {
           if (v.canPlayType("application/vnd.apple.mpegurl")) {
@@ -735,7 +778,9 @@ function startVideos() {
 }
 
 function readHash() {
-  const id = decodeURIComponent(location.hash.slice(1));
+  let id;
+  try { id=decodeURIComponent(location.hash.slice(1)); } catch { id=WW.region(); }
+  cameraSearch="";cameraType="all";
   active = REGIONS[id] || RESORTS.some((r) => r.id === id) ? id : id === "new-england" ? "ne" : WW.region();
   WW.setRegion(regionOf(active), true);
   render();
