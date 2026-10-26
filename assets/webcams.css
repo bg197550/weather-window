@@ -292,3 +292,28 @@ button:focus-visible {
   background: #143b44;
   border-color: #226577;
 }
+
+/* Camera discovery and status share Forecast's spacing and hierarchy. */
+.camera-tools { display: flex; flex-wrap: wrap; gap: 16px 24px; align-items: end; padding: 20px; margin: 8px 0 14px; background: #102c3b; border: 1px solid #294958; border-radius: 14px; }
+.camera-tools label { display: grid; gap: 8px; flex: 1 1 260px; font-size: 14px; color: #a9c2cd; }
+.camera-tools input { width: 100%; min-height: 46px; border-radius: 8px; border: 1px solid #365565; background: #071d2b; padding: 10px 12px; font: inherit; color: #eaf6f8; }
+.camera-tools input:focus-visible { outline: 3px solid #79d7e5; outline-offset: 3px; }
+.camera-type-filters { display: flex; flex-wrap: wrap; gap: 6px; }
+.camera-type-filters button { min-height: 44px; padding: 10px 13px; border: 1px solid #365565; border-radius: 8px; background: #071d2b; color: #a9c2cd; }
+.camera-type-filters button[aria-pressed=true] { color: #071d2b; background: #79d7e5; border-color: #79d7e5; }
+#camera-results { width: 100%; margin: 0; font-size: 13px; color: #a9c2cd; }
+.camera-key { font-size: 13px; color: #a9c2cd; max-width: 100ch; margin: 0 0 26px; }
+.camera-area { margin: 32px 0; }
+.area-heading { display: flex; gap: 16px; align-items: baseline; margin-bottom: 16px; }
+.area-heading span { color: #a9c2cd; font-size: 13px; }
+.card-eyebrow { margin: 0 0 7px; font-size: 12px; color: #79d7e5; }
+.cardhead .muted { margin-bottom: 0; }
+.feed-kind { color: #a9c2cd; font-size: 12px; text-align: right; }
+.camera-card[hidden],.camera-area[hidden] { display: none !important; }
+.badge { max-width: calc(100% - 20px); line-height: 1.4; border: 1px solid #294958; }
+.badge[data-state=video] { color: #a8d6b0; }
+.badge[data-state=still] { color: #79d7e5; }
+.badge[data-state=error] { color: #f2c780; }
+.cam-failure strong { color: #f2c780; }
+.cam-footer { flex-wrap: wrap; }
+@media(max-width:700px) { .camera-tools { padding: 15px; } .camera-type-filters { width: 100%; } .camera-type-filters button { flex: 1 1 auto; } .area-heading { margin-bottom: 12px; } .cardhead { align-items: start; } }
