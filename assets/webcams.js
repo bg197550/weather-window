@@ -660,10 +660,6 @@ function render() {
     R = REGIONS[reg],
     list = RESORTS.filter((x) => x.region === reg);
   document.querySelector("#title").textContent = r ? r.name + " webcams" : R.title;
-  document.querySelector("#subtitle").textContent = r ? "All resort cameras on one page" : R.sub;
-  document.querySelector("#regions").innerHTML = Object.entries(REGIONS)
-    .map(([k, v]) => `<a href="#${k}" ${k === reg ? 'aria-current="page"' : ""}>${v.name}</a>`)
-    .join("");
   document.querySelector("#resorts").innerHTML = [{ id: reg, name: "All resorts" }, ...list]
     .map((x) => `<a href="#${x.id}" ${x.id === active ? 'aria-current="page"' : ""}>${safe(x.name)}</a>`)
     .join("");
