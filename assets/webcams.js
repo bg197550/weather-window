@@ -598,11 +598,11 @@ function cameraKind(c) {
   return c.offline ? "offline" : c.hls ? "video" : c.snapshot ? "still" : "player";
 }
 function cameraStatus(c) {
-  return c.offline ? "Unavailable" : c.hls ? "Loading video" : c.snapshot ? "Loading still" : "Resort player · status unverified";
+  return !c.offline && c.snapshot && !c.hls ? "Loading still" : "";
 }
 function setCameraStatus(cam, text, state) {
   const badge=cam.querySelector(".badge");
-  if(badge){badge.textContent=text;badge.dataset.state=state;}
+  if(badge){badge.hidden=!cam.querySelector("img[data-snapshot]");badge.textContent=text;badge.dataset.state=state;}
 }
 function wireStill(img) {
   const cam=img.closest(".cam");
@@ -615,15 +615,15 @@ function wireStill(img) {
 }
 function cameraCard(r,c,overview=false) {
   const kind=cameraKind(c);
-  return `<article class="card camera-card"><div class="pad cardhead"><div><h2>${overview?`<a href="#${r.id}">${safe(r.name)} ›</a>`:safe(c.name)}</h2>${overview?`<p class="muted">${safe(c.name)}</p>`:""}</div>${overview?`<a class="camera-count" href="#${r.id}">${r.cams.length} views</a>`:`<span class="feed-kind">${kind==="player"?"Resort player":kind==="video"?"Video feed":kind==="still"?"Still image":"Unavailable"}</span>`}</div>${camera(r,c)}${footer(r,c)}</article>`;
+  return `<article class="card camera-card"><div class="pad cardhead"><div><h2>${overview?`<a href="#${r.id}">${safe(r.name)} ›</a>`:safe(c.name)}</h2>${overview?`<p class="muted">${safe(c.name)}</p>`:""}</div>${overview?`<a class="camera-count" href="#${r.id}">${r.cams.length} views</a>`:(kind==="still"?`<span class="feed-kind">Still image</span>`:"")}</div>${camera(r,c)}${footer(r,c)}</article>`;
 }
 function groupedResorts(list) {
   return `<div class="grid">${list.map(r=>cameraCard(r,r.cams.find(c=>!c.offline)||r.cams[0],true)).join("")}</div>`;
 }
 function camera(r, c) {
   if (c.offline)
-    return `<div class="cam"><span class="badge" data-state="error" role="status">Unavailable</span><div class="cam-failure"><strong>${safe(c.name)} is currently offline</strong><a href="${safe(r.source)}" target="_blank" rel="noopener">Check resort camera updates ↗</a></div></div>`;
-  return `<div class="cam">${c.hls ? `<video data-hls="${safe(c.hls)}" data-fallback="${safe(c.snapshot)}" poster="${safe(c.snapshot)}" muted autoplay playsinline controls aria-label="${safe(r.name + " · " + c.name + " webcam")}"></video>` : c.snapshot ? `<img data-snapshot="${safe(c.snapshot)}" src="${safe(snapshotURL(c.snapshot))}" alt="${safe(r.name + " · " + c.name + " webcam")}" loading="lazy" referrerpolicy="no-referrer">` : `<iframe ${c.embed.includes("{W}") ? "data-sized" : "src"}="${safe(c.embed)}"${c.wetmet ? ' class="crop" scrolling="no"' : ""} title="${safe(r.name + " · " + c.name + " webcam")}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe>`}<span class="badge" data-state="loading" role="status">${safe(cameraStatus(c))}</span><div class="cam-failure" hidden><strong>Camera feed unavailable</strong><a href="${safe(r.source)}" target="_blank" rel="noopener">Open resort webcams ↗</a></div></div>`;
+    return `<div class="cam"><div class="cam-failure"><strong>${safe(c.name)} is currently offline</strong><a href="${safe(r.source)}" target="_blank" rel="noopener">Check resort camera updates ↗</a></div></div>`;
+  return `<div class="cam">${c.hls ? `<video data-hls="${safe(c.hls)}" data-fallback="${safe(c.snapshot)}" poster="${safe(c.snapshot)}" muted autoplay playsinline controls aria-label="${safe(r.name + " · " + c.name + " webcam")}"></video>` : c.snapshot ? `<img data-snapshot="${safe(c.snapshot)}" src="${safe(snapshotURL(c.snapshot))}" alt="${safe(r.name + " · " + c.name + " webcam")}" loading="lazy" referrerpolicy="no-referrer">` : `<iframe ${c.embed.includes("{W}") ? "data-sized" : "src"}="${safe(c.embed)}"${c.wetmet ? ' class="crop" scrolling="no"' : ""} title="${safe(r.name + " · " + c.name + " webcam")}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe>`}<span class="badge" data-state="loading" role="status"${c.snapshot && !c.hls ? "" : " hidden"}>${safe(cameraStatus(c))}</span><div class="cam-failure" hidden><strong>Camera feed unavailable</strong><a href="${safe(r.source)}" target="_blank" rel="noopener">Open resort webcams ↗</a></div></div>`;
 }
 function footer(r, c) {
   return `<div class="cam-footer"><span>${safe(c.name)}</span><a href="${safe(r.source)}" target="_blank" rel="noopener">Resort feed ↗</a></div>`;
@@ -713,9 +713,6 @@ function startVideos() {
         if (!entry.isIntersecting) return;
         const v = entry.target;
         const cam=v.closest(".cam");
-        v.onplaying=()=>setCameraStatus(cam,"Live video · playing","video");
-        v.onwaiting=()=>setCameraStatus(cam,"Video buffering","loading");
-        v.onpause=()=>setCameraStatus(cam,"Video paused","paused");
         observer.unobserve(v);
         try {
           if (v.canPlayType("application/vnd.apple.mpegurl")) {
