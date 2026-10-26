@@ -78,3 +78,18 @@ test("still-image recovery clears unavailable state and records load time only",
  s.wireStill(img);img.onerror();assert.equal(failure.hidden,false);assert.equal(badge.dataset.state,"error");
  img.onload();assert.equal(failure.hidden,true);assert.equal(badge.dataset.state,"still");assert.ok(badge.textContent.includes("loaded"));
 });
+
+test("Park City and Canyons Brownrice players load on page load with autoplay permission",()=>{
+ const s=cams();
+ for(const id of ["park-city","canyons-resort"]){
+  const resort=s.resorts.find(r=>r.id===id);assert.ok(resort);
+  for(const c of resort.cams){
+   const html=s.camera(resort,c);
+   assert.ok(html.includes('loading="eager"'));
+   assert.ok(html.includes('allow="autoplay;'));
+   assert.ok(html.includes(c.embed));
+  }
+ }
+ assert.equal(s.cameraLoading({embed:"https://www.youtube-nocookie.com/embed/example"}),"lazy");
+ assert.equal(s.cameraLoading({snapshot:"https://example.com/image.jpg"}),"lazy");
+});
