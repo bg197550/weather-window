@@ -1,11 +1,11 @@
-/* Shared section navigation for the Weather, Snow Report and Webcams pages.
-   Desktop: a row of section links with a Utah / New England switch under the app bar.
-   Phones: a fixed bottom tab bar (Forecast, Radar, Cams, Snow, More).
+/* Separate Weather and Snow navigation, shared across their pages.
+   Desktop: section links with the region switch under the app bar.
+   Phones: a fixed bottom tab bar for the current app.
    The chosen region is remembered in localStorage and shared by every page. */
 window.WW = (function () {
   const REGION_KEY = "ww:region";
   const REGIONS = { utah: "Utah", ne: "New England" };
-  const SECTIONS = [
+  const WEATHER_SECTIONS = [
     { key: "forecast", label: "Forecast", icon: "☀", href: (b, r) => `${b}#${r}` },
     {
       key: "radar",
@@ -13,11 +13,17 @@ window.WW = (function () {
       icon: "◎",
       href: (b, r) => `${b}#radar/${r === "ne" ? "sne" : "wasatch"}`,
     },
-    { key: "cams", label: "Webcams", short: "Cams", icon: "▣", href: (b, r) => `${b}webcams/#${r}` },
-    { key: "snow", label: "Snow report", short: "Snow", icon: "❄", href: (b) => `${b}snow/` },
     { key: "precip", label: "Precip models", icon: "☂", href: (b, r) => `${b}#precip/${r}`, more: true },
     { key: "long", label: "Long range", icon: "≋", href: (b) => `${b}#long`, more: true },
   ];
+  const SNOW_SECTIONS = [
+    { key: "cams", label: "Webcams", icon: "▣", href: (b, r) => `${b}webcams/#${r}` },
+    { key: "resorts", label: "Resorts", icon: "❄", href: (b) => `${b}snow/#resorts` },
+    { key: "snowpack", label: "Snowpack", icon: "▥", href: (b) => `${b}snow/#snowpack` },
+    { key: "models", label: "Models", icon: "☂", href: (b) => `${b}snow/#models` },
+    { key: "hourly", label: "Hourly", icon: "◷", href: (b) => `${b}snow/#hourly` },
+  ];
+  let SECTIONS = WEATHER_SECTIONS, sectionName = "Weather sections";
   let base = "",
     active = "forecast",
     regionLocked = null;
@@ -60,7 +66,7 @@ window.WW = (function () {
     const r = region();
     const top = document.querySelector(".suite-nav-inner");
     if (top) {
-      top.setAttribute("aria-label", "Weather sections");
+      top.setAttribute("aria-label", sectionName);
       top.removeAttribute("role");
       top.innerHTML = `<div class="ww-links">${SECTIONS.map((s) => link(s, r, "suite-tab ww-top")).join("")}</div>${regionSwitch("ww-region-top")}`;
     }
@@ -68,15 +74,17 @@ window.WW = (function () {
     if (!bar) {
       bar = document.createElement("nav");
       bar.className = "ww-tabbar";
-      bar.setAttribute("aria-label", "Weather sections");
+      bar.setAttribute("aria-label", sectionName);
       document.body.appendChild(bar);
     }
+    const hasMore = SECTIONS.some((s) => s.more);
+    bar.style.gridTemplateColumns = `repeat(${SECTIONS.filter((s) => !s.more).length + (hasMore ? 1 : 0)}, 1fr)`;
     const inMore = SECTIONS.some((s) => s.more && s.key === active);
     bar.innerHTML = `${SECTIONS.filter((s) => !s.more)
       .map((s) => link(s, r, "ww-tab"))
       .join(
         "",
-      )}<button type="button" class="ww-tab ww-more-btn" aria-expanded="false" aria-controls="ww-sheet"${inMore ? ' aria-current="page"' : ""}><span class="ww-ico" aria-hidden="true">⋯</span><span class="ww-lbl">More</span></button>`;
+      )}${hasMore ? `<button type="button" class="ww-tab ww-more-btn" aria-expanded="false" aria-controls="ww-sheet"${inMore ? ' aria-current="page"' : ""}><span class="ww-ico" aria-hidden="true">⋯</span><span class="ww-lbl">More</span></button>` : ""}`;
     let sheet = document.querySelector("#ww-sheet");
     if (!sheet) {
       sheet = document.createElement("div");
@@ -135,6 +143,8 @@ window.WW = (function () {
     }
   }
   function init(opts) {
+    SECTIONS = opts.section === "snow" ? SNOW_SECTIONS : WEATHER_SECTIONS;
+    sectionName = opts.section === "snow" ? "Snow sections" : "Weather sections";
     base = opts.base || "";
     active = opts.active || "forecast";
     regionLocked = opts.lockRegion || null;

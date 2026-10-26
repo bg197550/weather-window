@@ -7,7 +7,7 @@ let tab = "resorts",
   hourlyResort = 0,
   hourlyPoint = 1,
   lastLoad = Date.now();
-const TABS = { resorts: "Resorts", models: "Models", snowpack: "Snowpack", hourly: "Hourly" };
+const TABS = { resorts: "Resorts", snowpack: "Snowpack", models: "Models", hourly: "Hourly" };
 
 function makePlot(series, labels, unit, type, selected) {
   const n = labels.length,
@@ -159,14 +159,7 @@ function resortPills(sel, attr) {
   return `<div class="day-pills" aria-label="Resort">${RESORTS.map((x, i) => `<button ${attr}="${i}" class="${i === sel ? "active" : ""}">${escapeHTML(x.name)}</button>`).join("")}</div>`;
 }
 function render() {
-  const head = `<div class="toolbar"><div><h2>Snow Report</h2><p class="sub">Wasatch resorts · NWS forecasts, global models and measured snowpack</p></div><div class="detail-actions"><a class="xlink" href="https://utahavalanchecenter.org/" target="_blank" rel="noopener">Avalanche forecast ↗</a><a class="xlink" href="../webcams/#utah">▣ Webcams ›</a></div></div><div class="forecast-tabs snow-tabs" role="tablist" aria-label="Snow report sections">${Object.entries(
-    TABS,
-  )
-    .map(
-      ([k, n]) =>
-        `<button type="button" role="tab" data-tab="${k}" aria-selected="${k === tab}">${n}</button>`,
-    )
-    .join("")}</div><div id="alert-banner"></div>`;
+  const head = `<div class="toolbar"><div><h2>Snow Report</h2><p class="sub">Wasatch resorts · NWS forecasts, global models and measured snowpack</p></div><div class="detail-actions"><a class="xlink" href="https://utahavalanchecenter.org/" target="_blank" rel="noopener">Avalanche forecast ↗</a></div></div><div id="alert-banner"></div>`;
   if (tab === "resorts") {
     content.innerHTML =
       head +
@@ -198,13 +191,7 @@ function render() {
     );
     loadHourlyView();
   }
-  content.querySelectorAll(".snow-tabs [data-tab]").forEach(
-    (b) =>
-      (b.onclick = () => {
-        tab = b.dataset.tab;
-        render();
-      }),
-  );
+  WW.setActive(tab);
   loadMountainAlerts();
   const h = tab + (tab === "hourly" ? "/" + slug(RESORTS[hourlyResort].name) : "");
   if (location.hash.slice(1) !== h) history.replaceState(null, "", "#" + h);
@@ -221,7 +208,7 @@ window.addEventListener("hashchange", () => {
   readHash();
   render();
 });
-WW.init({ base: "../", active: "snow", lockRegion: "utah" });
+WW.init({ base: "../", section: "snow", active: "resorts", lockRegion: "utah" });
 function stamp() {
   const el = document.querySelector("#today");
   if (el)

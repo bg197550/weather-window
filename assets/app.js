@@ -241,10 +241,7 @@ const VIEW_NOTES = {
 function placeLinks(place, section) {
   const lbl = (long, short) => `<span class="lg">${long}</span><span class="sm">${short}</span>`;
   const links = [];
-  if (CAMS[place.name])
-    links.push(`<a class="xlink" href="webcams/#${CAMS[place.name]}">▣ ${lbl("Webcams", "Cams")} ›</a>`);
   if (section === "utah" && place.p.length > 1) {
-    links.push(`<a class="xlink" href="snow/">❄ ${lbl("Snow report", "Snow")} ›</a>`);
     links.push(
       `<a class="xlink" href="${uacURL(place.name)}" target="_blank" rel="noopener">${lbl("Avalanche forecast", "Avalanche")} ↗</a>`,
     );
