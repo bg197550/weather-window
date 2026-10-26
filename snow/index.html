@@ -2,6 +2,14 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
+    <script>
+      // Snow opens on webcams; explicit report links keep their selected view.
+      if (!location.hash || location.hash === "#") {
+        let region = "utah";
+        try { if (localStorage.getItem("ww:region") === "ne") region = "ne"; } catch {}
+        location.replace("../webcams/#" + region);
+      }
+    </script>
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
     <title>Snow Report</title>
     <meta name="theme-color" content="#0b2130" />
