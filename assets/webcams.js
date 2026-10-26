@@ -620,10 +620,13 @@ function cameraCard(r,c,overview=false) {
 function groupedResorts(list) {
   return `<div class="grid">${list.map(r=>cameraCard(r,r.cams.find(c=>!c.offline)||r.cams[0],true)).join("")}</div>`;
 }
+function cameraLoading(c) {
+  return c.embed?.startsWith("https://player.brownrice.com/embed/") ? "eager" : "lazy";
+}
 function camera(r, c) {
   if (c.offline)
     return `<div class="cam"><div class="cam-failure"><strong>${safe(c.name)} is currently offline</strong><a href="${safe(r.source)}" target="_blank" rel="noopener">Check resort camera updates ↗</a></div></div>`;
-  return `<div class="cam">${c.hls ? `<video data-hls="${safe(c.hls)}" data-fallback="${safe(c.snapshot)}" poster="${safe(c.snapshot)}" muted autoplay playsinline controls aria-label="${safe(r.name + " · " + c.name + " webcam")}"></video>` : c.snapshot ? `<img data-snapshot="${safe(c.snapshot)}" src="${safe(snapshotURL(c.snapshot))}" alt="${safe(r.name + " · " + c.name + " webcam")}" loading="lazy" referrerpolicy="no-referrer">` : `<iframe ${c.embed.includes("{W}") ? "data-sized" : "src"}="${safe(c.embed)}"${c.wetmet ? ' class="crop" scrolling="no"' : ""} title="${safe(r.name + " · " + c.name + " webcam")}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe>`}<span class="badge" data-state="loading" role="status"${c.snapshot && !c.hls ? "" : " hidden"}>${safe(cameraStatus(c))}</span><div class="cam-failure" hidden><strong>Camera feed unavailable</strong><a href="${safe(r.source)}" target="_blank" rel="noopener">Open resort webcams ↗</a></div></div>`;
+  return `<div class="cam">${c.hls ? `<video data-hls="${safe(c.hls)}" data-fallback="${safe(c.snapshot)}" poster="${safe(c.snapshot)}" muted autoplay playsinline controls aria-label="${safe(r.name + " · " + c.name + " webcam")}"></video>` : c.snapshot ? `<img data-snapshot="${safe(c.snapshot)}" src="${safe(snapshotURL(c.snapshot))}" alt="${safe(r.name + " · " + c.name + " webcam")}" loading="lazy" referrerpolicy="no-referrer">` : `<iframe ${c.embed.includes("{W}") ? "data-sized" : "src"}="${safe(c.embed)}"${c.wetmet ? ' class="crop" scrolling="no"' : ""} title="${safe(r.name + " · " + c.name + " webcam")}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen loading="${cameraLoading(c)}" referrerpolicy="strict-origin-when-cross-origin"></iframe>`}<span class="badge" data-state="loading" role="status"${c.snapshot && !c.hls ? "" : " hidden"}>${safe(cameraStatus(c))}</span><div class="cam-failure" hidden><strong>Camera feed unavailable</strong><a href="${safe(r.source)}" target="_blank" rel="noopener">Open resort webcams ↗</a></div></div>`;
 }
 function footer(r, c) {
   return `<div class="cam-footer"><span>${safe(c.name)}</span><a href="${safe(r.source)}" target="_blank" rel="noopener">Resort feed ↗</a></div>`;
