@@ -615,16 +615,14 @@ function wireStill(img) {
   if(img.complete && img.naturalWidth>0) img.onload();
 }
 function webcamFilters() {
-  return `<section class="camera-tools" aria-label="Find camera views"><label for="camera-search">Find a resort or view<input id="camera-search" type="search" placeholder="Search by resort, area or camera" value="${safe(cameraSearch)}"></label><div class="camera-type-filters" role="group" aria-label="Feed type">${[["all","All views"],["video","Video feeds"],["still","Stills"],["offline","Unavailable"]].map(([id,label])=>`<button type="button" data-camera-type="${id}" aria-pressed="${cameraType===id}">${label}</button>`).join("")}</div><p id="camera-results" role="status"></p></section><p class="camera-key">Video playback is confirmed only when a feed plays. Embedded resort-player status cannot be verified here. “Loaded” is when your browser received a still, not when the camera captured it.</p>`;
+  return `<section class="camera-tools" aria-label="Find camera views"><label for="camera-search">Find a resort or view<input id="camera-search" type="search" placeholder="Search by resort or camera" value="${safe(cameraSearch)}"></label><div class="camera-type-filters" role="group" aria-label="Feed type">${[["all","All views"],["video","Video feeds"],["still","Stills"],["offline","Unavailable"]].map(([id,label])=>`<button type="button" data-camera-type="${id}" aria-pressed="${cameraType===id}">${label}</button>`).join("")}</div><p id="camera-results" role="status"></p></section><p class="camera-key">Video playback is confirmed only when a feed plays. Embedded resort-player status cannot be verified here. “Loaded” is when your browser received a still, not when the camera captured it.</p>`;
 }
 function cameraCard(r,c,overview=false) {
   const kind=cameraKind(c);
-  return `<article class="card camera-card" data-camera-search="${safe([r.name,r.area,c.name].join(" ").toLowerCase())}" data-camera-kind="${kind}"><div class="pad cardhead"><div><p class="card-eyebrow">${safe(r.area)}</p><h2>${overview?`<a href="#${r.id}">${safe(r.name)} ›</a>`:safe(c.name)}</h2>${overview?`<p class="muted">${safe(c.name)}</p>`:""}</div>${overview?`<a class="camera-count" href="#${r.id}">${r.cams.length} views</a>`:`<span class="feed-kind">${kind==="player"?"Resort player":kind==="video"?"Video feed":kind==="still"?"Still image":"Unavailable"}</span>`}</div>${camera(r,c)}${footer(r,c)}</article>`;
+  return `<article class="card camera-card" data-camera-search="${safe([r.name,r.area,c.name].join(" ").toLowerCase())}" data-camera-kind="${kind}"><div class="pad cardhead"><div><h2>${overview?`<a href="#${r.id}">${safe(r.name)} ›</a>`:safe(c.name)}</h2>${overview?`<p class="muted">${safe(c.name)}</p>`:""}</div>${overview?`<a class="camera-count" href="#${r.id}">${r.cams.length} views</a>`:`<span class="feed-kind">${kind==="player"?"Resort player":kind==="video"?"Video feed":kind==="still"?"Still image":"Unavailable"}</span>`}</div>${camera(r,c)}${footer(r,c)}</article>`;
 }
 function groupedResorts(list) {
-  const groups=new Map();
-  list.forEach(r=>{if(!groups.has(r.area))groups.set(r.area,[]);groups.get(r.area).push(r);});
-  return [...groups].map(([area,resorts])=>`<section class="camera-area"><div class="area-heading"><h2>${safe(area)}</h2><span>${resorts.length} resort${resorts.length===1?"":"s"}</span></div><div class="grid">${resorts.map(r=>cameraCard(r,r.cams.find(c=>!c.offline)||r.cams[0],true)).join("")}</div></section>`).join("");
+  return `<div class="grid">${list.map(r=>cameraCard(r,r.cams.find(c=>!c.offline)||r.cams[0],true)).join("")}</div>`;
 }
 function applyCameraFilters() {
   const query=cameraSearch.trim().toLowerCase();let visible=0;
@@ -676,7 +674,7 @@ function render() {
     R = REGIONS[reg],
     list = RESORTS.filter((x) => x.region === reg);
   document.querySelector("#title").textContent = r ? r.name + " webcams" : R.title;
-  document.querySelector("#subtitle").textContent = r ? r.area + " · All resort cameras on one page" : R.sub;
+  document.querySelector("#subtitle").textContent = r ? "All resort cameras on one page" : R.sub;
   document.querySelector("#regions").innerHTML = Object.entries(REGIONS)
     .map(([k, v]) => `<a href="#${k}" ${k === reg ? 'aria-current="page"' : ""}>${v.name}</a>`)
     .join("");
