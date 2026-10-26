@@ -59,7 +59,6 @@ function render() {
   else forecastView();
   syncHash();
   updateAlertBadges();
-  addNearbyButton();
 }
 /* The last place viewed in each region, so Forecast links from other pages land there. */
 function rememberPlace() {
@@ -1670,18 +1669,6 @@ function showClosestForecast(auto = false) {
     },
     { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 },
   );
-}
-function addNearbyButton() {
-  if (tab !== "long") return;
-  const bar = content.querySelector(".toolbar");
-  if (!bar) return;
-  const button = document.createElement("button");
-  button.className = "nearby";
-  button.type = "button";
-  button.textContent = "⌖ Closest forecast";
-  button.title = "Use your device location to select the nearest listed forecast";
-  button.onclick = () => showClosestForecast(false);
-  bar.appendChild(button);
 }
 function readHash() {
   const [t, a, b] = location.hash.slice(1).split("/");
