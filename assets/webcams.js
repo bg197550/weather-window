@@ -767,10 +767,6 @@ function refresh() {
       img.src = snapshotURL(img.dataset.snapshot);
   });
 }
-document.querySelector("#refresh").onclick = () => {
-  render();
-  stamp();
-};
 window.addEventListener("hashchange", () => {
   readHash();
   scrollTo(0, 0);
