@@ -2315,3 +2315,40 @@ p {
 .elev-toggle button {
   flex: 1;
 }
+
+/* Forecast + Insights: desktop hierarchy with a compact phone layout. */
+.forecast-observation { margin: 20px 0 26px; padding: 16px 20px; background: #173a4b; border: 1px solid #294958; border-radius: 12px; }
+.forecast-observation .obs { margin: 0; padding: 0; }
+.forecast-observation .source { margin-bottom: 0; }
+.forecast-day-groups { display: grid; gap: 24px; margin: 24px 0; }
+.forecast-day-group { min-width: 0; }
+.forecast-date { margin: 0 0 12px !important; font-size: 18px !important; color: #a9c2cd; }
+.forecast-day-pair { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; align-items: start; }
+.forecast-day-pair > :only-child { grid-column: 1 / -1; }
+.forecast-day-pair .discussion-period { margin: 0; padding: 20px; border: 1px solid #294958; border-radius: 12px; background: #102c3b; min-width: 0; }
+.forecast-day-pair .nighttime { background: #0b2433; }
+.period-title { display: grid; gap: 4px; flex: 1; text-align: left; }
+.period-title strong { font-size: 26px; color: #eaf6f8; }
+.period-hour-label { font-size: 12px; color: #79d7e5; }
+.period-metrics { display: flex; flex-wrap: wrap; gap: 10px 24px; margin: 14px 0; font-size: 13px; color: #a9c2cd; }
+.period-metrics b { color: #eaf6f8; margin-left: 4px; }
+.discussion-period .period-hourly-body { margin-top: 20px; }
+.insights-chart { overflow-x: auto; width: 100%; }
+.insights-chart svg { display: block; width: 100%; min-width: 300px; height: auto; }
+.pattern-summary { margin-top: 22px; padding-top: 16px; border-top: 1px solid #294958; }
+.pattern-summary h4 { color: #f2c780; font-size: 18px; margin: 0 0 12px; }
+.pattern-summary ul { padding-left: 20px; margin: 0; }
+.pattern-summary li { margin: 10px 0; line-height: 1.5; }
+@media (max-width: 1000px) { .forecast-day-pair { grid-template-columns: 1fr; } }
+@media (max-width: 760px) {
+  .forecast-tabs { display: flex; }
+  .forecast-tabs button { padding: 11px 12px; min-height: 44px; }
+  .forecast-observation { padding: 14px; }
+  .forecast-day-pair .discussion-period { padding: 14px; }
+  .period-title strong { font-size: 24px; }
+  .period-metrics { gap: 8px 16px; }
+  .period-hour-label { display: none; }
+}
+
+/* The local tab bar is available on phones; avoid duplicating it below the forecast. */
+.more-views { display: none; }

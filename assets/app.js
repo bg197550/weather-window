@@ -10,7 +10,7 @@ const outlooks = [
 let tab = "long",
   field = "temp",
   selection = { utah: 0, ne: 0 },
-  view = { utah: "overview", ne: "overview" },
+  view = { utah: "forecast", ne: "forecast" },
   afdCache = new Map(),
   modelCache = new Map(),
   modelElevation = { utah: 0, ne: 0 },
@@ -224,15 +224,15 @@ function surfLink(name) {
   return x ? `<a class="xlink" href="${SURF_BASE}#${x[0]}">≋ ${escapeHTML(x[1])} ›</a>` : "";
 }
 const FORECAST_VIEWS = [
-  ["overview", "Overview"],
-  ["discussion", "Detailed forecast"],
+  ["forecast", "Forecast"],
+  ["insights", "Insights"],
   ["afd", "Forecast discussion"],
   ["models", "Model comparison"],
   ["mountain", "Mountain profile", "utah"],
 ];
 const VIEW_NOTES = {
-  overview: "Now, next 24 hours and the 7-day forecast",
-  discussion: "Every NWS forecast period in full; tap a period for its hours",
+  forecast: "Current observation and every NWS forecast period; select a period for its hours",
+  insights: "Forecast patterns, next 24/48 hours and the week at a glance",
   afd: "The full discussion from the responsible NWS office",
   models: "GFS, ECMWF and GEM scenarios for the next 10 days",
   mountain: "Mid mountain and peak conditions side by side",
@@ -280,7 +280,7 @@ function forecastView() {
           ? '<article class="card afd-card" id="model-comparison"><div class="state">Loading model guidance…</div></article>'
           : mode === "mountain"
             ? '<article class="card afd-card" id="mountain-profile"><div class="state">Loading mountain forecast grids…</div></article>'
-            : mode === "discussion"
+            : mode === "forecast"
               ? '<div class="elevations discussion-mode" id="discussion"><div class="state">Loading NWS forecast…</div></div>'
               : '<div class="ov" id="ov"><div class="state">Loading NWS forecast…</div></div>';
   content.innerHTML = `<nav class="place-pills" aria-label="${section === "utah" ? "Utah" : "New England"} locations">${places
@@ -290,29 +290,29 @@ function forecastView() {
     )
     .join(
       "",
-    )}</nav><div class="fc-head"><div class="fc-title"><h2 class="fc-name">${escapeHTML(place.name)}</h2><label class="place-picker"><span class="sr-only">Forecast location</span><select id="place-select">${placeOptions(section, absIndex, mode)}</select></label><p class="fc-sub">${escapeHTML(VIEW_NOTES[mode] || "")}</p></div><div class="fc-actions"><button type="button" class="icon-btn nearby" id="locate" title="Closest forecast to you" aria-label="Show the closest forecast to you">⌖</button><button type="button" class="icon-btn" id="refresh" title="Refresh" aria-label="Refresh forecast">↻</button></div></div><div class="place-links">${placeLinks(place, section)}</div><div id="alert-banner"></div>${mode === "overview" ? "" : `<button type="button" class="back-overview" data-view="overview">‹ ${escapeHTML(place.name)} overview</button>`}<div class="forecast-tabs" role="tablist" aria-label="${escapeHTML(place.name)} forecast views">${views
+    )}</nav><div class="fc-head"><div class="fc-title"><h2 class="fc-name">${escapeHTML(place.name)}</h2><label class="place-picker"><span class="sr-only">Forecast location</span><select id="place-select">${placeOptions(section, absIndex, mode)}</select></label><p class="fc-sub">${escapeHTML(VIEW_NOTES[mode] || "")}</p></div><div class="fc-actions"><button type="button" class="icon-btn nearby" id="locate" title="Closest forecast to you" aria-label="Show the closest forecast to you">⌖</button><button type="button" class="icon-btn" id="refresh" title="Refresh" aria-label="Refresh forecast">↻</button></div></div><div class="place-links">${placeLinks(place, section)}</div><div id="alert-banner"></div>${mode === "forecast" ? "" : `<button type="button" class="back-overview" data-view="forecast">‹ ${escapeHTML(place.name)} forecast</button>`}<div class="forecast-tabs" role="tablist" aria-label="${escapeHTML(place.name)} forecast views">${views
     .map(
       ([k, n]) =>
         `<button type="button" role="tab" data-view="${k}" aria-selected="${mode === k}">${n}</button>`,
     )
     .join("")}</div>${body}${
-    mode === "overview"
+    (mode === "forecast" || mode === "insights")
       ? `<nav class="more-views" aria-label="More for ${escapeHTML(place.name)}"><h3>More for ${escapeHTML(place.name)}</h3>${views
-          .slice(1)
+          .filter(([key]) => key !== mode)
           .map(
             ([k, n]) =>
               `<button type="button" data-view="${k}"><span><b>${n}</b><small>${escapeHTML(VIEW_NOTES[k])}</small></span><i aria-hidden="true">›</i></button>`,
           )
           .join("")}</nav>`
       : ""
-  }${mode === "overview" || mode === "discussion" ? `<p class="source">NWS forecasts use a grid of roughly 2.5 km. When two points fall in the same grid square they share one forecast and are shown once. Point elevations are approximate; each card shows the NWS grid elevation.</p>` : ""}`;
+  }${mode === "insights" || mode === "forecast" ? `<p class="source">NWS forecasts use a grid of roughly 2.5 km. When two points fall in the same grid square they share one forecast and are shown once. Point elevations are approximate; each card shows the NWS grid elevation.</p>` : ""}`;
   content.querySelectorAll("[data-place]").forEach(
     (b) =>
       (b.onclick = () => {
         if (mode === "mountain") profileResort = +b.dataset.place;
         else {
           selection[section] = +b.dataset.place;
-          if (mode === "snow") view[section] = "overview";
+          if (mode === "snow") view[section] = "forecast";
         }
         forecastView();
         rememberPlace();
@@ -323,7 +323,7 @@ function forecastView() {
     if (mode === "mountain") profileResort = +i - 2;
     else {
       selection[sec] = +i;
-      if (sec !== section && (view[sec] === "mountain" || view[sec] === "snow")) view[sec] = "overview";
+      if (sec !== section && (view[sec] === "mountain" || view[sec] === "snow")) view[sec] = "forecast";
       tab = sec;
     }
     render();
@@ -360,7 +360,7 @@ function forecastView() {
   } else if (mode === "afd") loadAFD(place.p[0]);
   else if (mode === "models") loadModels(place, section);
   else if (mode === "mountain") loadMountain(place);
-  else if (mode === "discussion") loadDiscussion(place, section);
+  else if (mode === "forecast") loadDiscussion(place, section);
   else loadOverview(place, section);
 }
 
@@ -448,14 +448,14 @@ function daysStrip(periods) {
   return `<div class="days-strip">${forecastDays(periods)
     .map((d, i) => {
       const lead = d.day || d.night,
-        pops = [d.day, d.night].map((q) => q?.probabilityOfPrecipitation?.value || 0),
-        pop = Math.max(...pops),
+        pops = [d.day, d.night].map((q) => q?.probabilityOfPrecipitation?.value).filter(Number.isFinite),
+        pop = pops.length ? Math.max(...pops) : null,
         text =
           lead.shortForecast +
           (d.day && d.night && d.night.shortForecast !== d.day.shortForecast
             ? `, then ${d.night.shortForecast.toLowerCase()} at night`
             : "");
-      return `<div class="day-tile" title="${escapeHTML(text)}"><b class="day-name">${escapeHTML(dayName(lead, i === 0))}</b>${forecastIcon(lead, "small")}<span class="day-text">${escapeHTML(lead.shortForecast)}</span><span class="day-temps">${d.day ? `<strong>${d.day.temperature}°</strong>` : ""}${d.night ? `<span class="lo">${d.night.temperature}°</span>` : ""}</span><span class="day-pop">${pop ? `${pop}% precip` : ""}</span></div>`;
+      return `<div class="day-tile" title="${escapeHTML(text)}"><b class="day-name">${escapeHTML(dayName(lead, i === 0))}</b>${forecastIcon(lead, "small")}<span class="day-text">${escapeHTML(lead.shortForecast)}</span><span class="day-temps">${d.day ? `<strong>${d.day.temperature}°</strong>` : ""}${d.night ? `<span class="lo">${d.night.temperature}°</span>` : ""}</span><span class="day-pop">${pop == null ? "Precip unavailable" : `${pop}% precip`}</span></div>`;
     })
     .join("")}</div>`;
 }
@@ -530,18 +530,103 @@ async function loadPointOverview(pt, k, section) {
     const data = await pointForecast(p);
     if (!now?.isConnected) return;
     const periods = data.forecast.periods || [],
-      first = periods[0],
-      showObs = !p[2].startsWith("Summit");
-    now.innerHTML = `<h3>${escapeHTML(pt.label)}</h3>${pointDetail(pt, gridFeet(data))}${showObs ? '<div class="obs-slot"></div>' : ""}<div class="forecast-hero">${forecastIcon(first, "hero")}<div><div class="forecast-period-label">${escapeHTML(first?.name || "Current period")} forecast ${first?.isDaytime ? "high" : "low"}</div><div class="current">${first?.temperature ?? "–"}°${first?.temperatureUnit ?? "F"}</div><div class="condition">${escapeHTML(first?.shortForecast || "Forecast unavailable")}</div></div></div><div class="metrics"><div class="metric"><span>Wind</span><strong>${escapeHTML(first?.windSpeed || "–")}</strong></div><div class="metric"><span>Direction</span><strong>${escapeHTML(first?.windDirection || "–")}</strong></div><div class="metric"><span>Precip.</span><strong>${first?.probabilityOfPrecipitation?.value != null ? first.probabilityOfPrecipitation.value + "%" : "–"}</strong></div></div>`;
+      first = periods[0];
+    now.innerHTML = `<h3>${escapeHTML(pt.label)}</h3>${pointDetail(pt, gridFeet(data))}<div class="forecast-hero">${forecastIcon(first, "hero")}<div><div class="forecast-period-label">${escapeHTML(first?.name || "Current period")} forecast ${first?.isDaytime ? "high" : "low"}</div><div class="current">${first?.temperature ?? "–"}°${first?.temperatureUnit ?? "F"}</div><div class="condition">${escapeHTML(first?.shortForecast || "Forecast unavailable")}</div></div></div><div class="metrics"><div class="metric"><span>Wind</span><strong>${escapeHTML(first?.windSpeed || "–")}</strong></div><div class="metric"><span>Direction</span><strong>${escapeHTML(first?.windDirection || "–")}</strong></div><div class="metric"><span>Precip.</span><strong>${first?.probabilityOfPrecipitation?.value != null ? first.probabilityOfPrecipitation.value + "%" : "–"}</strong></div></div>`;
     if (days?.isConnected)
       days.innerHTML = `<h3>${days.querySelector("h3")?.innerHTML || "7-day forecast"}</h3>${daysStrip(periods)}${issuedLine(data, p, section)}`;
-    if (showObs) loadObs(p, now.querySelector(".obs-slot"));
+    now.insertAdjacentHTML("beforeend", patternSummary(data.forecast, section));
   } catch {
     if (now?.isConnected) now.innerHTML = pointError(pt.label, p);
     if (days?.isConnected)
       days.innerHTML = `<h3>7-day forecast</h3><div class="error">Unavailable right now.</div>`;
   }
 }
+
+/* Full day/night groups, retaining every NWS period and its original hourly index. */
+function detailedPeriods(periods, pointIndex, section) {
+  if (!periods.length) return '<p>No forecast periods available.</p>';
+  const groups = [];
+  periods.forEach((q, index) => {
+    const key = new Date(q.startTime).toLocaleDateString("en-CA", { timeZone: regionZone(section) });
+    let group = groups[groups.length - 1];
+    if (!group || group.key !== key) {
+      group = { key, lead: q, periods: [] };
+      groups.push(group);
+    }
+    group.periods.push({ q, index });
+  });
+  return '<div class="forecast-day-groups">' + groups.map(g => {
+    const date = regionTime(g.lead.startTime, section, { weekday: "long", month: "short", day: "numeric" });
+    return `<section class="forecast-day-group"><h3 class="forecast-date">${escapeHTML(date)}</h3><div class="forecast-day-pair">${g.periods.map(({q, index}) => {
+      const pop = q.probabilityOfPrecipitation?.value;
+      return `<section class="discussion-period ${q.isDaytime ? "daytime" : "nighttime"}"><h4><button type="button" class="period-day-toggle discussion-heading" data-period-hourly="${index}" aria-expanded="false" aria-controls="period-hours-${pointIndex}-${index}" title="Show NOAA hourly forecast">${forecastIcon(q, "detail")}<span class="period-title">${escapeHTML(q.name)}<strong>${q.isDaytime ? "High" : "Low"} ${q.temperature ?? "–"}°${escapeHTML(q.temperatureUnit || "F")}</strong></span><span class="period-hour-label">Hourly</span><span class="period-day-chevron" aria-hidden="true">›</span></button></h4><div class="period-metrics"><span>Precip chance <b>${pop == null ? "Unavailable" : pop + "%"}</b></span><span>Wind <b>${escapeHTML([q.windDirection, q.windSpeed].filter(Boolean).join(" ") || "Unavailable")}</b></span></div><p>${escapeHTML(q.detailedForecast || q.shortForecast || "No description available.")}</p><div class="period-hourly-body" id="period-hours-${pointIndex}-${index}" hidden><div class="state">Loading NOAA hourly forecast…</div></div></section>`;
+    }).join("")}</div></section>`;
+  }).join("") + '</div>';
+}
+
+/* A transparent summary of the current forecast, never a forecast-run comparison. */
+function patternSummary(forecast, section) {
+  const periods = forecast.periods || [];
+  const age = Date.now() - Date.parse(forecast.updateTime);
+  if (!Number.isFinite(age) || age > 24 * 3600000 || age < -3600000)
+    return '<section class="pattern-summary"><h4>Forecast patterns</h4><p>Pattern summary unavailable: check the forecast issue time.</p></section>';
+  const wet = periods.filter(q => Number.isFinite(q.probabilityOfPrecipitation?.value))
+    .sort((a, b) => b.probabilityOfPrecipitation.value - a.probabilityOfPrecipitation.value)[0];
+  const days = periods.filter(q => q.isDaytime && Number.isFinite(q.temperature));
+  const notes = [];
+  if (wet && wet.probabilityOfPrecipitation.value >= 30)
+    notes.push(`Highest precipitation chance: ${wet.name}, ${wet.probabilityOfPrecipitation.value}%.`);
+  else if (wet) notes.push('No provided period has a precipitation chance of 30% or higher.');
+  if (days.length >= 2 && days[0].temperatureUnit === days[days.length - 1].temperatureUnit) {
+    const delta = days[days.length - 1].temperature - days[0].temperature;
+    if (Math.abs(delta) >= 5)
+      notes.push(`Daytime ${delta < 0 ? "cooling" : "warming"}: ${days[0].temperature}° → ${days[days.length - 1].temperature}°${days[0].temperatureUnit} from ${days[0].name} to ${days[days.length - 1].name}.`);
+  }
+  const snow = periods.find(q => /snow|sleet|freezing rain/i.test(q.shortForecast || ""));
+  if (snow) notes.push(`Wintry precipitation mentioned: ${snow.name}. See the full forecast for timing.`);
+  return `<section class="pattern-summary"><h4>Forecast patterns</h4>${notes.length ? `<ul>${notes.map(s => `<li>${escapeHTML(s)}</li>`).join("")}</ul>` : '<p>No clear pattern signal in the available periods.</p>'}<p class="source">Derived from NWS forecast periods · not an alert or a change since the previous forecast. Issued ${escapeHTML(regionTime(forecast.updateTime, section, {month:"short", day:"numeric", hour:"numeric", minute:"2-digit"}))}.</p></section>`;
+}
+
+/* Separate aligned scales: temperature and probability are never superimposed. */
+function insightsHourlyChart(periods, zone, hours, width) {
+  const rows = periods.slice(0, hours);
+  if (rows.length < 2) return '<p class="muted">Hourly chart unavailable.</p>';
+  const temps = rows.map(q => Number.isFinite(q.temperature) ? q.temperature : null);
+  const valid = temps.filter(v => v !== null);
+  if (!valid.length) return '<p class="muted">Hourly temperature unavailable. See hourly details.</p>';
+  const unit = rows[0].temperatureUnit || "F";
+  const w = Math.max(300, Math.round(width || 900)), left = 42, right = 28;
+  const plotW = w - left - right, step = plotW / rows.length;
+  const x = i => left + step * (i + .5);
+  const low = Math.floor((Math.min(...valid) - 3) / 5) * 5;
+  const high = Math.ceil((Math.max(...valid) + 3) / 5) * 5;
+  const y = v => 28 + (high - v) / (high - low) * 120;
+  const tick = Math.max(1, Math.ceil(rows.length / Math.max(2, Math.floor(plotW / 70))));
+  const fmt = t => new Date(t).toLocaleString("en-US", {weekday:"short",hour:"numeric",timeZone:zone});
+  let grid = "", labels = "", bars = "", line = "", pen = false, winds = "";
+  for (let j=0; j<=4; j++) {
+    const v = low + (high-low)*j/4;
+    grid += `<line x1="${left}" y1="${y(v)}" x2="${w-right}" y2="${y(v)}" stroke="#294958"/><text x="${left-7}" y="${y(v)+4}" text-anchor="end" class="axis-label">${Math.round(v)}°</text>`;
+  }
+  rows.forEach((q,i) => {
+    if (temps[i] !== null) { line += `${pen?"L":"M"}${x(i)},${y(temps[i])} `; pen=true; } else pen=false;
+    const pop = q.probabilityOfPrecipitation?.value;
+    const known = Number.isFinite(pop);
+    const bh = known ? Math.max(1,Math.min(100,Math.max(0,pop))*.65) : 0;
+    bars += known ? `<rect x="${x(i)-step*.32}" y="${285-bh}" width="${step*.64}" height="${bh}" rx="1" fill="#79d7e5"><title>${escapeHTML(fmt(q.startTime))}: ${pop}% chance</title></rect>` : `<text x="${x(i)}" y="278" text-anchor="middle" class="axis-label">?</text>`;
+    if (i % tick === 0) {
+      labels += `<text x="${x(i)}" y="174" text-anchor="middle" class="axis-label">${escapeHTML(fmt(q.startTime))}</text>`;
+      winds += `<text x="${x(i)}" y="335" text-anchor="middle" class="axis-label">${escapeHTML((q.windDirection || "")+" "+(q.windSpeed || "–"))}</text>`;
+    }
+    if (/snow|sleet|freezing/i.test(q.shortForecast || "")) bars += `<text x="${x(i)}" y="307" text-anchor="middle" class="snow-lbl">❄</text>`;
+    else if (/rain|shower|drizzle|thunder/i.test(q.shortForecast || "")) bars += `<text x="${x(i)}" y="307" text-anchor="middle" class="rain-lbl">•</text>`;
+  });
+  const freeze = unit === "C" ? 0 : 32;
+  const freezing = freeze >= low && freeze <= high ? `<line x1="${left}" y1="${y(freeze)}" x2="${w-right}" y2="${y(freeze)}" stroke="#a9c2cd" stroke-dasharray="4 4"/><text x="${w-right}" y="${y(freeze)-5}" text-anchor="end" class="axis-label">${freeze}° freezing</text>` : "";
+  const popGrid = [0,50,100].map(v=>`<line x1="${left}" y1="${285-v*.65}" x2="${w-right}" y2="${285-v*.65}" stroke="#294958"/><text x="${left-7}" y="${289-v*.65}" text-anchor="end" class="axis-label">${v}%</text>`).join("");
+  return `<div class="insights-chart"><svg viewBox="0 0 ${w} 350" width="${w}" height="350" role="img" aria-label="Hourly temperature and precipitation probability on separate aligned scales"><text x="${left}" y="14" class="axis-label">TEMPERATURE · °${escapeHTML(unit)}</text>${grid}${freezing}<path d="${line}" fill="none" stroke="#f2c780" stroke-width="3"/>${labels}<text x="${left}" y="203" class="axis-label">PRECIPITATION CHANCE · %</text>${popGrid}${bars}<text x="0" y="335" class="axis-label">Wind</text>${winds}</svg><p class="source">Precipitation chance, not accumulation · ? = unavailable · ❄ snow/ice · • rain · times ${escapeHTML(zone)}</p></div>`;
+}
+
 async function loadDiscussion(place, section) {
   const wrap = document.querySelector("#discussion");
   let pts;
@@ -568,15 +653,10 @@ async function loadDiscussion(place, section) {
       const periods = data.forecast.periods || [];
       el.innerHTML =
         `<h3>${escapeHTML(pt.label)}</h3>${pointDetail(pt, gridFeet(data))}` +
-        (periods.length
-          ? periods
-              .map(
-                (q, j) =>
-                  `<section class="discussion-period"><h4><button type="button" class="period-day-toggle discussion-heading" data-period-hourly="${j}" aria-expanded="false" aria-controls="period-hours-${k}-${j}" title="Show NOAA hourly forecast">${forecastIcon(q, "detail")}<span>${escapeHTML(q.name)} · ${q.temperature}°${escapeHTML(q.temperatureUnit)}</span><span class="period-day-chevron" aria-hidden="true">›</span></button></h4><p>${escapeHTML(q.detailedForecast || q.shortForecast || "No description available.")}</p><div class="period-hourly-body" id="period-hours-${k}-${j}" hidden><div class="state">Loading NOAA hourly forecast…</div></div></section>`,
-              )
-              .join("")
-          : "<p>No forecast periods available.</p>") +
+        '<div class="forecast-observation"><div class="obs-slot" role="status">Loading current observation…</div><p class="source">Nearby station conditions may differ from the selected forecast point.</p></div>' +
+        detailedPeriods(periods, k, section) +
         issuedLine(data, p, section);
+      loadObs(p, el.querySelector(".obs-slot"));
       el.querySelectorAll("[data-period-hourly]").forEach(
         (button) =>
           (button.onclick = () => {
@@ -591,7 +671,10 @@ async function loadDiscussion(place, section) {
           }),
       );
     } catch {
-      if (el?.isConnected) el.innerHTML = pointError(pt.label, p);
+      if (el?.isConnected) {
+        el.innerHTML = pointError(pt.label, p) + '<div class="obs-slot" role="status">Loading current observation…</div>';
+        loadObs(p, el.querySelector(".obs-slot"));
+      }
     }
   });
 }
@@ -1068,7 +1151,7 @@ function alertsBar() {
           (r) =>
             `<span class="ab-item"><b>${escapeHTML(r.a.event)}</b> ${r.where
               .slice(0, 4)
-              .map((pl) => `<a href="#${r.sec}/${slug(pl.name)}/overview">${escapeHTML(pl.name)}</a>`)
+              .map((pl) => `<a href="#${r.sec}/${slug(pl.name)}/forecast">${escapeHTML(pl.name)}</a>`)
               .join(
                 ", ",
               )}${r.where.length > 4 ? ` +${r.where.length - 4}` : ""} <span class="muted">${escapeHTML(alertTime(r.a, r.sec))}</span></span>`,
@@ -1208,7 +1291,15 @@ async function loadPeriodHourly(p, period, section, el) {
           hour: "numeric",
           timeZoneName: "short",
         });
-    el.innerHTML = `<p class="hourly-period-caption">${escapeHTML(p[2])} · ${escapeHTML(fmt(period.startTime))}–${escapeHTML(regionTime(period.endTime, section, { hour: "numeric", timeZoneName: "short" }))}</p>${rows.length ? `<table class="period-hourly-table"><caption class="sr-only">NOAA hourly forecast for ${escapeHTML(period.name)} at ${escapeHTML(p[2])}</caption><thead><tr><th scope="col">Hour</th><th scope="col">Weather</th><th scope="col">Temp</th><th scope="col">Precip. chance</th><th scope="col">Wind</th></tr></thead><tbody>${rows.map((q) => `<tr><th scope="row">${escapeHTML(regionTime(q.startTime, section, { weekday: "short", hour: "numeric", timeZoneName: "short" }))}</th><td data-label="Weather">${forecastIcon(q, "small")}${escapeHTML(q.shortForecast || "–")}</td><td data-label="Temp">${q.temperature ?? "–"}°${escapeHTML(q.temperatureUnit || "F")}</td><td data-label="Precip. chance">${q.probabilityOfPrecipitation?.value != null ? q.probabilityOfPrecipitation.value + "%" : "–"}</td><td data-label="Wind">${escapeHTML(q.windDirection || "")} ${escapeHTML(q.windSpeed || "–")}</td></tr>`).join("")}</tbody></table>` : '<p class="muted">NOAA has not provided hourly data for this period yet.</p>'}<p class="source">NOAA / National Weather Service · issued ${escapeHTML(regionTime(d.updateTime, section, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }))} · <a href="${link}" target="_blank" rel="noopener">Open NWS point forecast ↗</a></p>`;
+    el.innerHTML = `<p class="hourly-period-caption">${escapeHTML(p[2])} · ${escapeHTML(fmt(period.startTime))}–${escapeHTML(regionTime(period.endTime, section, { hour: "numeric", timeZoneName: "short" }))}</p><div class="period-chart"></div>${rows.length ? `<table class="period-hourly-table"><caption class="sr-only">NOAA hourly forecast for ${escapeHTML(period.name)} at ${escapeHTML(p[2])}</caption><thead><tr><th scope="col">Hour</th><th scope="col">Weather</th><th scope="col">Temp</th><th scope="col">Precip. chance</th><th scope="col">Wind</th></tr></thead><tbody>${rows.map((q) => `<tr><th scope="row">${escapeHTML(regionTime(q.startTime, section, { weekday: "short", hour: "numeric", timeZoneName: "short" }))}</th><td data-label="Weather">${forecastIcon(q, "small")}${escapeHTML(q.shortForecast || "–")}</td><td data-label="Temp">${q.temperature ?? "–"}°${escapeHTML(q.temperatureUnit || "F")}</td><td data-label="Precip. chance">${q.probabilityOfPrecipitation?.value != null ? q.probabilityOfPrecipitation.value + "%" : "–"}</td><td data-label="Wind">${escapeHTML(q.windDirection || "")} ${escapeHTML(q.windSpeed || "–")}</td></tr>`).join("")}</tbody></table>` : '<p class="muted">NOAA has not provided hourly data for this period yet.</p>'}<p class="source">NOAA / National Weather Service · issued ${escapeHTML(regionTime(d.updateTime, section, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }))} · <a href="${link}" target="_blank" rel="noopener">Open NWS point forecast ↗</a></p>`;
+    const chart = el.querySelector(".period-chart");
+    if (rows.length >= 6 && chart) {
+      const draw = () => {
+        if (chart.isConnected) chart.innerHTML = insightsHourlyChart(rows, regionZone(section), rows.length, chartWidth(el));
+      };
+      draw();
+      redrawOnResize(el, draw);
+    }
   } catch {
     if (el?.isConnected)
       el.innerHTML = `<p class="error">NOAA hourly data is temporarily unavailable.</p><a href="${link}" target="_blank" rel="noopener">Open NWS point forecast ↗</a>`;
@@ -1240,7 +1331,7 @@ async function loadHourly(place, section, pts) {
     const box = el.querySelector(".hourly-chart"),
       draw = () => {
         if (box.isConnected)
-          box.innerHTML = hourlyChart(d.periods || [], regionZone(section), hours, chartWidth(el));
+          box.innerHTML = insightsHourlyChart((d.periods || []).filter(q => Date.parse(q.endTime) > Date.now()), regionZone(section), hours, chartWidth(el));
       };
     draw();
     redrawOnResize(el, draw);
@@ -1575,7 +1666,7 @@ function showClosestForecast(auto = false) {
       if (!match) return;
       tab = match.section;
       selection[tab] = match.i;
-      view[tab] = "overview";
+      view[tab] = "forecast";
       render();
       try {
         sessionStorage.setItem("weather:autoForecast", location.hash.slice(1));
@@ -1629,10 +1720,10 @@ function readHash() {
     tab = t;
     const list = t === "utah" ? utah : ne,
       i = list.findIndex((x) => slug(x.name) === a),
-      modes = ["overview", "discussion", "afd", "models", ...(t === "utah" ? ["mountain", "snow"] : [])];
-    let mode = modes.includes(b) ? b : "overview";
+      modes = ["forecast", "insights", "afd", "models", ...(t === "utah" ? ["mountain", "snow"] : [])];
+    let mode = modes.includes(b) ? b : "forecast"; // Legacy overview/discussion links open the primary forecast.
     if (i >= 0) {
-      if (mode === "mountain" && i < 2) mode = "overview";
+      if (mode === "mountain" && i < 2) mode = "forecast";
       if (mode === "mountain") profileResort = i - 2;
       else selection[t] = i;
     }
