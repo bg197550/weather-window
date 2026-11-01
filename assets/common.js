@@ -158,6 +158,31 @@ function periodSnow(values, start, end) {
   return found ? total / 25.4 : null;
 }
 
+/* Written forecast text: use the wording from forecast.weather.gov (the NWS website's text generator), which
+   includes snow accumulation lines the api.weather.gov text often omits. Numbers, icons and hourly data stay
+   on api.weather.gov. Falls back to the API text for any period that can't be matched. */
+async function websiteText(p, fc) {
+  try {
+    const r = await fetch(`https://forecast.weather.gov/MapClick.php?lat=${p[0]}&lon=${p[1]}&FcstType=json`);
+    if (!r.ok) return fc;
+    const j = await r.json(),
+      names = j.time?.startPeriodName || [],
+      starts = (j.time?.startValidTime || []).map((s) => Date.parse(s)),
+      texts = j.data?.text || [];
+    const norm = (s) => String(s || "").toLowerCase().replace(/\s+/g, " ").trim();
+    for (const q of fc.periods || []) {
+      let i = names.findIndex((n) => norm(n) === norm(q.name));
+      if (i < 0) {
+        const t = Date.parse(q.startTime);
+        i = starts.findIndex((s) => Math.abs(s - t) <= 3 * 3600000);
+      }
+      const text = texts[i] && String(texts[i]).replace(/\s+/g, " ").trim();
+      if (text) q.detailedForecast = text;
+    }
+  } catch (e) {}
+  return fc;
+}
+
 async function pointMeta(p) {
   const key = p.slice(0, 2).join(",");
   let d = cache.get(key);
@@ -175,7 +200,7 @@ async function mountainPoint(p) {
     let d = cache.get(key);
     if (!d?.forecast) {
       let point = await pointMeta(p),
-        fc = (await getJSON(point.forecast)).properties;
+        fc = await websiteText(p, (await getJSON(point.forecast)).properties);
       d = { ...(cache.get(key) || {}), point, forecast: fc };
       cache.set(key, d);
     }

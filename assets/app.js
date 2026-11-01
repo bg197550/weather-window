@@ -405,8 +405,8 @@ async function pointForecast(p) {
   let data = cache.get(key);
   if (!data?.forecast) {
     const point = await pointMeta(p);
-    const fc = await getJSON(point.forecast);
-    data = { ...(cache.get(key) || {}), point, forecast: fc.properties, url: point.forecast };
+    const fc = await websiteText(p, (await getJSON(point.forecast)).properties);
+    data = { ...(cache.get(key) || {}), point, forecast: fc, url: point.forecast };
     cache.set(key, data);
   }
   return data;
@@ -1785,7 +1785,7 @@ async function aiPlaceContext(x, question, compact) {
     let d = cache.get(key),
       point = d?.point || (await pointMeta(p));
     if (!d?.forecast) {
-      const forecast = (await getJSON(point.forecast)).properties;
+      const forecast = await websiteText(p, (await getJSON(point.forecast)).properties);
       d = { ...(cache.get(key) || {}), point, forecast };
       cache.set(key, d);
     }
