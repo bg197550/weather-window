@@ -507,7 +507,7 @@ function fronts(times, temp, dir, section, now) {
     return out;
   };
   const sharp = scan(12, 4, false);
-  const slow = scan(24, 5, true).filter((g) => !sharp.some((s) => s.kind === g.kind && Math.abs(s.t - g.t) < 30 * H));
+  const slow = scan(24, 4, true).filter((g) => !sharp.some((s) => s.kind === g.kind && Math.abs(s.t - g.t) < 30 * H));
   return [...sharp, ...slow].sort((a, b) => a.t - b.t);
 }
 
@@ -660,19 +660,17 @@ function afdCard(a, section) {
     const m = txt.match(re);
     return m ? m[1].replace(/&&[\s\S]*$/, "").trim() : null;
   };
-  const key = grab(/\.KEY MESSAGES?\.\.\.\s*([\s\S]*?)(?=\n\s*\n\.[A-Z]|\n&&)/i);
-  const syn = grab(/\.SYNOPSIS\.\.\.\s*([\s\S]*?)(?=\n\s*\n\.[A-Z]|\n&&)/i);
-  const what = grab(/\.WHAT HAS CHANGED\.\.\.\s*([\s\S]*?)(?=\n\s*\n\.[A-Z]|\n&&)/i);
+  const sec = (name) => grab(new RegExp(`\\.${name}[^\\n]*?\\.\\.\\.[^\\n]*\\n([\\s\\S]*?)(?=\\n&&|\\n\\s*\\n\\.[A-Z])`, "i"));
+  const key = sec("KEY MESSAGES?");
+  const syn = sec("SYNOPSIS");
+  const what = sec("WHAT HAS CHANGED");
+  const disc = sec("(?:DISCUSSION|SHORT TERM)");
+  const firstPara = disc ? disc.trim().split(/\n\s*\n/)[0] : null;
   const parts = [
     ["Key messages", key],
-    ["Synopsis", syn],
+    [syn ? "Synopsis" : "Big picture", syn || firstPara],
     ["What changed", what],
   ].filter((x) => x[1]);
-  if (!parts.length) {
-    const disc = grab(/\.(?:DISCUSSION|SHORT TERM[^.]*)\.\.\.\s*([\s\S]*?)(?=\n\s*\n)/i);
-    if (disc) parts.push(["Discussion", disc]);
-  }
-  if (!parts.length) return "";
   const clean = (s) =>
     s
       .replace(/\n(?!\s*[-*]|\s*\d\))/g, " ")
