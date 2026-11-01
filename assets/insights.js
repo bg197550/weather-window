@@ -25,7 +25,7 @@ function insFetch(p) {
     hourly:
       "precipitation,snowfall,temperature_2m,pressure_msl,wind_direction_10m,wind_speed_10m,wind_direction_700hPa,wind_speed_700hPa,temperature_700hPa,temperature_850hPa,geopotential_height_500hPa",
     models: INS_MODELS.map((m) => m[1]).join(","),
-    forecast_days: 10,
+    forecast_hours: 240,
     past_hours: 6,
     timezone: "UTC",
     precipitation_unit: "inch",
@@ -38,7 +38,7 @@ function insFetch(p) {
     longitude: p[1],
     hourly: "precipitation,snowfall",
     models: INS_ENS.join(","),
-    forecast_days: 10,
+    forecast_hours: 240,
     past_hours: 6,
     timezone: "UTC",
     precipitation_unit: "inch",
@@ -484,7 +484,7 @@ function extrema(times, vals, minDepth, win, kind) {
 function fronts(times, temp, dir, section, now) {
   const out = [];
   const step = 12,
-    lim = section === "utah" ? 5 : 5;
+    lim = 4;
   for (let i = 0; i + step < temp.length; i++) {
     if (times[i] < now - 6 * H) continue;
     const a = temp[i],
@@ -627,7 +627,8 @@ function patternCard(data, section, storms) {
   if (full.length >= 4) {
     const coldest = full.reduce((a, b) => (b.hi < a.hi ? b : a)),
       warmest = full.reduce((a, b) => (b.hi > a.hi ? b : a));
-    const name = (d) => new Date(d.t).toLocaleDateString("en-US", { weekday: "short", timeZone: zone });
+    const ambiguous = coldest.key !== warmest.key && new Date(coldest.t).getUTCDay() === new Date(warmest.t).getUTCDay();
+    const name = (d) => new Date(d.t).toLocaleDateString("en-US", ambiguous ? { weekday: "short", month: "short", day: "numeric", timeZone: zone } : { weekday: "short", timeZone: zone });
     items.push([
       "Temperatures",
       [
