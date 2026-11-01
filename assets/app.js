@@ -231,7 +231,7 @@ const FORECAST_VIEWS = [
 ];
 const VIEW_NOTES = {
   forecast: "Current observation and every NWS forecast period; select a period for its hours",
-  insights: "Forecast patterns, next 24/48 hours and the week at a glance",
+  insights: "Storm totals, model ranges, likely outcomes and the weather pattern",
   afd: "The full discussion from the responsible NWS office",
   models: "GFS, ECMWF and GEM scenarios for the next 10 days",
   mountain: "Mid mountain and peak conditions side by side",
@@ -477,46 +477,29 @@ async function loadOverview(place, section) {
   if (daysPick >= n) daysPick = 0;
   hourlyPoint[section] = daysPick;
   el.dataset.n = n;
-  el.innerHTML = `${
-    n > 1
-      ? `<div class="seg elev-toggle" role="group" aria-label="Elevation">${pts
-          .map(
-            (x, k) =>
-              `<button type="button" data-elev="${k}" class="${k === daysPick ? "active" : ""}" aria-pressed="${k === daysPick}">${escapeHTML(x.label)}</button>`,
-          )
-          .join("")}</div>`
-      : ""
-  }<div class="ov-now">${pts
-    .map(
-      (x, k) =>
-        `<article class="card forecast fc-now${k === daysPick ? "" : " alt"}" id="now-${k}"><h3>${escapeHTML(x.label)}</h3><div class="state">Loading NWS forecast…</div></article>`,
-    )
-    .join(
-      "",
-    )}</div><article class="card afd-card hourly-card ov-hourly" id="hourly"><div class="state">Loading hourly forecast…</div></article><div class="ov-days">${pts
-    .map(
-      (x, k) =>
-        `<article class="card forecast fc-days${k === daysPick ? "" : " alt"}" id="days-${k}"><h3>${n > 1 ? escapeHTML(x.label) + " · " : ""}7-day forecast</h3><div class="state">Loading…</div></article>`,
-    )
-    .join("")}</div>`;
-  el.querySelectorAll("[data-elev]").forEach(
-    (b) =>
-      (b.onclick = () => {
-        daysPick = +b.dataset.elev;
-        hourlyPoint[section] = daysPick;
-        el.querySelectorAll("[data-elev]").forEach((x) => {
-          const on = x === b;
-          x.classList.toggle("active", on);
-          x.setAttribute("aria-pressed", String(on));
-        });
-        el.querySelectorAll(".fc-now, .fc-days").forEach((c) =>
-          c.classList.toggle("alt", +c.id.split("-")[1] !== daysPick),
-        );
-        loadHourly(place, section, pts);
-      }),
-  );
-  pts.forEach((x, k) => loadPointOverview(x, k, section));
-  loadHourly(place, section, pts);
+  const draw = () => {
+    el.innerHTML = `${
+      n > 1
+        ? `<div class="seg elev-toggle" role="group" aria-label="Elevation">${pts
+            .map(
+              (x, k) =>
+                `<button type="button" data-elev="${k}" class="${k === daysPick ? "active" : ""}" aria-pressed="${k === daysPick}">${escapeHTML(x.label)}</button>`,
+            )
+            .join("")}</div>`
+        : ""
+    }<div class="ins" id="ins" data-key="${pts[daysPick].p.slice(0, 2).join(",")}"></div><article class="card afd-card hourly-card ov-hourly" id="hourly"><div class="state">Loading hourly forecast…</div></article>`;
+    el.querySelectorAll("[data-elev]").forEach(
+      (b) =>
+        (b.onclick = () => {
+          daysPick = +b.dataset.elev;
+          hourlyPoint[section] = daysPick;
+          draw();
+        }),
+    );
+    loadInsights(pts[daysPick], section);
+    loadHourly(place, section, pts);
+  };
+  draw();
 }
 async function loadPointOverview(pt, k, section) {
   const now = document.querySelector("#now-" + k),
@@ -1719,6 +1702,7 @@ function clearCaches() {
   snowModelCache.clear();
   cache.clear();
   afdCache.clear();
+  if (typeof insCache !== "undefined") insCache.clear();
   modelCache.clear();
   mountainCache.clear();
   alertCache.clear();
