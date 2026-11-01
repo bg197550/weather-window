@@ -587,8 +587,8 @@ function patternCard(data, section, storms) {
       const shift = f.before != null && f.after != null && compass(f.before) !== compass(f.after) ? `, winds aloft shift ${compass(f.before)} → ${compass(f.after)}` : "";
       if (f.gradual)
         return f.kind === "cold"
-          ? `Colder air filters in around ${partOfDay(f.t, section)}: ${lvl} temperature falls about ${Math.round(-f.dC)}°C over 24 hours, a gradual post-frontal cooldown rather than a sharp front.`
-          : `Warming aloft around ${partOfDay(f.t, section)}: ${lvl} temperature rises about ${Math.round(f.dC)}°C over 24 hours.`;
+          ? `Colder air filters in ${partOfDay(f.t, section)}: ${lvl} temperature falls about ${Math.round(-f.dC)}°C over 24 hours, a gradual post-frontal cooldown rather than a sharp front.`
+          : `Warming aloft ${partOfDay(f.t, section)}: ${lvl} temperature rises about ${Math.round(f.dC)}°C over 24 hours.`;
       return f.kind === "cold"
         ? `Cold front ${partOfDay(f.t, section)}: ${lvl} temperature drops about ${Math.round(-f.dC)}°C in 12 hours${shift}.`
         : `Warm advection ${partOfDay(f.t, section)}: ${lvl} temperature rises about ${Math.round(f.dC)}°C in 12 hours${shift}.`;
@@ -665,7 +665,7 @@ function afdCard(a, section) {
   const syn = sec("SYNOPSIS");
   const what = sec("WHAT HAS CHANGED");
   const disc = sec("(?:DISCUSSION|SHORT TERM)");
-  const firstPara = disc ? disc.trim().split(/\n\s*\n/)[0] : null;
+  const firstPara = disc ? disc.trim().split(/\n\s*\n/).find((p) => !/^KEY MESSAGE/i.test(p.trim())) || null : null;
   const parts = [
     ["Key messages", key],
     [syn ? "Synopsis" : "Big picture", syn || firstPara],
