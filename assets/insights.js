@@ -124,9 +124,11 @@ function partOfDay(ms, section) {
   const day = d.toLocaleDateString("en-US", { weekday: "short", timeZone: zone });
   const h = +d.toLocaleTimeString("en-US", { hour: "numeric", hour12: false, timeZone: zone }) % 24;
   const part = h < 5 ? "early" : h < 12 ? "morning" : h < 17 ? "afternoon" : h < 21 ? "evening" : "night";
-  const today = new Date().toLocaleDateString("en-US", { weekday: "short", timeZone: zone });
-  if (day === today) return part === "night" ? "tonight" : part === "early" ? "early today" : `this ${part}`;
-  return part === "early" ? `early ${day}` : `${day} ${part}`;
+  const key = (x) => new Date(x).toLocaleDateString("en-CA", { timeZone: zone });
+  const days = Math.round((Date.parse(key(ms)) - Date.parse(key(Date.now()))) / 86400000);
+  if (days === 0) return part === "night" ? "tonight" : part === "early" ? "early today" : `this ${part}`;
+  const label = days >= 6 ? d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: zone }) : day;
+  return part === "early" ? `early ${label}` : `${label} ${part}`;
 }
 
 /* ---------- storms ---------- */
@@ -216,21 +218,61 @@ const RAIN_BINS = [
   [2, Infinity, "2″+"],
 ];
 
+/* Snow level (ft) at a time: NWS grid where it covers, else estimated from the model 700 mb temperature
+   (700 mb is about 10,000 ft; freezing level ≈ 10,000 ft + 500 ft per °C, snow level ≈ 1,000 ft below that). */
+function snowLevelAt(grid, ms, t700F) {
+  for (const q of grid?.snowLevel?.values || []) {
+    const [stamp, dur] = q.validTime.split("/");
+    const from = Date.parse(stamp),
+      m = dur.match(/P(?:(\d+)D)?T?(?:(\d+)H)?/),
+      to = from + ((+(m?.[1] || 0)) * 24 + +(m?.[2] || 0)) * H;
+    if (ms >= from && ms < to && Number.isFinite(q.value)) return q.value * 3.28084;
+  }
+  return Number.isFinite(t700F) ? 9000 + fToC(t700F) * 500 : null;
+}
+function slrFor(t700F) {
+  if (!Number.isFinite(t700F)) return 10;
+  const c = fToC(t700F);
+  return c > -4 ? 9 : c > -9 ? 12 : c > -16 ? 16 : 13;
+}
+
 function analyzeStorm(s, data, section, elevFt) {
   const det = data.det,
-    t = det.hourly.time.map(insT);
-  const a = s.start - 6 * H,
+    t = det.hourly.time.map(insT),
+    now = Date.now();
+  const current = s.start <= now;
+  const a = current ? now : s.start - 6 * H,
     b = s.end + 6 * H;
+  // Hourly snow fraction and ratio for this point (Utah: derived from liquid; New England: model snowfall).
+  const t700h = meanSeries(det, "temperature_700hPa");
+  const tIndex = new Map(t.map((x, i) => [x, i]));
+  const derive = section === "utah" && elevFt != null;
+  const factor = (ms) => {
+    const i = tIndex.get(ms);
+    const tf = i == null ? null : t700h[i];
+    const lvl = snowLevelAt(data.nws?.grid, ms, tf);
+    if (lvl == null) return 0;
+    return lvl <= elevFt - 300 ? slrFor(tf) : lvl <= elevFt + 300 ? slrFor(tf) / 2 : 0;
+  };
+  const snowSum = (times, liq, raw) => {
+    if (!derive) return sumWindow(times, raw, a, b);
+    let tot = 0;
+    for (let i = 0; i < times.length; i++)
+      if (times[i] >= a && times[i] < b && Number.isFinite(liq[i])) tot += liq[i] * factor(times[i]);
+    return tot;
+  };
   const models = INS_MODELS.map(([name, id]) => {
     const pr = det.hourly[`precipitation_${id}`] || [],
       sn = det.hourly[`snowfall_${id}`] || [];
-    let onset = null;
+    let onset = null,
+      end = null;
     for (let i = 0; i < t.length; i++)
       if (t[i] >= a && t[i] < b && (pr[i] || 0) >= 0.01) {
-        onset = t[i];
-        break;
+        if (onset == null) onset = t[i];
+        end = t[i] + H;
       }
-    return { name, liquid: sumWindow(t, pr, a, b), snow: sumWindow(t, sn, a, b), onset };
+    return {
+      end, name, liquid: sumWindow(t, pr, a, b), snow: snowSum(t, pr, sn), onset };
   }).filter((m) => m.liquid != null);
 
   const members = [];
@@ -240,7 +282,7 @@ function analyzeStorm(s, data, section, elevFt) {
       const m = k.match(/^precipitation_(?:member\d+_)?(.+)$/);
       if (!m || !INS_ENS.includes(m[1])) continue;
       const liquid = sumWindow(et, data.ens.hourly[k], a, b);
-      const snow = sumWindow(et, data.ens.hourly[k.replace("precipitation_", "snowfall_")] || [], a, b);
+      const snow = snowSum(et, data.ens.hourly[k], data.ens.hourly[k.replace("precipitation_", "snowfall_")] || []);
       if (liquid != null) members.push({ model: m[1], liquid, snow: snow ?? 0 });
     }
   }
@@ -257,8 +299,8 @@ function analyzeStorm(s, data, section, elevFt) {
 
   const nws = data.nws?.grid
     ? {
-        liquid: nwsWindow(data.nws.grid, "quantitativePrecipitation", s.start, s.end + 3 * H),
-        snow: nwsWindow(data.nws.grid, "snowfallAmount", s.start, s.end + 3 * H),
+        liquid: nwsWindow(data.nws.grid, "quantitativePrecipitation", current ? now : s.start, s.end + 3 * H),
+        snow: nwsWindow(data.nws.grid, "snowfallAmount", current ? now : s.start, s.end + 3 * H),
         level: nwsSnowLevel(data.nws.grid, s.start, s.end),
       }
     : null;
@@ -277,9 +319,11 @@ function analyzeStorm(s, data, section, elevFt) {
     mid = quantile(vals, 0.5);
   const conf =
     spread == null ? null : spread / Math.max(mid, snowy ? 2 : 0.15) < 0.9 ? "High" : spread / Math.max(mid, snowy ? 2 : 0.15) < 1.7 ? "Moderate" : "Low";
-  const onsets = models.map((m) => m.onset).filter(Number.isFinite);
+  const onsets = current ? [] : models.map((m) => m.onset).filter(Number.isFinite);
   return {
     ...s,
+    current,
+    derive,
     snowy,
     models,
     members,
@@ -331,9 +375,11 @@ function flowNote(x) {
     from = compass(d),
     spd = x.spd700 != null ? `${Math.round(x.spd700)} mph` : "";
   if (x.section === "utah") {
-    if (d >= 270 && d <= 345)
+    if (d >= 292 && d <= 345)
       return `700 mb flow from the ${from} at ${spd}: the classic orographic setup for the Wasatch. Northwest flow favors the Cottonwoods most, and Park City side resorts somewhat less.`;
-    if (d >= 190 && d < 270)
+    if (d >= 248 && d < 292)
+      return `700 mb flow from the ${from} at ${spd}: westerly flow gives moderate upslope lift on the Wasatch; totals improve if winds turn northwest behind the front.`;
+    if (d >= 190 && d < 248)
       return `700 mb flow from the ${from} at ${spd}: southwest flow is usually warmer and spreads snow more evenly, often with a higher snow level until the trough passes.`;
     return `700 mb flow from the ${from} at ${spd}: not a typical upslope direction for the Wasatch, so totals depend on the system's dynamics more than terrain.`;
   }
@@ -356,8 +402,8 @@ function ptypeNote(x) {
 
 function stormCard(x, section, idx) {
   const now = Date.now();
-  const current = x.start <= now;
-  const title = idx === 0 ? (current ? "Current storm" : "Next storm") : "Following storm";
+  const current = x.current;
+  const title = idx === 0 ? (current ? "Current storm · still to come" : "Next storm") : "Following storm";
   const timing = `${current ? "Under way, ends" : `${partOfDay(x.start, section)} → `}${current ? " " + partOfDay(x.end, section) : partOfDay(x.end, section)}`;
   const unit = x.snowy ? "Snow" : "Precipitation";
   const range = x.p10 != null ? `${fmtAmt(x.p10, x.snowy)}–${fmtAmt(x.p90, x.snowy)}` : "–";
@@ -398,18 +444,18 @@ function stormCard(x, section, idx) {
       `<b>Models:</b> ${hi.name} is wettest (${v(hi)}), ${lo.name} driest (${v(lo)}). ${x.onsetSpread >= 6 ? `Onset timing differs by about ${Math.round(x.onsetSpread)} hours between models.` : "Models agree on timing within a few hours."}`,
     );
   }
-  if (x.snowy && x.section === "utah" && x.elevFt && x.elevFt > 7500)
+  if (x.snowy && x.derive)
     notes.push(
-      `<b>Terrain caveat:</b> global models smooth the Wasatch into gentle hills, so mountain totals often land in the upper half of the model range. Weight the NWS number and the high end.`,
+      `<b>How model snow is figured:</b> each model's liquid at this point × a snow ratio from its 700 mb temperature, counted only when the NWS snow level is below this point. Global models (9–25 km) smooth the Wasatch, so liquid amounts in the mountains often land in the upper half of the range.`,
     );
-  const table = `<div class="model-table-wrap"><table class="model-table ins-models"><thead><tr><th>Model</th><th>Liquid</th><th>Snow</th><th>Starts</th></tr></thead><tbody>${x.models
+  const table = `<div class="model-table-wrap"><table class="model-table ins-models"><thead><tr><th>Model</th><th>Liquid</th><th>Snow</th><th>${x.current ? "Ends" : "Starts"}</th></tr></thead><tbody>${x.models
     .map(
       (m) =>
-        `<tr><th>${escapeHTML(m.name)}</th><td data-label="Liquid">${fmtAmt(m.liquid, false)}</td><td data-label="Snow">${fmtAmt(m.snow, true)}</td><td data-label="Starts">${m.onset ? escapeHTML(insWhen(m.onset, section)) : "–"}</td></tr>`,
+        `<tr><th>${escapeHTML(m.name)}</th><td data-label="Liquid">${fmtAmt(m.liquid, false)}</td><td data-label="Snow">${fmtAmt(m.snow, true)}</td><td data-label="${x.current ? "Ends" : "Starts"}">${x.current ? (m.end ? escapeHTML(insWhen(m.end, section)) : "–") : m.onset ? escapeHTML(insWhen(m.onset, section)) : "–"}</td></tr>`,
     )
     .join("")}${
     x.nws?.liquid
-      ? `<tr class="flag"><th>NWS</th><td data-label="Liquid">${fmtAmt(x.nws.liquid.inches, false)}</td><td data-label="Snow">${x.nws.snow ? fmtAmt(x.nws.snow.inches, true) : "–"}</td><td data-label="Starts">official</td></tr>`
+      ? `<tr class="flag"><th>NWS</th><td data-label="Liquid">${fmtAmt(x.nws.liquid.inches, false)}</td><td data-label="Snow">${x.nws.snow ? fmtAmt(x.nws.snow.inches, true) : "–"}</td><td data-label="${x.current ? "Ends" : "Starts"}">official</td></tr>`
       : ""
   }</tbody></table></div>`;
   return `<article class="card afd-card ins-storm"><div class="ins-head"><h3>${title}</h3><span class="ins-conf ins-conf-${(x.conf || "na").toLowerCase()}">${x.conf ? x.conf + " confidence" : "Confidence n/a"}</span></div><p class="ins-timing">${escapeHTML(timing)}</p><div class="ins-stats"><div><span>NWS forecast</span><strong>${nwsPart}</strong><small>${unit.toLowerCase()} · official</small></div><div><span>Model range</span><strong>${range}</strong><small>10th–90th percentile of ${x.members.length} ensemble runs</small></div><div><span>Middle outcome</span><strong>${fmtAmt(x.p50, x.snowy)}</strong><small>ensemble median${x.snowy ? ` · ${fmtAmt(x.liqRange[1], false)} liquid` : ""}</small></div></div>${likely ? `<p class="ins-likely"><b>Most likely:</b> ${escapeHTML(likely)}</p>` : ""}<div class="ins-bars" aria-label="Share of ensemble runs by total">${bars}</div><ul class="ins-notes">${notes.map((n) => `<li>${n}</li>`).join("")}</ul>${table}</article>`;
@@ -462,7 +508,8 @@ function patternCard(data, section, storms) {
   const det = data.det,
     t = det.hourly.time.map(insT),
     now = Date.now();
-  const z = meanSeries(det, "geopotential_height_500hPa"),
+  const ftToM = det.hourly_units?.[`geopotential_height_500hPa_${INS_MODELS[0][1]}`] === "ft" || meanSeries(det, "geopotential_height_500hPa").some((v) => v > 8000);
+  const z = meanSeries(det, "geopotential_height_500hPa").map((v) => (v != null && ftToM ? v / 3.28084 : v)),
     p = meanSeries(det, "pressure_msl"),
     tUp = meanSeries(det, section === "utah" ? "temperature_700hPa" : "temperature_850hPa"),
     t2 = meanSeries(det, "temperature_2m");
@@ -476,7 +523,7 @@ function patternCard(data, section, storms) {
   // Upper air: troughs and ridges at 500 mb.
   const troughs = extrema(ft, fz, 50, 30, "min"),
     ridges = extrema(ft, fz, 50, 30, "max");
-  const zs = series(det, "geopotential_height_500hPa");
+  const zs = series(det, "geopotential_height_500hPa").map((q) => ({ ...q, values: q.values.map((v) => (v != null && ftToM ? v / 3.28084 : v)) }));
   const upper = [...troughs.map((x) => ({ ...x, kind: "trough" })), ...ridges.map((x) => ({ ...x, kind: "ridge" }))]
     .sort((a, b) => a.t - b.t)
     .slice(0, 4)
