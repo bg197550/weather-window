@@ -3,6 +3,7 @@
    Sources: NWS gridded forecast (official totals), Open-Meteo deterministic models (GFS, ECMWF, GEM, ICON)
    and ensembles (GEFS, ECMWF ENS, GEM ENS), and the NWS Area Forecast Discussion. Classic script: globals. */
 
+(() => {
 const INS_MODELS = [
   ["GFS", "gfs_seamless"],
   ["ECMWF", "ecmwf_ifs025"],
@@ -718,3 +719,7 @@ async function loadInsights(pt, section) {
       }),
   );
 }
+
+window.loadInsights = loadInsights;
+window.insCache = insCache;
+})();
