@@ -2429,8 +2429,8 @@ p {
 .ins-bar-track { height: 12px; background: #0b2433; border-radius: 6px; overflow: hidden; }
 .ins-bar-track i { display: block; height: 100%; background: #79d7e5; border-radius: 6px; }
 .ins-bar b { text-align: right; font-weight: 600; }
-.ins-notes, .ins-pattern ul { padding-left: 20px; margin: 12px 0; }
-.ins-notes li, .ins-pattern li { margin: 8px 0; line-height: 1.5; }
+.ins-notes, .ins-pattern ul, .ins-afd ul { padding-left: 20px; margin: 12px 0; }
+.ins-notes li, .ins-pattern li, .ins-afd li { margin: 8px 0; line-height: 1.5; }
 .ins-pattern section, .ins-afd section { margin-top: 14px; }
 .ins-afd p { margin: 0; line-height: 1.55; }
 .ins .ins-models { margin-top: 8px; }

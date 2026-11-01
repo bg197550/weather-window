@@ -127,7 +127,7 @@ function partOfDay(ms, section) {
   const key = (x) => new Date(x).toLocaleDateString("en-CA", { timeZone: zone });
   const days = Math.round((Date.parse(key(ms)) - Date.parse(key(Date.now()))) / 86400000);
   if (days === 0) return part === "night" ? "tonight" : part === "early" ? "early today" : `this ${part}`;
-  const label = days >= 6 ? d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: zone }) : day;
+  const label = days >= 7 ? d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: zone }) : day;
   return part === "early" ? `early ${label}` : `${label} ${part}`;
 }
 
@@ -353,6 +353,10 @@ function likelyText(x) {
   if (!top.length) return null;
   const first = top[0],
     second = top[1];
+  if (first.pct < 35)
+    return `no clear favorite. Ensemble runs spread from ${fmtAmt(x.p10, x.snowy)} to ${fmtAmt(x.p90, x.snowy)} with a median of ${fmtAmt(x.p50, x.snowy)}, so track or timing is still uncertain`;
+  if (second && second.pct >= 0.6 * first.pct && second.pct >= 20 && Math.abs(x.dist.indexOf(first) - x.dist.indexOf(second)) > 1)
+    return `two camps: ${first.label} (${Math.round(first.pct)}%) or ${second.label} (${Math.round(second.pct)}% of ensemble runs)`;
   if (second && second.pct >= 0.6 * first.pct && second.pct >= 20)
     return `${first.label} or ${second.label} (${Math.round(first.pct)}% / ${Math.round(second.pct)}% of ensemble members)`;
   return `${first.label} (${Math.round(first.pct)}% of ensemble members)`;
@@ -675,8 +679,14 @@ function afdCard(a, section) {
       .replace(/\s{2,}/g, " ")
       .trim();
   const short = (s) => (s.length > 900 ? s.slice(0, 880).replace(/\s\S*$/, "") + "…" : s);
+  const body = (s) => {
+    const items = s.split(/\n\s*[-*]\s+/).map((x) => x.replace(/^\s*[-*]\s+/, ""));
+    if (/^\s*[-*]\s/.test(s) && items.length > 1)
+      return `<ul>${items.filter((x) => x.trim()).map((x) => `<li>${escapeHTML(short(clean(x)))}</li>`).join("")}</ul>`;
+    return `<p>${escapeHTML(short(clean(s)))}</p>`;
+  };
   return `<article class="card afd-card ins-afd"><h3>What NWS forecasters say</h3>${parts
-    .map(([h, s]) => `<section><h4>${h}</h4><p>${escapeHTML(short(clean(s)))}</p></section>`)
+    .map(([h, s]) => `<section><h4>${h}</h4>${body(s)}</section>`)
     .join("")}<p class="source">${escapeHTML(a.code)} Area Forecast Discussion, issued ${escapeHTML(regionTime(a.afd.issuanceTime, section, { weekday: "short", hour: "numeric", minute: "2-digit" }))} · <button type="button" class="linkish" data-view="afd">Read the full discussion ›</button></p></article>`;
 }
 
@@ -689,7 +699,9 @@ async function loadInsights(pt, section) {
   let html = "";
   if (data.det?.hourly) {
     const elevFt = data.nws?.forecast?.elevation?.value != null ? data.nws.forecast.elevation.value * 3.28084 : null;
-    const storms = findStorms(data.det).map((s) => analyzeStorm(s, data, section, elevFt));
+    const storms = findStorms(data.det)
+      .map((s) => analyzeStorm(s, data, section, elevFt))
+      .filter((x) => (x.liqRange[1] ?? 0) >= 0.03 || x.models.filter((m) => m.liquid >= 0.05).length >= 2);
     html += storms.length
       ? storms.map((s, i) => stormCard(s, section, i)).join("")
       : `<article class="card afd-card ins-storm"><h3>No storm in sight</h3><p>None of the GFS, ECMWF, GEM or ICON models show a meaningful precipitation event (0.05″ liquid or more) in the next 10 days.</p></article>`;
