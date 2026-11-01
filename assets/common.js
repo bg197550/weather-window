@@ -1,7 +1,7 @@
 /* Shared by the Weather, Snow Report and Webcams pages. Classic script: top-level names are global. */
 
 const utah = [
-  { name: "Snyderville", p: [[40.695, -111.536, "Town"]] },
+  { name: "Snyderville", p: [[40.6957, -111.5442, "Town"]] },
   { name: "Park City", p: [[40.647, -111.498, "Town"]] },
   {
     name: "Deer Valley",
@@ -70,7 +70,7 @@ const UAC = { Snowbasin: "ogden" };
    NWS's own nearest-station list puts a Park City highway sensor first for most Wasatch resorts,
    so mountain points list on-mountain stations explicitly. Points not listed use the NWS list. */
 const OBS_STATIONS = {
-  "40.695,-111.536": ["KIJ", "UT224"], // Snyderville
+  "40.6957,-111.5442": ["KIJ", "UT224"], // Snyderville
   "40.647,-111.498": ["PACU1", "PC065", "DVE"], // Park City
   "40.62,-111.485": ["DVB", "DVE", "UTONM"], // Deer Valley mid
   "40.60884,-111.48047": ["MBY", "DVO", "DVP"], // Deer Valley peak
