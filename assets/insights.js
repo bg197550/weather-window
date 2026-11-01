@@ -482,26 +482,29 @@ function extrema(times, vals, minDepth, win, kind) {
   return out;
 }
 function fronts(times, temp, dir, section, now) {
-  const out = [];
-  const step = 12,
-    lim = 4;
-  for (let i = 0; i + step < temp.length; i++) {
-    if (times[i] < now - 6 * H) continue;
-    const a = temp[i],
-      b = temp[i + step];
-    if (!Number.isFinite(a) || !Number.isFinite(b)) continue;
-    const dC = fToC(b) - fToC(a);
-    const kind = dC <= -lim ? "cold" : dC >= lim ? "warm" : null;
-    if (!kind) continue;
-    const mid = times[i + step / 2];
-    const last = out[out.length - 1];
-    if (last && last.kind === kind && mid - last.t < 30 * H) {
-      if (Math.abs(dC) > Math.abs(last.dC)) Object.assign(last, { t: mid, dC, before: dir[i], after: dir[i + step] });
-      continue;
+  const scan = (step, lim, gradual) => {
+    const out = [];
+    for (let i = 0; i + step < temp.length; i++) {
+      if (times[i] < now - 6 * H) continue;
+      const a = temp[i],
+        b = temp[i + step];
+      if (!Number.isFinite(a) || !Number.isFinite(b)) continue;
+      const dC = fToC(b) - fToC(a);
+      const kind = dC <= -lim ? "cold" : dC >= lim ? "warm" : null;
+      if (!kind) continue;
+      const mid = times[i + step / 2];
+      const last = out[out.length - 1];
+      if (last && last.kind === kind && mid - last.t < 30 * H) {
+        if (Math.abs(dC) > Math.abs(last.dC)) Object.assign(last, { t: mid, dC, before: dir[i], after: dir[i + step] });
+        continue;
+      }
+      out.push({ kind, t: mid, dC, before: dir[i], after: dir[i + step], gradual, hours: step });
     }
-    out.push({ kind, t: mid, dC, before: dir[i], after: dir[i + step] });
-  }
-  return out;
+    return out;
+  };
+  const sharp = scan(12, 4, false);
+  const slow = scan(24, 5, true).filter((g) => !sharp.some((s) => s.kind === g.kind && Math.abs(s.t - g.t) < 30 * H));
+  return [...sharp, ...slow].sort((a, b) => a.t - b.t);
 }
 
 function patternCard(data, section, storms) {
@@ -578,6 +581,10 @@ function patternCard(data, section, storms) {
     .map((f) => {
       const lvl = section === "utah" ? "700 mb" : "850 mb";
       const shift = f.before != null && f.after != null && compass(f.before) !== compass(f.after) ? `, winds aloft shift ${compass(f.before)} → ${compass(f.after)}` : "";
+      if (f.gradual)
+        return f.kind === "cold"
+          ? `Colder air filters in around ${partOfDay(f.t, section)}: ${lvl} temperature falls about ${Math.round(-f.dC)}°C over 24 hours, a gradual post-frontal cooldown rather than a sharp front.`
+          : `Warming aloft around ${partOfDay(f.t, section)}: ${lvl} temperature rises about ${Math.round(f.dC)}°C over 24 hours.`;
       return f.kind === "cold"
         ? `Cold front ${partOfDay(f.t, section)}: ${lvl} temperature drops about ${Math.round(-f.dC)}°C in 12 hours${shift}.`
         : `Warm advection ${partOfDay(f.t, section)}: ${lvl} temperature rises about ${Math.round(f.dC)}°C in 12 hours${shift}.`;
