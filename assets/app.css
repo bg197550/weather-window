@@ -2443,3 +2443,12 @@ p {
   .ins-stats strong { font-size: 24px; }
   .ins-bar { grid-template-columns: 84px 1fr 40px; }
 }
+@media (max-width: 760px) {
+  .ins .model-table.ins-models { display: table; width: 100%; }
+  .ins .ins-models thead { display: table-header-group; }
+  .ins .ins-models tbody { display: table-row-group; }
+  .ins .ins-models tr { display: table-row; border: 0; padding: 0; background: none; }
+  .ins .ins-models tr.flag { background: #382b10; }
+  .ins .ins-models th, .ins .ins-models td { display: table-cell; padding: 7px 6px; font-size: 14px; border-bottom: 1px solid #294858; }
+  .ins .ins-models td::before { content: none; }
+}
