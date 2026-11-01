@@ -2404,3 +2404,42 @@ p {
   .obs { font-size: 18px; line-height: 1.6; }
   .obs-label, .metric span, .day-name, .model-table td::before { font-size: 16px; line-height: 1.5; }
 }
+
+/* Insights */
+.ins { display: grid; gap: 16px; margin-bottom: 16px; }
+.ins .card { padding: 20px; }
+.ins h3 { margin: 0; font-size: 21px; }
+.ins h4 { color: #f2c780; font-size: 16px; margin: 0 0 6px; }
+.ins-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.ins-conf { font-size: 13px; font-weight: 600; padding: 4px 10px; border-radius: 999px; border: 1px solid #3b6576; color: #cfe2e8; }
+.ins-conf-high { background: #12405a; }
+.ins-conf-moderate { background: #2a3a4a; border-style: dashed; }
+.ins-conf-low { background: transparent; border-style: dotted; }
+.ins-timing { margin: 4px 0 14px; color: #9fb1bc; }
+.ins-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.ins-stats > div { background: #0b2433; border: 1px solid #294858; border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 2px; }
+.ins-stats span { color: #9fb1bc; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; }
+.ins-stats strong { font-size: 28px; letter-spacing: -0.02em; }
+.ins-stats strong small { font-size: 12px; font-weight: 400; color: #9fb1bc; display: block; letter-spacing: 0; }
+.ins-stats > div > small { color: #9fb1bc; font-size: 12px; line-height: 1.35; }
+.ins-likely { margin: 14px 0 8px; }
+.ins-bars { display: grid; gap: 6px; margin-bottom: 8px; }
+.ins-bar { display: grid; grid-template-columns: 96px 1fr 44px; align-items: center; gap: 10px; font-size: 14px; }
+.ins-bar-label { color: #cfe2e8; }
+.ins-bar-track { height: 12px; background: #0b2433; border-radius: 6px; overflow: hidden; }
+.ins-bar-track i { display: block; height: 100%; background: #79d7e5; border-radius: 6px; }
+.ins-bar b { text-align: right; font-weight: 600; }
+.ins-notes, .ins-pattern ul { padding-left: 20px; margin: 12px 0; }
+.ins-notes li, .ins-pattern li { margin: 8px 0; line-height: 1.5; }
+.ins-pattern section, .ins-afd section { margin-top: 14px; }
+.ins-afd p { margin: 0; line-height: 1.55; }
+.ins .ins-models { margin-top: 8px; }
+.linkish { background: none; border: 0; padding: 0; color: #70d9de; text-decoration: underline; font: inherit; }
+@media (max-width: 700px) {
+  .ins .card { padding: 16px; }
+  .ins-stats { grid-template-columns: 1fr; gap: 8px; }
+  .ins-stats > div { flex-direction: row; flex-wrap: wrap; align-items: baseline; column-gap: 10px; }
+  .ins-stats span { flex: 1 0 100%; }
+  .ins-stats strong { font-size: 24px; }
+  .ins-bar { grid-template-columns: 84px 1fr 40px; }
+}
