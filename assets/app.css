@@ -2452,3 +2452,17 @@ p {
   .ins .ins-models th, .ins .ins-models td { display: table-cell; padding: 7px 6px; font-size: 14px; border-bottom: 1px solid #294858; }
   .ins .ins-models td::before { content: none; }
 }
+/* Insights layout: one column, storm cards then the hourly chart (overrides the old overview grid). */
+.ov.ov-ins,
+.ov.ov-ins[data-n="2"] {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "ins" "hourly";
+}
+.ov-ins > .ins { grid-area: ins; margin-bottom: 0; min-width: 0; }
+@media (max-width: 760px) {
+  .ov.ov-ins,
+  .ov.ov-ins[data-n="2"] { grid-template-areas: "toggle" "ins" "hourly"; }
+}
+@media (min-width: 1100px) {
+  .ins { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
+}

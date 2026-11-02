@@ -477,6 +477,7 @@ async function loadOverview(place, section) {
   if (daysPick >= n) daysPick = 0;
   hourlyPoint[section] = daysPick;
   el.dataset.n = n;
+  el.classList.add("ov-ins");
   const draw = () => {
     el.innerHTML = `${
       n > 1
