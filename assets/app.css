@@ -2466,3 +2466,4 @@ p {
 @media (min-width: 1100px) {
   .ins { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
 }
+.ins .model-table.ins-models { min-width: 0; }
