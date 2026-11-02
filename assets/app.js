@@ -266,7 +266,7 @@ function forecastView() {
     selected = mode === "mountain" ? profileResort : selection[section],
     place = places[selected],
     absIndex = mode === "mountain" ? selected + 2 : selected,
-    views = FORECAST_VIEWS.filter((v) => !v[2] || v[2] === section);
+    views = FORECAST_VIEWS.filter((v) => (!v[2] || v[2] === section) && (v[0] !== "mountain" || mode === "mountain" || place.p.length > 1));
   const body =
     mode === "snow"
       ? '<article class="card afd-card" id="resort-snow"><div class="state">Loading NWS snow grids for all resorts…</div></article><article class="card afd-card" id="snow-models"><div class="state">Loading long-range snowfall models…</div></article>'

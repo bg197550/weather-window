@@ -661,15 +661,19 @@ function afdCard(a, section) {
     const m = txt.match(re);
     return m ? m[1].replace(/&&[\s\S]*$/, "").trim() : null;
   };
-  const sec = (name) => grab(new RegExp(`\\.${name}[^\\n]*?\\.\\.\\.[^\\n]*\\n([\\s\\S]*?)(?=\\n&&|\\n\\s*\\n\\.[A-Z])`, "i"));
+  // Section headers look like ".KEY MESSAGES, Issued 906 PM...\n" or ".DISCUSSION...text starts here".
+  const sec = (name) => grab(new RegExp(`\\n\\.${name}[^\\n]*?\\.\\.\\.([\\s\\S]*?)(?=\\n&&|\\n\\s*\\n\\.[A-Z])`, "i"));
   const key = sec("KEY MESSAGES?");
   const syn = sec("SYNOPSIS");
   const what = sec("WHAT HAS CHANGED");
-  const disc = sec("(?:DISCUSSION|SHORT TERM)");
-  const firstPara = disc ? disc.trim().split(/\n\s*\n/).find((p) => !/^KEY MESSAGE/i.test(p.trim())) || null : null;
+  const disc = [sec("DISCUSSION"), sec("SHORT TERM"), sec("LONG TERM")].filter(Boolean).join("\n\n");
+  const paras = disc
+    .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .filter((p) => p && !/^KEY MESSAGE/i.test(p) && !/^\.[A-Z ]+\.\.\.$/.test(p));
   const parts = [
     ["Key messages", key],
-    [syn ? "Synopsis" : "Big picture", syn || firstPara],
+    ["Synopsis", syn],
     ["What changed", what],
   ].filter((x) => x[1]);
   const clean = (s) =>
@@ -677,16 +681,26 @@ function afdCard(a, section) {
       .replace(/\n(?!\s*[-*]|\s*\d\))/g, " ")
       .replace(/\s{2,}/g, " ")
       .trim();
-  const short = (s) => (s.length > 900 ? s.slice(0, 880).replace(/\s\S*$/, "") + "…" : s);
+  const short = (s) => s;
   const body = (s) => {
     const items = s.split(/\n\s*[-*]\s+/).map((x) => x.replace(/^\s*[-*]\s+/, ""));
     if (/^\s*[-*]\s/.test(s) && items.length > 1)
       return `<ul>${items.filter((x) => x.trim()).map((x) => `<li>${escapeHTML(short(clean(x)))}</li>`).join("")}</ul>`;
     return `<p>${escapeHTML(short(clean(s)))}</p>`;
   };
-  return `<article class="card afd-card ins-afd"><h3>What NWS forecasters say</h3>${parts
+  const discHTML = paras.length
+    ? `<section class="ins-disc"><h4>Forecaster discussion</h4><p>${escapeHTML(clean(paras[0]))}</p>${
+        paras.length > 1
+          ? `<details><summary>Rest of the discussion (${paras.length - 1} more paragraph${paras.length > 2 ? "s" : ""})</summary>${paras
+              .slice(1)
+              .map((p) => `<p>${escapeHTML(clean(p))}</p>`)
+              .join("")}</details>`
+          : ""
+      }</section>`
+    : "";
+  return `<article class="card afd-card ins-afd"><h3>What NWS forecasters say</h3><p class="muted">Quoted word for word from the NWS Area Forecast Discussion. Nothing here is AI-written.</p>${parts
     .map(([h, s]) => `<section><h4>${h}</h4>${body(s)}</section>`)
-    .join("")}<p class="source">${escapeHTML(a.code)} Area Forecast Discussion, issued ${escapeHTML(regionTime(a.afd.issuanceTime, section, { weekday: "short", hour: "numeric", minute: "2-digit" }))} · <button type="button" class="linkish" data-view="afd">Read the full discussion ›</button></p></article>`;
+    .join("")}${discHTML}<p class="source">${escapeHTML(a.code)} Area Forecast Discussion, issued ${escapeHTML(regionTime(a.afd.issuanceTime, section, { weekday: "short", hour: "numeric", minute: "2-digit" }))} · <button type="button" class="linkish" data-view="afd">Read the full discussion ›</button></p></article>`;
 }
 
 async function loadInsights(pt, section) {

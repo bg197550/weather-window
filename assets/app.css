@@ -2467,3 +2467,8 @@ p {
   .ins { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
 }
 .ins .model-table.ins-models { min-width: 0; }
+.ins-afd .muted { margin: 4px 0 0; }
+.ins-disc p { margin: 0 0 12px; overflow-wrap: anywhere; }
+.ins-disc details { margin-top: 4px; }
+.ins-disc summary { cursor: pointer; color: #70d9de; margin-bottom: 10px; }
+.ins-afd { min-width: 0; overflow: hidden; }
