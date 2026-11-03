@@ -85,7 +85,7 @@ const RESORTS = [
     source: "https://www.alta.com/weather#mountain-cams",
     cams: [
       {
-        name: "Albion Basin",
+        name: "Devil's Castle",
         snapshot: "https://app.prismcam.com/public/helpers/realtime_preview.php?c=65&s=720",
       },
       {
@@ -99,10 +99,6 @@ const RESORTS = [
       {
         name: "Mount Superior",
         snapshot: "https://alta-webcams.sfo3.cdn.digitaloceanspaces.com/Superior.jpg",
-      },
-      {
-        name: "High Rustler",
-        snapshot: "https://alta-webcams.sfo3.cdn.digitaloceanspaces.com/Highrustler.jpg",
       },
       {
         name: "Sugarloaf Peak",
