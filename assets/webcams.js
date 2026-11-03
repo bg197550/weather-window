@@ -168,12 +168,11 @@ const RESORTS = [
     cams: [
       {
         name: "Honeycomb Canyon",
-        embed: "https://www.youtube-nocookie.com/embed/gfHReYIuydU?autoplay=1&mute=1&playsinline=1&rel=0",
+        embed: "https://www.youtube-nocookie.com/embed/ta-4QZbfMXc?autoplay=1&mute=1&playsinline=1&rel=0",
       },
       {
         name: "Powderhorn",
-        embed: "https://www.youtube-nocookie.com/embed/fKLVbvQhPsc?autoplay=1&mute=1&playsinline=1&rel=0",
-        offline: true,
+        embed: "https://www.youtube-nocookie.com/embed/xNER0JHrqLg?autoplay=1&mute=1&playsinline=1&rel=0",
       },
       {
         name: "Sunshine Bowl",
@@ -181,11 +180,12 @@ const RESORTS = [
       },
       {
         name: "Snow Stake",
-        embed: "https://www.youtube-nocookie.com/embed/QCqYmOGzULs?autoplay=1&mute=1&playsinline=1&rel=0",
+        embed: "https://www.youtube-nocookie.com/embed/lkEM6EC8NVA?autoplay=1&mute=1&playsinline=1&rel=0",
       },
       {
         name: "Moonbeam Parking Lot",
-        embed: "https://www.youtube-nocookie.com/embed/ta-4QZbfMXc?autoplay=1&mute=1&playsinline=1&rel=0",
+        embed: "https://www.youtube-nocookie.com/embed/gfHReYIuydU?autoplay=1&mute=1&playsinline=1&rel=0",
+        offline: true,
       },
       {
         name: "Moonbeam Express Lift Line",
@@ -196,8 +196,13 @@ const RESORTS = [
         embed: "https://www.youtube-nocookie.com/embed/l2X9DlRzX54?autoplay=1&mute=1&playsinline=1&rel=0",
       },
       {
+        name: "Eagle Express Lift Line",
+        embed: "https://www.youtube-nocookie.com/embed/oWaG8txpW1c?autoplay=1&mute=1&playsinline=1&rel=0",
+      },
+      {
         name: "Summit Express Lift Line",
         embed: "https://www.youtube-nocookie.com/embed/rUXoOLxKKX4?autoplay=1&mute=1&playsinline=1&rel=0",
+        offline: true,
       },
       {
         name: "Powderhorn II Lift Line",
