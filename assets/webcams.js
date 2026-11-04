@@ -294,6 +294,33 @@ const RESORTS = [
     forecast: "snowbasin",
   },
   {
+    id: "sundance",
+    name: "Sundance",
+    area: "Provo Canyon",
+    source: "https://www.sundanceresort.com/webcams/",
+    cams: [
+      {
+        name: "Mandan Summit",
+        embed: "https://watch.hdrelay.io/player.html?cam=cam_sundance_mountain___mandan_summit_1781718266360&profile=p_mqiel6k222qk&sig=885e539056c1c4a30d376f68&exp=1813421079947",
+      },
+      {
+        name: "Sundance Base",
+        snapshot: "https://app.prismcam.com/public/helpers/realtime_preview.php?c=75&s=720",
+      },
+      {
+        name: "Snow Stake",
+        embed: "https://vauth.command.verkada.com/__v/sundance-mountain-resort/embed/html/78238dd4-916b-42a4-94b5-830413e9b852/",
+      },
+      {
+        name: "Bearclaw Summit",
+        snapshot: "https://app.prismcam.com/public/helpers/realtime_preview.php?c=74&s=720",
+        offline: true,
+      },
+    ],
+    region: "utah",
+    forecast: "",
+  },
+  {
     id: "killington",
     name: "Killington",
     area: "Central Vermont",
@@ -665,7 +692,7 @@ function render() {
     .map((x) => `<a href="#${x.id}" ${x.id === active ? 'aria-current="page"' : ""}>${safe(x.name)}</a>`)
     .join("");
   if (r) {
-    content.innerHTML = `<div class="toolbar"><p class="muted">${r.cams.length} camera view${r.cams.length === 1 ? "" : "s"}</p><div class="resort-links"><a class="xlink" href="${forecastLink(r)}">☀ ${r.forecast ? "Forecast" : R.name + " forecasts"} ›</a>${r.region === "utah" ? `<a class="xlink" href="../snow/">❄ Snow report ›</a>${r.id !== "park-city" ? `<a class="xlink" href="${safe(`https://utahavalanchecenter.org/forecast/${r.id === "snowbasin" ? "ogden" : "salt-lake"}`)}" target="_blank" rel="noopener">Avalanche forecast ↗</a>` : ""}` : ""}</div></div><div class="grid" aria-label="${safe(r.name)} cameras">${r.cams.map(c=>cameraCard(r,c)).join("")}</div>`;
+    content.innerHTML = `<div class="toolbar"><p class="muted">${r.cams.length} camera view${r.cams.length === 1 ? "" : "s"}</p><div class="resort-links"><a class="xlink" href="${forecastLink(r)}">☀ ${r.forecast ? "Forecast" : R.name + " forecasts"} ›</a>${r.region === "utah" ? `<a class="xlink" href="../snow/">❄ Snow report ›</a>${r.id !== "park-city" ? `<a class="xlink" href="${safe(`https://utahavalanchecenter.org/forecast/${r.id === "snowbasin" ? "ogden" : r.id === "sundance" ? "provo" : "salt-lake"}`)}" target="_blank" rel="noopener">Avalanche forecast ↗</a>` : ""}` : ""}</div></div><div class="grid" aria-label="${safe(r.name)} cameras">${r.cams.map(c=>cameraCard(r,c)).join("")}</div>`;
   } else {
     content.innerHTML = groupedResorts(list);
   }
