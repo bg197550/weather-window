@@ -308,11 +308,6 @@ const RESORTS = [
         snapshot: "https://app.prismcam.com/public/helpers/realtime_preview.php?c=75&s=720",
       },
       {
-        name: "Snow Stake",
-        // Verkada only plays this stream on Sundance's own website, so link out instead of embedding.
-        external: true,
-      },
-      {
         name: "Bearclaw Summit",
         snapshot: "https://app.prismcam.com/public/helpers/realtime_preview.php?c=74&s=720",
         offline: true,
