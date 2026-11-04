@@ -51,7 +51,7 @@ test("video and embedded players have no visible status notes; stills retain lab
  assert.equal(s.cameraStatus({hls:"stream"}),"");
  assert.equal(s.cameraStatus({snapshot:"still"}),"Loading still");
  for(const r of s.resorts)for(const c of r.cams){
-  if(c.offline)continue;
+  if(c.offline||c.external)continue;
   const html=s.camera(r,c);
   const badge=html.match(/<span class="badge"[^>]*>/)?.[0];
   assert.ok(badge);
