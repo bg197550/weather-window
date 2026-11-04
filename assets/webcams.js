@@ -309,7 +309,8 @@ const RESORTS = [
       },
       {
         name: "Snow Stake",
-        embed: "https://vauth.command.verkada.com/__v/sundance-mountain-resort/embed/html/78238dd4-916b-42a4-94b5-830413e9b852/",
+        // Verkada only plays this stream on Sundance's own website, so link out instead of embedding.
+        external: true,
       },
       {
         name: "Bearclaw Summit",
@@ -623,7 +624,7 @@ function snapshotURL(u) {
   return u + (u.includes("?") ? "&" : "?") + "t=" + Math.floor(Date.now() / 30000);
 }
 function cameraKind(c) {
-  return c.offline ? "offline" : c.hls ? "video" : c.snapshot ? "still" : "player";
+  return c.offline ? "offline" : c.external ? "external" : c.hls ? "video" : c.snapshot ? "still" : "player";
 }
 function cameraStatus(c) {
   return !c.offline && c.snapshot && !c.hls ? "Loading still" : "";
@@ -646,12 +647,14 @@ function cameraCard(r,c,overview=false) {
   return `<article class="card camera-card"><div class="pad cardhead"><div><h2>${overview?`<a href="#${r.id}">${safe(r.name)} ›</a>`:safe(c.name)}</h2>${overview?`<p class="muted">${safe(c.name)}</p>`:""}</div>${overview?`<a class="camera-count" href="#${r.id}">${r.cams.length} views</a>`:(kind==="still"?`<span class="feed-kind">Still image</span>`:"")}</div>${camera(r,c)}${footer(r,c)}</article>`;
 }
 function groupedResorts(list) {
-  return `<div class="grid">${list.map(r=>cameraCard(r,r.cams.find(c=>!c.offline)||r.cams[0],true)).join("")}</div>`;
+  return `<div class="grid">${list.map(r=>cameraCard(r,r.cams.find(c=>!c.offline&&!c.external)||r.cams[0],true)).join("")}</div>`;
 }
 function cameraLoading(c) {
   return c.embed?.startsWith("https://player.brownrice.com/embed/") ? "eager" : "lazy";
 }
 function camera(r, c) {
+  if (c.external)
+    return `<div class="cam"><div class="cam-failure"><strong>${safe(c.name)} only plays on ${safe(r.name)}'s website</strong><a href="${safe(r.source)}" target="_blank" rel="noopener">Watch it on ${safe(r.name)}'s webcam page ↗</a></div></div>`;
   if (c.offline)
     return `<div class="cam"><div class="cam-failure"><strong>${safe(c.name)} is currently offline</strong><a href="${safe(r.source)}" target="_blank" rel="noopener">Check resort camera updates ↗</a></div></div>`;
   return `<div class="cam">${c.hls ? `<video data-hls="${safe(c.hls)}" data-fallback="${safe(c.snapshot)}" poster="${safe(c.snapshot)}" muted autoplay playsinline controls aria-label="${safe(r.name + " · " + c.name + " webcam")}"></video>` : c.snapshot ? `<img data-snapshot="${safe(c.snapshot)}" src="${safe(snapshotURL(c.snapshot))}" alt="${safe(r.name + " · " + c.name + " webcam")}" loading="lazy" referrerpolicy="no-referrer">` : `<iframe ${c.embed.includes("{W}") ? "data-sized" : "src"}="${safe(c.embed)}"${c.wetmet ? ' class="crop" scrolling="no"' : ""} title="${safe(r.name + " · " + c.name + " webcam")}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen loading="${cameraLoading(c)}" referrerpolicy="strict-origin-when-cross-origin"></iframe>`}<span class="badge" data-state="loading" role="status"${c.snapshot && !c.hls ? "" : " hidden"}>${safe(cameraStatus(c))}</span><div class="cam-failure" hidden><strong>Camera feed unavailable</strong><a href="${safe(r.source)}" target="_blank" rel="noopener">Open resort webcams ↗</a></div></div>`;
