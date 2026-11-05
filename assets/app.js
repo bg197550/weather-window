@@ -182,7 +182,7 @@ function renderLongBrief(el, d) {
     g = d.guidance[r][longPeriod],
     m = g.models.filter((x) => x.values),
     age = Date.now() - Date.parse(d.generatedAt),
-    stale = age > 12 * 3600000;
+    stale = age > 18 * 3600000;
   el.innerHTML = `${stale ? `<div class="stale-flag" role="status">▲ <b>Stale data:</b> the long range briefing was last updated ${escapeHTML(ago(Date.parse(d.generatedAt)))}. The automatic refresh may be failing; the NOAA maps above are always current.</div>` : ""}${d.warnings?.length ? `<div class="stale-flag" role="status">▲ Some parts could not be refreshed and show earlier data: ${escapeHTML(d.warnings.join("; "))}</div>` : ""}<p class="muted">CPC outlook categories and model means are different measures. Select a region and horizon for the supporting text. Data checked ${new Date(d.generatedAt).toLocaleString()}.</p><div class="signal-scroll"><div class="signal-matrix" role="group" aria-label="Long range signals"><div class="signal-head">Region</div>${d.periods.map((x) => `<div class="signal-head">${escapeHTML(x.name)}</div>`).join("")}${[
     "utah",
     "ne",

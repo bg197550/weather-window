@@ -2,7 +2,7 @@ name: Refresh long range guidance
 
 on:
   schedule:
-    - cron: '25 0,6,12,18 * * *'
+    - cron: '17 */3 * * *'  # every 3 h; GitHub often skips scheduled runs, so run more often than needed
   workflow_dispatch:
 
 permissions:
