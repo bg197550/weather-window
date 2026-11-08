@@ -60,6 +60,7 @@ const ne = [
   { name: "Portsmouth, NH", p: [[43.0718, -70.7626, "City"]] },
   { name: "Newport, RI", p: [[41.4901, -71.3128, "City"]] },
   { name: "Stratton Mountain", p: [[43.09585, -72.92142, "Summit · ~3,875 ft"]] },
+  { name: "Killington", p: [[43.6045, -72.8201, "Summit · Killington Peak ~4,241 ft"]] },
   { name: "Stowe", p: [[44.5437, -72.8143, "Summit · Mt. Mansfield ~4,393 ft"]] },
   { name: "Gunstock", p: [[43.52563, -71.3784, "Summit · ~2,300 ft"]] },
   { name: "NH Seacoast", p: [[42.954, -70.784, "Coast · North Hampton"]] },
@@ -98,6 +99,7 @@ const CAMS = {
   Brighton: "brighton",
   Snowbasin: "snowbasin",
   "Stratton Mountain": "stratton",
+  Killington: "killington",
   Stowe: "stowe",
   Gunstock: "gunstock",
 };

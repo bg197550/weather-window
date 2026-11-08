@@ -320,7 +320,7 @@ const RESORTS = [
     id: "killington",
     name: "Killington",
     area: "Central Vermont",
-    forecast: "",
+    forecast: "killington",
     source: "https://www.killington.com/webcams",
     cams: [
       {
