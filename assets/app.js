@@ -60,6 +60,12 @@ function render() {
   syncHash();
   updateAlertBadges();
 }
+/* Time zone of the place shown for a region, when it is a saved search (used by regionZone in common.js). */
+function currentPlaceZone(section) {
+  if (section !== "utah" && section !== "ne") return null;
+  const place = (section === "utah" ? utah : ne)[selection[section]];
+  return place?.searched && view[section] !== "mountain" ? place.zone : null;
+}
 /* The last place viewed in each region, so Forecast links from other pages land there. */
 function rememberPlace() {
   if (tab !== "utah" && tab !== "ne") return;
@@ -238,6 +244,7 @@ const VIEW_NOTES = {
 };
 /* Links to the same place elsewhere on the site: webcams, snow report, avalanche forecast, surf. */
 function placeLinks(place, section) {
+  if (place.searched) return "";
   const lbl = (long, short) => `<span class="lg">${long}</span><span class="sm">${short}</span>`;
   const links = [];
   if (section === "utah" && place.p.length > 1) {
@@ -256,13 +263,34 @@ function placeOptions(section, selected, mode) {
           `<option value="${sec}:${i + offset}" ${sec === section && i + offset === selected ? "selected" : ""}>${escapeHTML(p.name)}</option>`,
       )
       .join("")}</optgroup>`;
-  if (mode === "mountain") return group("utah", "Utah resorts", utah.slice(2), 2);
-  return group("utah", "Utah", utah, 0) + group("ne", "New England", ne, 0);
+  if (mode === "mountain") return group("utah", "Utah resorts", utahResorts(), 2);
+  const builtIn = (sec, label, list) =>
+    `<optgroup label="${label}">${list
+      .map((p, i) =>
+        p.searched
+          ? ""
+          : `<option value="${sec}:${i}" ${sec === section && i === selected ? "selected" : ""}>${escapeHTML(p.name)}</option>`,
+      )
+      .join("")}</optgroup>`;
+  const mine = [
+    ...utah.map((p, i) => [p, "utah", i]),
+    ...ne.map((p, i) => [p, "ne", i]),
+  ].filter(([p]) => p.searched);
+  return `<option value="search">🔍 Search ZIP or town…</option>${builtIn("utah", "Utah", utah)}${builtIn("ne", "New England", ne)}${
+    mine.length
+      ? `<optgroup label="Your searches">${mine
+          .map(
+            ([p, sec, i]) =>
+              `<option value="${sec}:${i}" ${sec === section && i === selected ? "selected" : ""}>${escapeHTML(p.name)}</option>`,
+          )
+          .join("")}</optgroup>`
+      : ""
+  }`;
 }
 function forecastView() {
   const section = tab,
     mode = view[section],
-    places = section === "utah" ? (mode === "mountain" ? utah.slice(2) : utah) : ne,
+    places = section === "utah" ? (mode === "mountain" ? utahResorts() : utah) : ne,
     selected = mode === "mountain" ? profileResort : selection[section],
     place = places[selected],
     absIndex = mode === "mountain" ? selected + 2 : selected,
@@ -286,7 +314,7 @@ function forecastView() {
     )
     .join(
       "",
-    )}</nav><div class="fc-head"><div class="fc-title"><h2 class="fc-name">${escapeHTML(place.name)}</h2><label class="place-picker"><span class="sr-only">Forecast location</span><select id="place-select">${placeOptions(section, absIndex, mode)}</select></label><p class="fc-sub">${escapeHTML(VIEW_NOTES[mode] || "")}</p></div><div class="fc-actions"><button type="button" class="icon-btn nearby" id="locate" title="Closest forecast to you" aria-label="Show the closest forecast to you">⌖</button><button type="button" class="icon-btn" id="refresh" title="Refresh" aria-label="Refresh forecast">↻</button></div></div><div class="place-links">${placeLinks(place, section)}</div><div id="alert-banner"></div>${mode === "forecast" ? "" : `<button type="button" class="back-overview" data-view="forecast">‹ ${escapeHTML(place.name)} forecast</button>`}<div class="forecast-tabs" role="tablist" aria-label="${escapeHTML(place.name)} forecast views">${views
+    )}</nav><div class="fc-head"><div class="fc-title"><h2 class="fc-name">${escapeHTML(place.name)}</h2><label class="place-picker"><span class="sr-only">Forecast location</span><select id="place-select">${placeOptions(section, absIndex, mode)}</select></label><p class="fc-sub">${escapeHTML(VIEW_NOTES[mode] || "")}</p></div><div class="fc-actions"><button type="button" class="icon-btn" id="place-search-btn" title="Search ZIP code or town" aria-label="Search for a ZIP code or town">🔍</button><button type="button" class="icon-btn nearby" id="locate" title="Closest forecast to you" aria-label="Show the closest forecast to you">⌖</button><button type="button" class="icon-btn" id="refresh" title="Refresh" aria-label="Refresh forecast">↻</button></div></div><div class="place-search" id="place-search" hidden></div><div class="place-links">${placeLinks(place, section)}</div><div id="alert-banner"></div>${mode === "forecast" ? "" : `<button type="button" class="back-overview" data-view="forecast">‹ ${escapeHTML(place.name)} forecast</button>`}<div class="forecast-tabs" role="tablist" aria-label="${escapeHTML(place.name)} forecast views">${views
     .map(
       ([k, n]) =>
         `<button type="button" role="tab" data-view="${k}" aria-selected="${mode === k}">${n}</button>`,
@@ -314,7 +342,30 @@ function forecastView() {
         rememberPlace();
       }),
   );
+  const openSearch = () =>
+    openPlaceSearch(
+      content.querySelector("#place-search"),
+      (sec, i) => {
+        selection[sec] = i;
+        if (view[sec] === "mountain" || view[sec] === "snow") view[sec] = "forecast";
+        tab = sec;
+        render();
+        rememberPlace();
+        scrollTo(0, 0);
+      },
+      () => {
+        for (const sec of ["utah", "ne"]) if (selection[sec] >= (sec === "utah" ? utah : ne).length) selection[sec] = 0;
+        render();
+        openSearch();
+      },
+    );
+  content.querySelector("#place-search-btn").onclick = openSearch;
   content.querySelector("#place-select").onchange = (e) => {
+    if (e.target.value === "search") {
+      e.target.value = `${mode === "mountain" ? "utah" : section}:${absIndex}`;
+      openSearch();
+      return;
+    }
     const [sec, i] = e.target.value.split(":");
     if (mode === "mountain") profileResort = +i - 2;
     else {

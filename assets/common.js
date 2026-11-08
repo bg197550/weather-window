@@ -241,7 +241,7 @@ function windowSnow(values, hours) {
 async function loadResortSnow() {
   const el = document.querySelector("#resort-snow");
   if (!el) return;
-  const resorts = utah.slice(2);
+  const resorts = utahResorts();
   const results = await Promise.all(
     resorts.map(async (r) => {
       const pts = await Promise.allSettled(r.p.map(mountainPoint));
@@ -318,7 +318,7 @@ async function snowModelData(p) {
 async function loadSnowModels() {
   const el = document.querySelector("#snow-models");
   if (!el) return;
-  const resorts = utah.slice(2),
+  const resorts = utahResorts(),
     r = resorts[snowModelResort] || resorts[0],
     p = r.p[1] || r.p[0];
   try {
@@ -539,7 +539,13 @@ function ago(ms) {
 }
 
 function regionZone(section) {
-  return section === "ne" ? "America/New_York" : "America/Denver";
+  // A searched place carries its own time zone (set by assets/search.js); built-in places use the region's.
+  const zone = typeof currentPlaceZone === "function" ? currentPlaceZone(section) : null;
+  return zone || (section === "ne" ? "America/New_York" : "America/Denver");
+}
+/* The Utah ski resorts (the list after Snyderville and Park City, excluding saved searches). */
+function utahResorts() {
+  return utah.slice(2).filter((p) => !p.searched);
 }
 
 function regionTime(value, section, options = {}) {

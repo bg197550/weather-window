@@ -13,6 +13,9 @@ const INS_MODELS = [
 const INS_ENS = ["ncep_gefs025", "ecmwf_ifs025_ensemble", "gem_global_ensemble"];
 const INS_ENS_NAMES = { ncep_gefs025: "GEFS", ecmwf_ifs025_ensemble: "ECMWF ENS", gem_global_ensemble: "GEM ENS" };
 const insCache = new Map();
+/* What kind of place Insights is describing: "utah" (Wasatch), "ne" (New England) or "other" (a searched place). */
+let insKind = "utah",
+  insHigh = true;
 const H = 3600000;
 
 function insFetch(p) {
@@ -247,7 +250,7 @@ function analyzeStorm(s, data, section, elevFt) {
   // Hourly snow fraction and ratio for this point (Utah: derived from liquid; New England: model snowfall).
   const t700h = meanSeries(det, "temperature_700hPa");
   const tIndex = new Map(t.map((x, i) => [x, i]));
-  const derive = section === "utah" && elevFt != null;
+  const derive = insKind === "utah" && elevFt != null;
   const factor = (ms) => {
     const i = tIndex.get(ms);
     const tf = i == null ? null : t700h[i];
@@ -379,7 +382,7 @@ function flowNote(x) {
   const d = x.dir700,
     from = compass(d),
     spd = x.spd700 != null ? `${Math.round(x.spd700)} mph` : "";
-  if (x.section === "utah") {
+  if (insKind === "utah") {
     if (d >= 292 && d <= 345)
       return `700 mb flow from the ${from} at ${spd}: the classic orographic setup for the Wasatch. Northwest flow favors the Cottonwoods most, and Park City side resorts somewhat less.`;
     if (d >= 248 && d < 292)
@@ -389,6 +392,7 @@ function flowNote(x) {
     return `700 mb flow from the ${from} at ${spd}: not a typical upslope direction for the Wasatch, so totals depend on the system's dynamics more than terrain.`;
   }
   const sfc = x.dir10 != null ? compass(x.dir10) : null;
+  if (insKind !== "ne") return `700 mb flow from the ${from} at ${spd}; surface wind from the ${sfc || "–"} during the storm.`;
   if (sfc && x.dir10 >= 20 && x.dir10 <= 110)
     return `Surface wind from the ${sfc} during the storm: an onshore, nor'easter-style setup with a low passing to the south and east.`;
   if (sfc && x.dir10 >= 150 && x.dir10 <= 250)
@@ -396,7 +400,7 @@ function flowNote(x) {
   return `700 mb flow from the ${from} at ${spd}; surface wind from the ${sfc || "–"}.`;
 }
 function ptypeNote(x) {
-  if (x.section === "utah") return null;
+  if (insKind === "utah" || insHigh) return null;
   if (x.t850mean == null) return null;
   const c = fToC(x.t850mean);
   const sfc = x.snowRange[1] ?? 0;
@@ -432,7 +436,7 @@ function stormCard(x, section, idx) {
     notes.push(
       `<b>Snow quality:</b> ${q.label}. 700 mb temperature averages ${Math.round(q.c)}°C during the storm, which suggests snow-to-liquid ratios ${q.ratio}.`,
     );
-  if (x.nws?.level && x.section === "utah")
+  if (x.nws?.level && insKind !== "ne")
     notes.push(
       `<b>Snow level (NWS):</b> ${Math.round(x.nws.level.max / 100) * 100 === Math.round(x.nws.level.min / 100) * 100 ? Math.round(x.nws.level.min / 100) * 100 + " ft" : `${(Math.round(x.nws.level.max / 100) * 100).toLocaleString()} ft falling to ${(Math.round(x.nws.level.min / 100) * 100).toLocaleString()} ft`}${x.elevFt ? ` (this point ≈ ${Math.round(x.elevFt).toLocaleString()} ft)` : ""}.`,
     );
@@ -519,7 +523,7 @@ function patternCard(data, section, storms) {
   const ftToM = det.hourly_units?.[`geopotential_height_500hPa_${INS_MODELS[0][1]}`] === "ft" || meanSeries(det, "geopotential_height_500hPa").some((v) => v > 8000);
   const z = meanSeries(det, "geopotential_height_500hPa").map((v) => (v != null && ftToM ? v / 3.28084 : v)),
     p = meanSeries(det, "pressure_msl"),
-    tUp = meanSeries(det, section === "utah" ? "temperature_700hPa" : "temperature_850hPa"),
+    tUp = meanSeries(det, insHigh ? "temperature_700hPa" : "temperature_850hPa"),
     t2 = meanSeries(det, "temperature_2m");
   const dirUp = det.hourly.time.map((_, i) => circMean(series(det, "wind_direction_700hPa").map((s) => s.values[i])));
   const fut = t.map((x, i) => (x >= now - 3 * H ? i : -1)).filter((i) => i >= 0);
@@ -575,7 +579,7 @@ function patternCard(data, section, storms) {
         ? `Low pressure / surface trough passes ${partOfDay(x.t, section)} (≈${Math.round(x.v)} mb at the minimum).`
         : `High pressure builds ${partOfDay(x.t, section)} (≈${Math.round(x.v)} mb).`,
     );
-  if (section === "utah" && sfc.length)
+  if (insHigh && sfc.length)
     sfc.push("Sea-level pressure over Utah is reduced from high terrain, so use it for timing and trend more than exact values.");
   if (sfc.length) items.push(["Surface highs and lows", sfc]);
 
@@ -584,7 +588,7 @@ function patternCard(data, section, storms) {
     .filter((f) => f.t < now + 8 * 24 * H)
     .slice(0, 4)
     .map((f) => {
-      const lvl = section === "utah" ? "700 mb" : "850 mb";
+      const lvl = insHigh ? "700 mb" : "850 mb";
       const shift = f.before != null && f.after != null && compass(f.before) !== compass(f.after) ? `, winds aloft shift ${compass(f.before)} → ${compass(f.after)}` : "";
       if (f.gradual)
         return f.kind === "cold"
@@ -597,7 +601,7 @@ function patternCard(data, section, storms) {
   if (fr.length) items.push(["Fronts", fr]);
 
   // Best snow pattern windows.
-  if (section === "utah") {
+  if (insKind === "utah") {
     const pr = meanSeries(det, "precipitation");
     const good = [];
     for (let i = 0; i < t.length; i++) {
@@ -651,7 +655,7 @@ function patternCard(data, section, storms) {
   if (!items.length) return "";
   return `<article class="card afd-card ins-pattern"><h3>Pattern · what the models show</h3>${items
     .map(([h, list]) => `<section><h4>${escapeHTML(h)}</h4><ul>${list.map((s) => `<li>${escapeHTML(s)}</li>`).join("")}</ul></section>`)
-    .join("")}<p class="source">Mean of GFS, ECMWF, GEM and ICON at this point via <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo ↗</a>. Troughs and ridges come from 500 mb heights, fronts from 12-hour temperature change at ${section === "utah" ? "700" : "850"} mb.</p></article>`;
+    .join("")}<p class="source">Mean of GFS, ECMWF, GEM and ICON at this point via <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo ↗</a>. Troughs and ridges come from 500 mb heights, fronts from 12-hour temperature change at ${insHigh ? "700" : "850"} mb.</p></article>`;
 }
 
 function afdCard(a, section) {
@@ -712,6 +716,11 @@ async function loadInsights(pt, section) {
   let html = "";
   if (data.det?.hourly) {
     const elevFt = data.nws?.forecast?.elevation?.value != null ? data.nws.forecast.elevation.value * 3.28084 : null;
+    const [lat, lon] = pt.p;
+    const wasatch = lat > 40.1 && lat < 41.5 && lon > -112.2 && lon < -111.1;
+    const place = (section === "utah" ? utah : ne).find((x) => x.p.some((q) => q[0] === lat && q[1] === lon));
+    insKind = place?.searched ? (wasatch ? "utah" : "other") : section;
+    insHigh = insKind === "utah" || (elevFt ?? 0) > 4500;
     const storms = findStorms(data.det)
       .map((s) => analyzeStorm(s, data, section, elevFt))
       .filter((x) => (x.liqRange[1] ?? 0) >= 0.03 || x.models.filter((m) => m.liquid >= 0.05).length >= 2);

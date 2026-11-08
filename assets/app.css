@@ -2472,3 +2472,20 @@ p {
 .ins-disc details { margin-top: 4px; }
 .ins-disc summary { cursor: pointer; color: #70d9de; margin-bottom: 10px; }
 .ins-afd { min-width: 0; overflow: hidden; }
+
+/* Location search */
+.place-search { margin: 4px 0 14px; padding: 14px; border: 1px solid #294858; border-radius: 14px; background: #0b2433; }
+.place-search-form { display: flex; gap: 8px; }
+.place-search-form input { flex: 1; min-width: 0; min-height: 44px; padding: 0 12px; border-radius: 10px; border: 1px solid #355464; background: #071b27; color: #eaf6f8; font: inherit; font-size: 16px; }
+.place-search-form button { min-height: 44px; padding: 0 14px; border-radius: 10px; border: 1px solid #355464; background: #12405a; color: #eaf6f8; font: inherit; font-weight: 600; }
+.place-search-form .place-search-close { background: transparent; padding: 0 12px; }
+.place-search-results ul, .place-search-saved ul { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; }
+.place-search-results li button { width: 100%; text-align: left; display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: 10px; border: 1px solid #294858; background: #102c3b; color: #eaf6f8; font: inherit; }
+.place-search-results li button small { color: #9fb1bc; font-size: 13px; }
+.place-search-results li button:hover, .place-search-results li button:focus-visible { border-color: #70d9de; }
+.place-search-results .state, .place-search-results .error { margin-top: 10px; }
+.place-search-saved h4 { margin: 14px 0 0; font-size: 14px; color: #f2c780; }
+.place-search-saved li { display: flex; gap: 6px; }
+.place-search-saved .ps-open { flex: 1; text-align: left; min-height: 40px; padding: 0 12px; border-radius: 10px; border: 1px solid #294858; background: #102c3b; color: #eaf6f8; font: inherit; }
+.place-search-saved .ps-remove { width: 40px; min-height: 40px; border-radius: 10px; border: 1px solid #294858; background: transparent; color: #9fb1bc; font: inherit; }
+.place-search-note { margin: 10px 0 0; font-size: 13px; }
