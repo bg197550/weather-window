@@ -654,14 +654,19 @@ async function loadDiscussion(place, section) {
   if (!wrap?.isConnected) return;
   if (hourlyPoint[section] >= pts.length) hourlyPoint[section] = 0;
   wrap.innerHTML =
-    `<article class="card afd-card plus-take" id="plus-take"><div class="state">Loading the forecasters' take…</div></article><article class="card afd-card plus-daynight" id="plus-daynight"><div class="state">Loading day and night detail…</div></article><article class="card afd-card plus-hourly" id="plus-hourly"><div class="state">Loading hourly forecast…</div></article>` +
+    `<p class="ins-afd-link fc-afd-link"><button type="button" class="linkish" data-view="afd">Read the NWS forecast discussion ›</button></p>` +
     pts
       .map(
         (x, k) =>
           `<article class="card forecast" id="forecast-${k}"><h3>${escapeHTML(x.label)}</h3><div class="state">Loading NWS forecast…</div></article>`,
       )
-      .join("");
-  plus.loadTake(pts[0], section);
+      .join("") +
+    `<article class="card afd-card plus-daynight" id="plus-daynight"><div class="state">Loading day and night detail…</div></article><article class="card afd-card plus-hourly" id="plus-hourly"><div class="state">Loading hourly forecast…</div></article>`;
+  wrap.querySelector(".fc-afd-link button").onclick = () => {
+    view[section] = "afd";
+    render();
+    scrollTo(0, 0);
+  };
   plus.loadDayNight(pts, section);
   plus.loadHourlyPlus(pts, section);
   pts.forEach(async (pt, k) => {

@@ -243,7 +243,8 @@
 .hp-k-fc { background: #56b4e9; }
 
 /* Forecast view: the new cards sit above the period cards. */
-.discussion-mode > .plus-take, .discussion-mode > .plus-daynight, .discussion-mode > .plus-hourly { margin-bottom: 18px; min-width: 0; }
+.discussion-mode > .plus-daynight, .discussion-mode > .plus-hourly { margin-top: 18px; min-width: 0; }
+.fc-afd-link { margin: 0 0 14px; }
 .period-metrics { flex-wrap: wrap; }
 
 @media (max-width: 650px) {
