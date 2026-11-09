@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <meta name="theme-color" content="#0b2130" />
+    <title>Resort Webcams · Snow</title>
+    <link rel="stylesheet" href="https://bg197550.github.io/surf-window/suite.css?v=7" />
+    <link rel="stylesheet" href="../assets/webcams.css?v=20261108-nav4" />
+    <link rel="stylesheet" href="../assets/nav.css?v=20261108-nav4" />
+    <link rel="manifest" href="../manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png" />
+    <link rel="icon" href="../icons/icon-192.png" />
+  </head>
+  <body>
+    <header class="suite">
+      <div class="suite-inner">
+        <nav class="suite-apps" aria-label="Dashboards" data-app="weather"></nav>
+        <div class="suite-meta"><span id="clock"></span></div>
+      </div>
+    </header>
+    <script src="https://bg197550.github.io/surf-window/suite.js?v=8"></script>
+    <div class="suite-nav"><nav class="suite-nav-inner" aria-label="Weather Window sections"></nav></div>
+    <main>
+      <div class="toolbar">
+        <div>
+          <button type="button" class="place-switch" id="cam-switch" aria-expanded="false" aria-controls="cam-picker" title="Change resort">
+            <h1 id="title">Utah resort webcams</h1><span class="ps-caret" aria-hidden="true">▾</span>
+          </button>
+        </div>
+      </div>
+      <nav class="place-picker-panel" id="cam-picker" aria-label="Webcam resorts" hidden></nav>
+      <div id="content"></div>
+      <p class="note">
+        Video plays muted when your browser allows autoplay. Camera stills refresh every 30 seconds while this
+        page is visible; check the time shown in the image for freshness. Cameras can be offline or obscured
+        by weather. Each feed links to its resort’s official webcam page.
+      </p>
+    </main>
+    <script src="../assets/nav.js?v=20261108-nav4"></script>
+    <script src="../assets/webcams.js?v=20261108-nav4"></script>
+  </body>
+</html>
