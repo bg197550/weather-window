@@ -2522,3 +2522,4 @@ p {
 .ins-tech > summary::after { content: "Show ▾"; margin-left: auto; color: #70d9de; font-size: 14px; font-weight: 650; }
 .ins-tech[open] > summary::after { content: "Hide ▴"; }
 .ins-afd-link { grid-column: 1 / -1; margin: 0; }
+.ins-learn { margin: 12px 0 0; padding: 10px 12px; border-radius: 10px; background: #0b2433; border: 1px solid #294858; color: #cfe2e8; line-height: 1.5; }

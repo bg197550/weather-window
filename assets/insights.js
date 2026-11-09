@@ -62,13 +62,27 @@ function insFetch(p) {
     timezone: "UTC",
     precipitation_unit: "inch",
   }).forEach(([k, v]) => prev.searchParams.set(k, v));
+  // Steering winds and moisture, for where a storm comes from and what kind it is.
+  const air = new URL("https://api.open-meteo.com/v1/forecast");
+  Object.entries({
+    latitude: p[0],
+    longitude: p[1],
+    hourly: "wind_direction_500hPa,wind_speed_500hPa,total_column_integrated_water_vapour",
+    models: "gfs_seamless,ecmwf_ifs025",
+    forecast_hours: 240,
+    past_hours: 6,
+    timezone: "UTC",
+    wind_speed_unit: "mph",
+  }).forEach(([k, v]) => air.searchParams.set(k, v));
   const promise = Promise.allSettled([
     getJSON(det.toString()),
     getJSON(ens.toString()),
     mountainPoint(p),
     insAFD(p),
     getJSON(prev.toString()),
-  ]).then(([d, e, n, a, pr]) => ({
+    getJSON(air.toString()),
+  ]).then(([d, e, n, a, pr, ai]) => ({
+    air: ai.status === "fulfilled" ? ai.value : null,
     det: d.status === "fulfilled" ? d.value : null,
     ens: e.status === "fulfilled" ? e.value : null,
     nws: n.status === "fulfilled" ? n.value : null,
@@ -756,9 +770,8 @@ function afdCard(a, section) {
           : ""
       }</section>`
     : "";
-  return `<article class="card afd-card ins-afd"><h3>What NWS forecasters say</h3><p class="muted">Quoted word for word from the NWS Area Forecast Discussion. Nothing here is AI-written.</p>${parts
-    .map(([h, s]) => `<section><h4>${h}</h4>${body(s)}</section>`)
-    .join("")}${discHTML}<p class="source">${escapeHTML(a.code)} Area Forecast Discussion, issued ${escapeHTML(regionTime(a.afd.issuanceTime, section, { weekday: "short", hour: "numeric", minute: "2-digit" }))} · <button type="button" class="linkish" data-view="afd">Read the full discussion ›</button></p></article>`;
+  const keyHTML = key ? body(key) : syn ? body(syn) : paras.length ? `<p>${escapeHTML(clean(paras[0]))}</p>` : "";
+  return `<article class="card afd-card ins-afd"><h3>NWS key messages</h3>${keyHTML}<p class="source">${escapeHTML(a.code)} Area Forecast Discussion, issued ${escapeHTML(regionTime(a.afd.issuanceTime, section, { weekday: "short", hour: "numeric", minute: "2-digit" }))} · <button type="button" class="linkish" data-view="afd">Read the full discussion ›</button></p></article>`;
 }
 
 
@@ -769,115 +782,175 @@ function prevTotal(prev, a, b) {
   const vals = INS_MODELS.map(([, id]) => sumWindow(t, prev.hourly[`precipitation_previous_day1_${id}`] || [], a, b)).filter((v) => v != null);
   return vals.length ? mean(vals) : null;
 }
-function stormSummary(x, data, section, idx) {
-  const when = x.current
-    ? `A storm is under way and wraps up ${partOfDay(x.end, section)}.`
-    : `${idx === 0 ? "Next storm" : "After that"}: ${partOfDay(x.start, section)} to ${partOfDay(x.end, section)}.`;
-  const what = x.snowy ? "snow" : x.models.some((m) => m.snow > 0.5) ? "rain and snow" : "rain";
+/* What kind of storm, where it comes from and where its moisture comes from, in plain words.
+   Uses the steering wind at 500 mb (storms ride it), temperatures aloft, total water vapour,
+   and the NWS discussion's own words when it names the setup. */
+function airMean(air, v, a, b) {
+  if (!air?.hourly) return null;
+  const t = air.hourly.time.map(insT);
+  const out = [];
+  for (const id of ["gfs_seamless", "ecmwf_ifs025"]) {
+    const vals = air.hourly[`${v}_${id}`] || [];
+    t.forEach((x, i) => {
+      if (x >= a && x < b && Number.isFinite(vals[i])) out.push(vals[i]);
+    });
+  }
+  return out;
+}
+function stormStory(x, data, section) {
+  const a = x.start - 12 * H,
+    b = x.end;
+  const dirs = airMean(data.air, "wind_direction_500hPa", a, b),
+    iwv = airMean(data.air, "total_column_integrated_water_vapour", x.start, x.end);
+  const steer = dirs?.length ? circMean(dirs) : x.dir700;
+  const water = iwv?.length ? Math.max(...iwv) : null; // kg/m² = mm of water
+  const afd = (data.afd?.afd?.productText || "").toLowerCase();
+  const says = (re) => re.test(afd);
+  const ne = insKind === "ne";
+  // Temperature of the storm.
+  const c = ne ? (x.t850mean != null ? fToC(x.t850mean) : null) : x.t700mean != null ? fToC(x.t700mean) : null;
+  const temp = c == null ? "" : ne ? (c <= -6 ? "cold" : c >= 3 ? "mild" : "") : c <= -11 ? "cold" : c >= -4 ? "warm" : "";
+  let kind = "",
+    from = "",
+    moisture = "",
+    learn = "";
+  const d = steer;
+  if (!ne) {
+    if (d == null) from = "";
+    else if (d >= 290 || d < 20) from = "dropping in from the Gulf of Alaska and the Pacific Northwest";
+    else if (d >= 245) from = "coming straight in off the Pacific";
+    else if (d >= 195) from = "coming up from the southwest, off California";
+    else from = "coming up from the south, out of Baja and Arizona";
+    if (water != null && water >= 18 && d != null && d >= 195 && d < 270) moisture = "a long plume of subtropical Pacific moisture — a wet one";
+    else if (d != null && d >= 290) moisture = "the cold north Pacific, so it is fairly dry";
+    else if (d != null && d < 195) moisture = "the subtropics to the south";
+    else moisture = "the Pacific";
+    if (says(/atmospheric river/) || (water != null && water >= 20 && d != null && d >= 195 && d < 270)) kind = "an atmospheric river";
+    else if (says(/cut-?off low|closed low/)) kind = "a slow-moving cutoff low";
+    else if (d != null && d >= 290 && temp !== "warm") kind = "a cold storm";
+    else kind = `a ${temp ? temp + " " : ""}Pacific storm`;
+    learn =
+      kind === "an atmospheric river"
+        ? "Atmospheric rivers carry the most water but run warm: heavy, wet snow up high and rain lower down."
+        : kind.includes("cutoff")
+          ? "Cutoff lows are cut off from the jet stream, drift slowly and are hard to time, so forecasts often shift."
+          : kind.includes("northwest")
+            ? "Cold northwest storms bring light, dry snow and favor the Cottonwoods; totals depend on how long the northwest flow lasts."
+            : d != null && d >= 195 && d < 245
+              ? "Southwest storms carry more moisture but run warmer, with higher snow levels until the cold front passes."
+              : "Westerly storms are middle of the road: moderate amounts and steady snow levels.";
+  } else {
+    const sfc = x.dir10;
+    const coastal = says(/nor'?easter|coastal (low|storm)/) || (sfc != null && sfc >= 20 && sfc <= 110);
+    if (coastal) {
+      kind = "a nor'easter (coastal storm)";
+      from = "forming off the Southeast coast and tracking up the Atlantic";
+      moisture = "the Atlantic, with a boost from the Gulf of Mexico";
+      learn = "Nor'easters strengthen over the ocean; the exact track decides rain versus snow, and a 50-mile shift changes everything.";
+    } else if (says(/clipper/) || (d != null && d >= 285 && (x.liqRange?.[1] ?? 0) < 0.3)) {
+      kind = "an Alberta clipper";
+      from = "dropping in fast from western Canada";
+      moisture = "very little — clippers run dry";
+      learn = "Clippers move fast with little moisture: cold air and usually light snow.";
+    } else if (d != null && d >= 160 && d < 235) {
+      kind = `a ${temp || ""} storm from the south`.replace("  ", " ");
+      from = "coming up from the Gulf Coast and Ohio Valley";
+      moisture = "the Gulf of Mexico and the Atlantic";
+      learn = "When the low passes west of you, warm air wins: mostly rain. When it passes to the south and east, it's colder and snowier.";
+    } else {
+      kind = `a ${temp ? temp + " " : ""}system from the west`;
+      from = "arriving across the Great Lakes";
+      moisture = "limited, mostly off the Great Lakes";
+      learn = "Lows that come over the Great Lakes usually bring a front with a burst of rain or snow, then colder, breezy weather.";
+    }
+  }
+  const line = `<b>What kind:</b> ${cap(kind)}${from ? `, ${from}` : ""}.${moisture ? ` Moisture: ${moisture}.` : ""}`;
+  return { line, learn };
+}
+
+function shortStorm(x, data, section, idx) {
   let nwsAmt = x.nws ? (x.snowy ? x.nws.snow : x.nws.liquid) : null;
-  if (nwsAmt && nwsAmt.through < x.end - H) nwsAmt = null; // NWS grid ends before the storm does
-  const lines = [];
-  const range = x.p10 != null ? `${fmtAmt(x.p10, x.snowy)} and ${fmtAmt(x.p90, x.snowy)}` : null;
-  let head = when;
-  if (nwsAmt) head += ` NWS forecasts <b>${fmtAmt(nwsAmt.inches, x.snowy)}</b> of ${x.snowy ? "snow" : what === "rain" ? "rain" : "precipitation"}${x.current ? " still to come" : ""}.`;
-  if (range) head += ` Models mostly land between ${range}.`;
-  lines.push(head);
-  // Where NWS sits among the models.
-  if (nwsAmt && x.p10 != null) {
-    const v = nwsAmt.inches,
-      pos = v > x.p90 ? "above nearly all of the models" : v >= x.p50 * 1.25 ? "on the higher side of the models" : v <= x.p50 * 0.75 && v < x.p10 ? "below nearly all of the models" : v <= x.p50 * 0.75 ? "on the lower side of the models" : "right in line with the models";
-    lines.push(`The official forecast is ${pos}.`);
-  }
-  // Agreement in plain words.
+  if (nwsAmt && nwsAmt.through < x.end - H) nwsAmt = null;
+  const what = x.snowy ? "snow" : "rain";
+  const when = x.current ? `Now through ${partOfDay(x.end, section)}` : `${cap(partOfDay(x.start, section))} to ${partOfDay(x.end, section)}`;
+  const amount = nwsAmt
+    ? `<b>${fmtAmt(nwsAmt.inches, x.snowy)}</b> of ${what}${x.p10 != null ? ` (models ${fmtAmt(x.p10, x.snowy)}–${fmtAmt(x.p90, x.snowy)})` : ""}`
+    : x.p10 != null
+      ? `<b>${fmtAmt(x.p10, x.snowy)}–${fmtAmt(x.p90, x.snowy)}</b> of ${what}`
+      : what;
+  return `${idx === 0 ? (x.current ? "Storm under way" : "Next storm") : "After that"}: ${when}, ${amount}.`;
+}
+function confidenceLine(x, data) {
   const ms = x.models.filter((m) => (x.snowy ? m.snow : m.liquid) != null);
-  if (ms.length > 1) {
-    const v = (m) => (x.snowy ? m.snow : m.liquid),
-      sorted = [...ms].sort((a, b) => v(b) - v(a)),
-      hi = sorted[0],
-      lo = sorted[sorted.length - 1],
-      ratio = v(hi) / Math.max(v(lo), x.snowy ? 0.5 : 0.02);
-    const agree =
-      ratio < 1.6
-        ? `The big models agree: ${sorted.map((m) => `${m.name} ${fmtAmt(v(m), x.snowy)}`).join(", ")}.`
-        : `The big models disagree: ${hi.name} is wettest at ${fmtAmt(v(hi), x.snowy)}, ${lo.name} driest at ${fmtAmt(v(lo), x.snowy)}${ratio > 3 ? " — a big gap, so expect the forecast to change" : ""}.`;
-    lines.push(agree + (x.onsetSpread >= 6 && !x.current ? ` They also differ by about ${Math.round(x.onsetSpread)} hours on when it starts.` : ""));
-  }
-  // Run-to-run trend from yesterday's model runs (rain-equivalent, so it works for snow too).
+  const v = (m) => (x.snowy ? m.snow : m.liquid);
+  const sorted = [...ms].sort((a, b) => v(b) - v(a));
+  const ratio = sorted.length > 1 ? v(sorted[0]) / Math.max(v(sorted[sorted.length - 1]), x.snowy ? 0.5 : 0.02) : 1;
+  let s =
+    ratio < 1.6
+      ? "<b>Confidence: good.</b> The major models agree on amounts"
+      : ratio < 3
+        ? `<b>Confidence: fair.</b> ${sorted[0].name} is wettest, ${sorted[sorted.length - 1].name} driest`
+        : `<b>Confidence: low.</b> ${sorted[0].name} (${fmtAmt(v(sorted[0]), x.snowy)}) and ${sorted[sorted.length - 1].name} (${fmtAmt(v(sorted[sorted.length - 1]), x.snowy)}) are far apart`;
+  if (x.onsetSpread >= 6 && !x.current) s += `, and they differ by ~${Math.round(x.onsetSpread)} h on timing`;
   const a = x.current ? Date.now() : x.start - 6 * H,
-    b = x.end + 6 * H,
-    before = prevTotal(data.prev, a, b),
-    nowTot = mean(x.models.map((m) => m.liquid));
-  if (before != null && nowTot != null && Math.max(before, nowTot) >= 0.05) {
-    const change = (nowTot - before) / Math.max(before, 0.05);
-    lines.push(
-      change >= 0.25
-        ? "Trend: the models are wetter than they were a day ago."
-        : change <= -0.25
-          ? "Trend: the models are drier than they were a day ago."
-          : "Trend: the models have held steady since yesterday.",
-    );
+    before = prevTotal(data.prev, a, x.end + 6 * H),
+    now = mean(x.models.map((m) => m.liquid));
+  if (before != null && now != null && Math.max(before, now) >= 0.05) {
+    const ch = (now - before) / Math.max(before, 0.05);
+    s += ch >= 0.25 ? ". Trending wetter since yesterday" : ch <= -0.25 ? ". Trending drier since yesterday" : ". Steady since yesterday";
   }
-  if (x.snowy && x.t700mean != null) {
-    const q = snowQuality(x.t700mean);
-    if (q) lines.push(`Snow type: ${q.label.toLowerCase()}.`);
-  }
-  return lines;
+  return s + ".";
 }
 function eventText(e, section) {
-  const when = partOfDay(e.t, section);
-  if (e.kind === "trough") return `${cap(when)}: a storm system moves through — unsettled and cooler.${e.spread >= 12 ? ` Models disagree on timing by about ${Math.round(e.spread)} hours.` : ""}`;
-  if (e.kind === "ridge") return `${cap(when)}: high pressure builds — mostly dry and milder.`;
-  if (e.kind === "cold") return e.gradual ? `${cap(when)}: colder air filters in, about ${e.dF}°F cooler.` : `${cap(when)}: cold front, about ${e.dF}°F colder behind it.`;
-  if (e.kind === "warm") return `${cap(when)}: warming trend, about ${e.dF}°F warmer.`;
-  if (e.kind === "powder") return `${cap(when)}: cold northwest flow with snow — the setup for the lightest, best snow.`;
+  const when = cap(partOfDay(e.t, section));
+  if (e.kind === "trough") return `${when}: storm system passes`;
+  if (e.kind === "ridge") return `${when}: high pressure — dry and milder`;
+  if (e.kind === "cold") return `${when}: ${e.gradual ? "cooling" : "cold front"} (~${e.dF}°F colder)`;
+  if (e.kind === "warm") return `${when}: warming (~${e.dF}°F warmer)`;
+  if (e.kind === "powder") return `${when}: cold northwest flow (best snow quality)`;
   return "";
 }
-const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 function summaryCard(storms, data, section) {
-  const blocks = [];
-  // Storms
-  if (storms.length) blocks.push(["The storm", storms.slice(0, 2).flatMap((x, i) => (i === 0 ? stormSummary(x, data, section, i) : [stormSummary(x, data, section, i)[0]]))]);
-  else blocks.push(["The storm", ["No meaningful rain or snow in the next 10 days in any of the major models."]]);
-  // Forecasters
+  const items = [];
+  let learn = "";
+  if (storms.length) {
+    const x = storms[0],
+      story = stormStory(x, data, section);
+    items.push(shortStorm(x, data, section, 0));
+    items.push(story.line);
+    items.push(confidenceLine(x, data));
+    learn = story.learn;
+    if (storms[1]) items.push(shortStorm(storms[1], data, section, 1));
+  } else items.push("<b>No storms</b> in the next 10 days in any of the major models.");
+  // One quote from the forecasters.
   const n = afdNotes(data.afd);
-  if (n) {
-    const lines = [];
-    if (n.keys.length) lines.push(...n.keys.slice(0, 2).map((k) => `“${k.length > 220 ? k.slice(0, 215).replace(/\s\S*$/, "") + "…" : k}”`));
-    if (n.conf.length) lines.push(`On the models: “${n.conf[0]}”`);
-    const s0 = storms[0];
-    if (n.tone && s0?.conf) {
-      const ours = s0.conf === "High" ? "sure" : s0.conf === "Low" ? "unsure" : null;
-      lines.push(
-        n.tone === "unsure"
-          ? ours === "sure"
-            ? "Forecasters flag uncertainty even though the model totals agree — timing or snow level may be the open question."
-            : "Forecasters see the same uncertainty the models show."
-          : ours === "unsure"
-            ? "Forecasters sound more confident than the model spread suggests."
-            : "Forecasters are confident, and the models back them up.",
-      );
-    }
-    if (lines.length) blocks.push([`What NWS forecasters are saying`, lines]);
+  if (n?.keys?.length) {
+    const k = n.keys[0];
+    items.push(`<b>NWS forecasters:</b> “${escapeHTML(k.length > 180 ? k.slice(0, 175).replace(/\s\S*$/, "") + "…" : k)}”`);
   }
-  // Pattern changes
+  // Pattern in one line.
   const ev = insEvents
-    .filter((e) => e.t > Date.now() - 6 * H)
+    .filter((e) => e.t > Date.now() - 6 * H && e.kind !== "trough")
     .sort((a, b) => a.t - b.t)
     .map((e) => eventText(e, section))
     .filter(Boolean)
-    .slice(0, 5);
-  if (insTrend === "colder") ev.push("Later next week: the pattern turns colder and more active.");
-  if (insTrend === "warmer") ev.push("Later next week: the pattern turns warmer and drier.");
-  if (ev.length) blocks.push(["Pattern changes", ev]);
-  if (insTemps)
-    blocks.push([
-      "Temperatures",
-      [`Highs run from about ${Math.round(insTemps.coldest.hi)}° (${insTemps.name(insTemps.coldest)}) to ${Math.round(insTemps.warmest.hi)}° (${insTemps.name(insTemps.warmest)}) this week.`],
-    ]);
-  const link = `<button type="button" class="linkish" data-view="afd">Read the NWS forecast discussion ›</button>`;
-  return `<article class="card afd-card ins-summary"><div class="ins-head"><h3>The short version</h3>${link}</div>${blocks
-    .map(([h, list]) => `<section><h4>${escapeHTML(h)}</h4><ul>${list.map((t) => `<li>${t}</li>`).join("")}</ul></section>`)
-    .join("")}</article>`;
+    .reduce((acc, t) => {
+      const [when, what] = t.split(": ");
+      const last = acc[acc.length - 1];
+      if (last && last.when === when) last.what += ` and ${what}`;
+      else acc.push({ when, what });
+      return acc;
+    }, [])
+    .map((x) => `${x.when}: ${x.what}`)
+    .slice(0, 3);
+  if (insTrend === "colder") ev.push("late next week turns colder and stormier");
+  if (insTrend === "warmer") ev.push("late next week turns warmer and drier");
+  if (ev.length) items.push(`<b>Pattern:</b> ${ev.join(" → ")}.`);
+  const link = `<button type="button" class="linkish" data-view="afd">NWS forecast discussion ›</button>`;
+  return `<article class="card afd-card ins-summary"><div class="ins-head"><h3>The short version</h3>${link}</div><ul>${items
+    .map((t) => `<li>${t}</li>`)
+    .join("")}</ul>${learn ? `<p class="ins-learn"><b>Good to know:</b> ${escapeHTML(learn)}</p>` : ""}</article>`;
 }
 
 async function loadInsights(pt, section) {
