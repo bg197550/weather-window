@@ -147,12 +147,19 @@ window.WW = (function () {
     document.querySelectorAll(".ww-menu-link").forEach((a) => (a.onclick = () => openMenu(false)));
   }
   /* The shared app bar (from Surf Window) links to the live site; inside the preview, point it at the preview. */
+  /* The app bar draws itself after this script runs, so links are fixed when it appears and again on click. */
+  const PREVIEW = location.pathname.match(/^(.*\/preview\/)/);
+  const LIVE = /^https?:\/\/bg197550\.github\.io\/weather-window\/(?!preview\/)/;
+  function toPreview(a) {
+    if (PREVIEW && a?.href && LIVE.test(a.href)) a.href = a.href.replace(LIVE, location.origin + PREVIEW[1]);
+  }
   function localizeSuite() {
-    const m = location.pathname.match(/^(.*\/preview\/)/);
-    if (!m) return;
-    document.querySelectorAll('.suite-apps a[href*="/weather-window/"]').forEach((a) => {
-      a.href = a.href.replace(/^https?:\/\/[^/]+\/weather-window\//, location.origin + m[1]);
-    });
+    if (!PREVIEW) return;
+    const fix = () => document.querySelectorAll("a[href]").forEach(toPreview);
+    fix();
+    document.addEventListener("DOMContentLoaded", fix);
+    new MutationObserver(fix).observe(document.body, { childList: true, subtree: true });
+    document.addEventListener("click", (e) => toPreview(e.target.closest?.("a")), true);
   }
   function offline() {
     let el = document.querySelector(".ww-offline");
