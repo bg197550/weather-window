@@ -160,7 +160,7 @@ function periodSnow(values, start, end) {
   return found ? total / 25.4 : null;
 }
 
-/* Written forecast text: use the wording from forecast.weather.gov (the NWS website's text generator), which
+/* Written forecast text, short labels and precipitation chances: use forecast.weather.gov (the NWS website's text generator), which
    includes snow accumulation lines the api.weather.gov text often omits. Numbers, icons and hourly data stay
    on api.weather.gov. Falls back to the API text for any period that can't be matched. */
 async function websiteText(p, fc) {
@@ -179,7 +179,13 @@ async function websiteText(p, fc) {
         i = starts.findIndex((s) => Math.abs(s - t) <= 3 * 3600000);
       }
       const text = texts[i] && String(texts[i]).replace(/\s+/g, " ").trim();
-      if (text) q.detailedForecast = text;
+      if (!text) continue;
+      q.detailedForecast = text;
+      // Match the website's short label ("Rain/Snow Likely and Windy") and its rounded chance of precipitation.
+      const short = j.data?.weather?.[i];
+      if (short) q.shortForecast = String(short).trim();
+      const pop = j.data?.pop?.[i];
+      q.probabilityOfPrecipitation = { unitCode: "wmoUnit:percent", value: pop == null || pop === "" ? null : +pop };
     }
   } catch (e) {}
   return fc;
