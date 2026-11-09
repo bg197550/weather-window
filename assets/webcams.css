@@ -29,9 +29,9 @@ button {
   cursor: pointer;
 }
 main {
-  max-width: 1450px;
+  max-width: 1300px;
   margin: auto;
-  padding: 26px 24px 60px;
+  padding: 28px 20px 70px;
 }
 h1 {
   margin: 0 0 8px;
@@ -332,10 +332,19 @@ button:focus-visible {
   .cam-footer { gap: 10px 16px; }
 }
 
-/* Keep the shared region selector available above cameras on phones. */
 @media (max-width: 760px) {
-  body .suite-nav { display: block; }
-  body .suite-nav-inner { justify-content: flex-end; }
-  body .suite-nav-inner .ww-links { display: none; }
-  body .ww-region-top button { font-size: 16px; min-height: 48px; }
+  .toolbar { flex-wrap: wrap; gap: 10px; }
+  .cam-region a { font-size: 16px; padding: 10px 16px; }
 }
+
+/* Resort picker: matches the Weather page place picker. */
+.place-switch { display: inline-flex; align-items: center; gap: 10px; max-width: 100%; border: 0; background: transparent; color: inherit; font: inherit; padding: 4px 0; cursor: pointer; text-align: left; }
+.place-switch h1 { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.place-switch .ps-caret { flex: none; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: #15344a; color: #70d9de; font-size: 14px; }
+.place-switch:hover .ps-caret, .place-switch[aria-expanded="true"] .ps-caret { background: #1f4a62; }
+.place-picker-panel:not([hidden]) { display: grid; gap: 12px; margin: 0 0 18px; padding: 14px; border: 1px solid #294858; border-radius: 14px; background: #0b2433; }
+.place-picker-panel h4 { margin: 0 0 6px; font-size: 13px; color: #f2c780; text-transform: uppercase; letter-spacing: .04em; }
+.place-picker-panel .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.place-picker-panel .chips a { display: inline-flex; align-items: center; min-height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid #355464; background: #102c3b; color: #eaf6f8; font-weight: 600; font-size: 14px; text-decoration: none; }
+.place-picker-panel .chips a[aria-current="true"] { background: #d4f4ee; color: #082832; border-color: #d4f4ee; }
+@media (max-width: 760px) { .place-switch h1 { font-size: 26px; } .place-picker-panel .chips a { font-size: 15px; } }

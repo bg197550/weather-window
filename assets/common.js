@@ -90,6 +90,7 @@ const OBS_STATIONS = {
 };
 /* Forecast place → webcam page id (webcams/#id). */
 const CAMS = {
+  Snyderville: "canyons-resort",
   "Park City": "park-city",
   "Deer Valley": "deer-valley",
   "Canyons Resort": "canyons-resort",
