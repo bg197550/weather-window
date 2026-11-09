@@ -150,8 +150,11 @@ window.WW = (function () {
   /* The app bar draws itself after this script runs, so links are fixed when it appears and again on click. */
   const PREVIEW = location.pathname.match(/^(.*\/preview\/)/);
   const LIVE = /^https?:\/\/bg197550\.github\.io\/weather-window\/(?!preview\/)/;
+  const LIVE_SURF = /^https?:\/\/bg197550\.github\.io\/surf-window\/(?!preview\/)/;
   function toPreview(a) {
-    if (PREVIEW && a?.href && LIVE.test(a.href)) a.href = a.href.replace(LIVE, location.origin + PREVIEW[1]);
+    if (!PREVIEW || !a?.href) return;
+    if (LIVE.test(a.href)) a.href = a.href.replace(LIVE, location.origin + PREVIEW[1]);
+    else if (LIVE_SURF.test(a.href)) a.href = a.href.replace(LIVE_SURF, "https://bg197550.github.io/surf-window/preview/");
   }
   function localizeSuite() {
     if (!PREVIEW) return;

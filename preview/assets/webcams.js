@@ -676,6 +676,30 @@ const FORECAST_NAMES = { "stratton-mountain": "Stratton Mountain", "canyons-reso
 function regionOf(id) {
   return REGIONS[id] ? id : RESORTS.find((x) => x.id === id)?.region || "utah";
 }
+/* Resort picker: same style as the Weather place picker. */
+function pickerHTML() {
+  const el = document.querySelector("#cam-picker");
+  if (!el) return;
+  el.innerHTML = Object.entries(REGIONS)
+    .map(
+      ([k, R]) =>
+        `<section><h4>${safe(R.name)}</h4><div class="chips"><a href="#${k}" ${k === active ? 'aria-current="true"' : ""}>All ${safe(R.name)} resorts</a>${RESORTS.filter((x) => x.region === k)
+          .map((x) => `<a href="#${x.id}" ${x.id === active ? 'aria-current="true"' : ""}>${safe(x.name)}</a>`)
+          .join("")}</div></section>`,
+    )
+    .join("");
+}
+function togglePicker(open) {
+  const el = document.querySelector("#cam-picker"),
+    btn = document.querySelector("#cam-switch");
+  if (!el || !btn) return;
+  el.hidden = !open;
+  btn.setAttribute("aria-expanded", String(open));
+}
+document.querySelector("#cam-switch")?.addEventListener("click", () => togglePicker(document.querySelector("#cam-picker").hidden));
+document.querySelector("#cam-picker")?.addEventListener("click", (e) => {
+  if (e.target.closest("a")) togglePicker(false);
+});
 function forecastLink(r) {
   return r.forecast ? `../#${r.region}/${r.forecast}/forecast` : REGIONS[r.region].forecast;
 }
@@ -688,19 +712,14 @@ function render() {
     R = REGIONS[reg],
     list = RESORTS.filter((x) => x.region === reg);
   document.querySelector("#title").textContent = r ? r.name + " webcams" : R.title;
-  const seg = document.querySelector("#cam-region");
-  if (seg)
-    seg.innerHTML = Object.entries(REGIONS)
-      .map(([k, x]) => `<a href="#${k}" class="${k === reg ? "active" : ""}" ${k === reg ? 'aria-current="true"' : ""}>${safe(x.name)}</a>`)
-      .join("");
-  if (r?.forecast) WW.setPlace({ section: r.region, slug: r.forecast, name: FORECAST_NAMES[r.forecast] || r.name, cam: r.id });
+  if (r && WW.place().cam === r.id) {
+    // Already following this resort (e.g. Snyderville → Canyons cams): keep the place.
+  } else if (r?.forecast) WW.setPlace({ section: r.region, slug: r.forecast, name: FORECAST_NAMES[r.forecast] || r.name, cam: r.id });
   else if (r) {
     const c = WW.place();
     if (c.section === r.region) WW.setPlace({ ...c, cam: r.id });
   }
-  document.querySelector("#resorts").innerHTML = [{ id: reg, name: "All resorts" }, ...list]
-    .map((x) => `<a href="#${x.id}" ${x.id === active ? 'aria-current="page"' : ""}>${safe(x.name)}</a>`)
-    .join("");
+  pickerHTML();
   if (r) {
     content.innerHTML = `<div class="toolbar"><p class="muted">${r.cams.length} camera view${r.cams.length === 1 ? "" : "s"}</p><div class="resort-links"><a class="xlink" href="${forecastLink(r)}">☀ ${r.forecast ? "Forecast" : R.name + " forecasts"} ›</a>${r.region === "utah" ? `<a class="xlink" href="../snow/">❄ Snow report ›</a>${r.id !== "park-city" ? `<a class="xlink" href="${safe(`https://utahavalanchecenter.org/forecast/${r.id === "snowbasin" ? "ogden" : r.id === "sundance" ? "provo" : "salt-lake"}`)}" target="_blank" rel="noopener">Avalanche forecast ↗</a>` : ""}` : ""}</div></div><div class="grid" aria-label="${safe(r.name)} cameras">${r.cams.map(c=>cameraCard(r,c)).join("")}</div>`;
   } else {
