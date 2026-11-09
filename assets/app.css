@@ -1980,7 +1980,6 @@ p {
     padding-top: 14px;
   }
   .place-pills,
-  .fc-name,
   .forecast-tabs {
     display: none;
   }
@@ -2019,11 +2018,8 @@ p {
     font-size: 16px;
     color: #0b2130;
   }
-  .fc-sub {
-    display: none;
-  }
   .fc-head {
-    align-items: center;
+    align-items: flex-start;
     margin-bottom: 8px;
   }
   .place-links {
@@ -2456,12 +2452,13 @@ p {
 .ov.ov-ins,
 .ov.ov-ins[data-n="2"] {
   grid-template-columns: minmax(0, 1fr);
-  grid-template-areas: "ins" "hourly";
+  grid-template-areas: "ins" "hourly" "models";
 }
+.ov-ins > .ov-models { grid-area: models; min-width: 0; }
 .ov-ins > .ins { grid-area: ins; margin-bottom: 0; min-width: 0; }
 @media (max-width: 760px) {
   .ov.ov-ins,
-  .ov.ov-ins[data-n="2"] { grid-template-areas: "toggle" "ins" "hourly"; }
+  .ov.ov-ins[data-n="2"] { grid-template-areas: "toggle" "ins" "hourly" "models"; }
 }
 @media (min-width: 1100px) {
   .ins { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
@@ -2489,3 +2486,22 @@ p {
 .place-search-saved .ps-open { flex: 1; text-align: left; min-height: 40px; padding: 0 12px; border-radius: 10px; border: 1px solid #294858; background: #102c3b; color: #eaf6f8; font: inherit; }
 .place-search-saved .ps-remove { width: 40px; min-height: 40px; border-radius: 10px; border: 1px solid #294858; background: transparent; color: #9fb1bc; font: inherit; }
 .place-search-note { margin: 10px 0 0; font-size: 13px; }
+
+/* Place switcher (replaces the place buttons, region switch and location menu). */
+.place-switch { display: inline-flex; align-items: center; gap: 10px; max-width: 100%; border: 0; background: transparent; color: inherit; font: inherit; padding: 4px 0; cursor: pointer; text-align: left; }
+.place-switch .fc-name { margin: 0; font-size: 32px; font-weight: 800; letter-spacing: -0.035em; line-height: 1.15; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.place-switch .ps-caret { flex: none; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: #15344a; color: #70d9de; font-size: 14px; }
+.place-switch:hover .ps-caret, .place-switch[aria-expanded="true"] .ps-caret { background: #1f4a62; }
+.fc-kind { color: #d9ecf8; font-weight: 650; }
+.back-link { border: 0; background: transparent; color: #70d9de; font: inherit; font-weight: 700; padding: 6px 0; margin-bottom: 4px; cursor: pointer; }
+.place-pick-groups { display: grid; gap: 12px; margin-top: 12px; }
+.place-pick-groups h4 { margin: 0 0 6px; font-size: 13px; color: #f2c780; text-transform: uppercase; letter-spacing: .04em; }
+.place-pick-groups .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.place-pick-groups .chips button { min-height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid #355464; background: #102c3b; color: #eaf6f8; font: inherit; font-weight: 600; font-size: 14px; }
+.place-pick-groups .chips button[aria-current="true"] { background: #d4f4ee; color: #082832; border-color: #d4f4ee; }
+.place-pick-groups .chips .chip-x { min-width: 40px; padding: 0; color: #9fb1bc; }
+@media (max-width: 760px) {
+  .place-switch .fc-name { font-size: 26px; }
+  .fc-note { display: none; }
+  .fc-sub { font-size: 14px; }
+}

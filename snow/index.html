@@ -3,12 +3,8 @@
   <head>
     <meta charset="utf-8" />
     <script>
-      // Snow opens on webcams; explicit report links keep their selected view.
-      if (!location.hash || location.hash === "#") {
-        let region = "utah";
-        try { if (localStorage.getItem("ww:region") === "ne") region = "ne"; } catch {}
-        location.replace("../webcams/#" + region);
-      }
+      // The Snow app opens on the snow report.
+      if (!location.hash || location.hash === "#") location.replace("#resorts");
     </script>
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
     <title>Snow Report</title>
@@ -20,9 +16,9 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Snow" />
-    <link rel="stylesheet" href="../assets/app.css?v=20261026-mobile-readability" />
-    <link rel="stylesheet" href="../assets/snow.css?v=20261026-mobile-readability" />
-    <link rel="stylesheet" href="../assets/nav.css?v=20261026-mobile-readability" />
+    <link rel="stylesheet" href="../assets/app.css?v=20261108-nav" />
+    <link rel="stylesheet" href="../assets/snow.css?v=20261108-nav" />
+    <link rel="stylesheet" href="../assets/nav.css?v=20261108-nav" />
   </head>
   <body>
     <header class="suite">
@@ -34,8 +30,8 @@
     <script src="https://bg197550.github.io/surf-window/suite.js?v=8"></script>
     <div class="suite-nav"><nav class="suite-nav-inner" aria-label="Snow sections"></nav></div>
     <main id="content"></main>
-    <script src="../assets/nav.js?v=20261026-snow-nav"></script>
-    <script src="../assets/common.js?v=20261108-webtext"></script>
-    <script src="../assets/snow.js?v=20261026-snow-nav"></script>
+    <script src="../assets/nav.js?v=20261108-nav"></script>
+    <script src="../assets/common.js?v=20261108-nav"></script>
+    <script src="../assets/snow.js?v=20261108-nav"></script>
   </body>
 </html>

@@ -671,6 +671,8 @@ const REGIONS = {
     forecast: "../#ne",
   },
 };
+/* Forecast slug → the name the Weather page uses for it. */
+const FORECAST_NAMES = { "stratton-mountain": "Stratton Mountain", "canyons-resort": "Canyons Resort", "deer-valley": "Deer Valley", "park-city": "Park City" };
 function regionOf(id) {
   return REGIONS[id] ? id : RESORTS.find((x) => x.id === id)?.region || "utah";
 }
@@ -686,6 +688,16 @@ function render() {
     R = REGIONS[reg],
     list = RESORTS.filter((x) => x.region === reg);
   document.querySelector("#title").textContent = r ? r.name + " webcams" : R.title;
+  const seg = document.querySelector("#cam-region");
+  if (seg)
+    seg.innerHTML = Object.entries(REGIONS)
+      .map(([k, x]) => `<a href="#${k}" class="${k === reg ? "active" : ""}" ${k === reg ? 'aria-current="true"' : ""}>${safe(x.name)}</a>`)
+      .join("");
+  if (r?.forecast) WW.setPlace({ section: r.region, slug: r.forecast, name: FORECAST_NAMES[r.forecast] || r.name, cam: r.id });
+  else if (r) {
+    const c = WW.place();
+    if (c.section === r.region) WW.setPlace({ ...c, cam: r.id });
+  }
   document.querySelector("#resorts").innerHTML = [{ id: reg, name: "All resorts" }, ...list]
     .map((x) => `<a href="#${x.id}" ${x.id === active ? 'aria-current="page"' : ""}>${safe(x.name)}</a>`)
     .join("");
@@ -781,12 +793,9 @@ function readHash() {
   let id;
   try { id=decodeURIComponent(location.hash.slice(1)); } catch { id=WW.region(); }
   active = REGIONS[id] || RESORTS.some((r) => r.id === id) ? id : id === "new-england" ? "ne" : WW.region();
-  WW.setRegion(regionOf(active), true);
+  WW.setRegion(regionOf(active));
   render();
 }
-addEventListener("ww-region", (e) => {
-  location.hash = e.detail;
-});
 function refresh() {
   content.querySelectorAll("[data-snapshot]").forEach((img) => {
     if (img.getBoundingClientRect().bottom >= 0 && img.getBoundingClientRect().top < innerHeight)
@@ -825,6 +834,6 @@ window.suiteContext = () => ({
   text: content.innerText,
   note: "Camera images and video are resort feeds, not a weather forecast. Still images refresh every 30 seconds; embedded camera timestamps indicate image freshness.",
 });
-WW.init({ base: "../", section: "snow", active: "cams" });
+WW.init({ base: "../", active: "cams" });
 readHash();
 stamp();

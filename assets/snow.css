@@ -22,3 +22,8 @@
   background: #133a4c;
   border-color: #7cc6da;
 }
+
+.snow-tabs { display: flex; gap: 2px; background: #15344a; border-radius: 10px; padding: 3px; width: fit-content; max-width: 100%; overflow-x: auto; margin: 0 0 16px; }
+.snow-tabs a { padding: 9px 16px; border-radius: 8px; color: #b8cbd5; font-weight: 700; font-size: 14px; text-decoration: none; white-space: nowrap; }
+.snow-tabs a.active { background: #d4f4ee; color: #082832; }
+@media (max-width: 760px) { .snow-tabs { width: auto; } .snow-tabs a { flex: 1; text-align: center; padding: 10px 8px; } }

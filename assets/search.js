@@ -128,23 +128,29 @@ async function geocode(q) {
   return searchName(q);
 }
 
-/* ---------- panel ---------- */
-function searchPanelHTML() {
-  const saved = readSearched();
-  return `<form class="place-search-form" role="search"><label class="sr-only" for="place-search-input">ZIP code or town</label><input id="place-search-input" type="search" inputmode="search" autocomplete="off" enterkeyhint="search" placeholder="ZIP code or town, e.g. 84060 or Bend, OR" /><button type="submit">Search</button><button type="button" class="place-search-close" aria-label="Close search">✕</button></form><div class="place-search-results" aria-live="polite"></div>${
-    saved.length
-      ? `<div class="place-search-saved"><h4>Your searches</h4><ul>${saved
-          .map(
-            (x) =>
-              `<li><button type="button" class="ps-open" data-name="${escapeHTML(x.name)}">${escapeHTML(x.name)}</button><button type="button" class="ps-remove" data-name="${escapeHTML(x.name)}" aria-label="Remove ${escapeHTML(x.name)}">✕</button></li>`,
-          )
-          .join("")}</ul></div>`
-      : ""
-  }<p class="muted place-search-note">US locations only (NWS forecasts). Saved searches stay in this browser and appear in the location menu.</p>`;
+/* ---------- place picker panel ---------- */
+const placeEntries = () => [
+  ...utah.map((p, i) => ({ p, section: "utah", i })),
+  ...ne.map((p, i) => ({ p, section: "ne", i })),
+];
+function chip(x, cur) {
+  const on = cur && cur.section === x.section && cur.index === x.i;
+  return `<button type="button" data-sec="${x.section}" data-i="${x.i}" aria-current="${on}">${escapeHTML(x.p.name)}</button>`;
+}
+function groupsHTML(cur) {
+  const all = placeEntries(),
+    group = (title, list, extra = "") =>
+      list.length ? `<section><h4>${title}</h4><div class="chips">${list.map((x) => chip(x, cur) + (extra ? extra(x) : "")).join("")}</div></section>` : "";
+  const mine = all.filter((x) => x.p.searched);
+  return `<div class="place-pick-groups">${group("Utah", all.filter((x) => x.section === "utah" && !x.p.searched))}${group(
+    "New England",
+    all.filter((x) => x.section === "ne" && !x.p.searched),
+  )}${group("Your searches", mine, (x) => `<button type="button" class="chip-x" data-remove="${escapeHTML(x.p.name)}" aria-label="Remove ${escapeHTML(x.p.name)}">✕</button>`)}</div>`;
 }
 
-/* onOpen(section, index) shows a place; onChange() redraws after a saved search is removed. */
-function openPlaceSearch(host, onOpen, onChange) {
+/* onOpen(section, index) shows a place; onChange() redraws after a saved search is removed.
+   cur = { section, index } marks the place on screen. */
+function openPlaceSearch(host, onOpen, onChange, cur) {
   if (!host) return;
   if (!host.hidden && host.innerHTML) {
     host.hidden = true;
@@ -152,12 +158,29 @@ function openPlaceSearch(host, onOpen, onChange) {
     return;
   }
   host.hidden = false;
-  host.innerHTML = searchPanelHTML();
+  host.innerHTML = `<form class="place-search-form" role="search"><label class="sr-only" for="place-search-input">Find a place</label><input id="place-search-input" type="search" inputmode="search" autocomplete="off" enterkeyhint="search" placeholder="Filter, or search any US ZIP or town" /><button type="submit">Search</button><button type="button" class="place-search-close" aria-label="Close">✕</button></form><div class="place-search-results" aria-live="polite"></div><div class="place-search-groups">${groupsHTML(cur)}</div><p class="muted place-search-note">Searches cover US locations (NWS forecasts) and are saved in this browser.</p>`;
   const input = host.querySelector("#place-search-input"),
-    out = host.querySelector(".place-search-results");
+    out = host.querySelector(".place-search-results"),
+    groups = host.querySelector(".place-search-groups");
   let seq = 0,
     timer = 0,
     shown = [];
+  const close = () => {
+    host.hidden = true;
+    host.innerHTML = "";
+    document.querySelector("#place-switch")?.setAttribute("aria-expanded", "false");
+  };
+  const wireChips = (root) => {
+    root.querySelectorAll("[data-sec]").forEach((b) => (b.onclick = () => onOpen(b.dataset.sec, +b.dataset.i)));
+    root.querySelectorAll("[data-remove]").forEach(
+      (b) =>
+        (b.onclick = () => {
+          removeSearched(b.dataset.remove);
+          onChange();
+        }),
+    );
+  };
+  wireChips(groups);
   // Confirms NWS covers the point (and learns its time zone) before saving it.
   const pick = async (x) => {
     out.innerHTML = `<div class="state">Loading ${escapeHTML(x.name)}…</div>`;
@@ -172,69 +195,68 @@ function openPlaceSearch(host, onOpen, onChange) {
     const at = addSearched(x);
     if (at.i >= 0) onOpen(at.section, at.i);
   };
+  // Typing filters the built-in places at once; a ZIP or town lookup follows for anything else.
+  const filter = (q) => {
+    const n = q.trim().toLowerCase();
+    if (!n) {
+      groups.hidden = false;
+      return [];
+    }
+    groups.hidden = true;
+    return placeEntries().filter((x) => x.p.name.toLowerCase().includes(n));
+  };
+  const render = (local, remote, note) => {
+    out.innerHTML = `${local.length ? `<div class="place-pick-groups"><section><h4>Your places</h4><div class="chips">${local.map((x) => chip(x, cur)).join("")}</div></section></div>` : ""}${
+      remote.length
+        ? `<ul>${remote
+            .map((x, i) => `<li><button type="button" data-r="${i}"><b>${escapeHTML(x.name)}</b><small>${escapeHTML(x.detail || "")}</small></button></li>`)
+            .join("")}</ul>`
+        : ""
+    }${note || ""}`;
+    wireChips(out);
+    out.querySelectorAll("[data-r]").forEach((b) => (b.onclick = () => pick(shown[+b.dataset.r])));
+  };
   const run = async (submit) => {
     const q = input.value,
-      id = ++seq;
+      id = ++seq,
+      local = filter(q);
     if (!q.trim()) {
       out.innerHTML = "";
       return;
     }
-    out.innerHTML = '<div class="state">Searching…</div>';
+    if (/^\d{1,4}$/.test(q.trim())) return render(local, [], "");
+    render(local, [], '<div class="state">Searching ZIP codes and towns…</div>');
     try {
       const res = await geocode(q);
       if (id !== seq) return;
       shown = res;
-      if (!res.length) {
-        out.innerHTML = `<div class="state">No US match for “${escapeHTML(q.trim())}”. Try a 5-digit ZIP or “Town, ST”.</div>`;
-        return;
-      }
-      if (submit && res.length === 1) return pick(res[0]);
-      out.innerHTML = `<ul>${res
-        .map(
-          (x, i) =>
-            `<li><button type="button" data-i="${i}"><b>${escapeHTML(x.name)}</b><small>${escapeHTML(x.detail || "")}</small></button></li>`,
-        )
-        .join("")}</ul>`;
-      out.querySelectorAll("[data-i]").forEach((b) => (b.onclick = () => pick(shown[+b.dataset.i])));
+      if (submit && !local.length && res.length === 1) return pick(res[0]);
+      render(
+        local,
+        res,
+        res.length || local.length ? "" : `<div class="state">No US match for “${escapeHTML(q.trim())}”. Try a 5-digit ZIP or “Town, ST”.</div>`,
+      );
     } catch (e) {
-      if (id === seq) out.innerHTML = `<div class="error">Search is unavailable right now (${escapeHTML(e.message)}). Try again shortly.</div>`;
+      if (id === seq) render(local, [], `<div class="error">Town and ZIP search is unavailable right now (${escapeHTML(e.message)}).</div>`);
     }
   };
   input.oninput = () => {
     clearTimeout(timer);
     const v = input.value.trim();
-    if (/^\d{1,4}$/.test(v)) {
+    filter(v);
+    if (!v) {
       seq++;
       out.innerHTML = "";
       return;
     }
-    timer = setTimeout(() => run(false), 350);
+    render(filter(v), [], "");
+    timer = setTimeout(() => run(false), 400);
   };
   host.querySelector("form").onsubmit = (e) => {
     e.preventDefault();
     clearTimeout(timer);
     run(true);
   };
-  host.querySelector(".place-search-close").onclick = () => {
-    host.hidden = true;
-    host.innerHTML = "";
-  };
-  host.querySelectorAll(".ps-open").forEach(
-    (b) =>
-      (b.onclick = () => {
-        const name = b.dataset.name;
-        for (const [section, list] of [["utah", utah], ["ne", ne]]) {
-          const i = list.findIndex((p) => p.searched && p.name === name);
-          if (i >= 0) return onOpen(section, i);
-        }
-      }),
-  );
-  host.querySelectorAll(".ps-remove").forEach(
-    (b) =>
-      (b.onclick = () => {
-        removeSearched(b.dataset.name);
-        onChange();
-      }),
-  );
-  input.focus();
+  host.querySelector(".place-search-close").onclick = close;
+  if (matchMedia("(min-width: 761px)").matches) input.focus();
 }

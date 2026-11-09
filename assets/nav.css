@@ -210,3 +210,46 @@
   .ww-region-sheet button, .ww-sheet-link, .ww-offline { font-size: 16px; line-height: 1.5; }
   html.ww-has-tabbar body { padding-bottom: calc(80px + env(safe-area-inset-bottom)); }
 }
+
+/* Maps & outlooks menu (desktop) and the current-place label. */
+.ww-menu { position: relative; display: flex; }
+.ww-menu-btn { gap: 6px; }
+.ww-caret { font-size: 11px; opacity: 0.8; }
+.ww-menu-list:not([hidden]) {
+  position: fixed;
+  z-index: 1650;
+  min-width: 220px;
+  display: grid;
+  gap: 2px;
+  padding: 6px;
+  background: #10283a;
+  border: 1px solid #2c4c5e;
+  border-radius: 12px;
+  box-shadow: 0 12px 32px #0009;
+}
+.ww-menu-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: #eaf6f8;
+  font-weight: 650;
+  font-size: 14px;
+  text-decoration: none;
+}
+.ww-menu-link:hover, .ww-menu-link:focus-visible { background: #15344a; }
+.ww-menu-link[aria-current="page"] { background: #15344a; box-shadow: inset 3px 0 0 #57c5df; }
+.ww-place {
+  flex: none;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #a9c2d0;
+  font-size: 13px;
+  font-weight: 650;
+}
+@media (max-width: 760px) {
+  .ww-tabbar { grid-template-columns: repeat(5, 1fr); }
+}

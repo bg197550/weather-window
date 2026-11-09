@@ -1,90 +1,98 @@
-/* Separate Weather and Snow navigation, shared across their pages.
-   Desktop: section links with the region switch under the app bar.
-   Phones: a fixed bottom tab bar for the current app.
-   The chosen region is remembered in localStorage and shared by every page. */
+/* One navigation for every Weather Window page (Weather, Webcams, Snow report).
+   Desktop: Forecast · Insights · Cams · Snow report · Maps & outlooks ▾ under the app bar.
+   Phones: a fixed bottom bar with Forecast · Insights · Cams · Radar · More.
+   Forecast, Insights and Cams follow the current place, which every page shares through localStorage. */
 window.WW = (function () {
   const REGION_KEY = "ww:region";
+  const PLACE_KEY = "ww:current";
   const REGIONS = { utah: "Utah", ne: "New England" };
-  const WEATHER_SECTIONS = [
-    { key: "forecast", label: "Forecast", icon: "☀", href: (b, r) => `${b}#${r}` },
-    {
-      key: "radar",
-      label: "Radar",
-      icon: "◎",
-      href: (b, r) => `${b}#radar/${r === "ne" ? "sne" : "wasatch"}`,
-    },
-    { key: "precip", label: "Precip models", icon: "☂", href: (b, r) => `${b}#precip/${r}`, more: true },
-    { key: "long", label: "Long range", icon: "≋", href: (b) => `${b}#long`, more: true },
+  const DEFAULTS = {
+    utah: { section: "utah", slug: "snyderville", name: "Snyderville", cam: "" },
+    ne: { section: "ne", slug: "boston", name: "Boston", cam: "" },
+  };
+  const SECTIONS = [
+    { key: "forecast", label: "Forecast", icon: "☀", href: (b, c) => `${b}#${c.section}/${c.slug}/forecast` },
+    { key: "insights", label: "Insights", icon: "◆", href: (b, c) => `${b}#${c.section}/${c.slug}/insights` },
+    { key: "cams", label: "Cams", icon: "▣", href: (b, c) => `${b}webcams/#${c.cam || c.section}` },
+    { key: "snow", label: "Snow report", icon: "❄", href: (b) => `${b}snow/#resorts` },
+    { key: "radar", label: "Radar", icon: "◎", href: (b, c) => `${b}#radar/${c.section === "ne" ? "sne" : "wasatch"}`, maps: true },
+    { key: "precip", label: "Precip models", icon: "☂", href: (b, c) => `${b}#precip/${c.section}`, maps: true },
+    { key: "long", label: "Long range", icon: "≋", href: (b) => `${b}#long`, maps: true },
   ];
-  const SNOW_SECTIONS = [
-    { key: "cams", label: "Webcams", icon: "▣", href: (b, r) => `${b}webcams/#${r}` },
-    { key: "resorts", label: "Resorts", icon: "❄", href: (b) => `${b}snow/#resorts` },
-    { key: "snowpack", label: "Snowpack", icon: "▥", href: (b) => `${b}snow/#snowpack` },
-    { key: "models", label: "Models", icon: "☂", href: (b) => `${b}snow/#models` },
-    { key: "hourly", label: "Hourly", icon: "◷", href: (b) => `${b}snow/#hourly` },
-  ];
-  let SECTIONS = WEATHER_SECTIONS, sectionName = "Weather sections";
+  const BAR = ["forecast", "insights", "cams", "radar"];
   let base = "",
-    active = "forecast",
-    regionLocked = null;
+    active = "forecast";
 
-  function region() {
-    if (regionLocked) return regionLocked;
+  function get(k) {
     try {
-      return localStorage.getItem(REGION_KEY) === "ne" ? "ne" : "utah";
+      return localStorage.getItem(k);
     } catch {
-      return "utah";
+      return null;
     }
   }
-  /* silent: the page already switched itself, so only remember and repaint the nav. */
-  function setRegion(r, silent) {
-    if (!REGIONS[r]) return;
-    const changed = r !== region();
+  function put(k, v) {
     try {
-      localStorage.setItem(REGION_KEY, r);
+      localStorage.setItem(k, v);
     } catch {}
-    paint();
-    if (changed && !silent) dispatchEvent(new CustomEvent("ww-region", { detail: r }));
+  }
+  const esc = (s) =>
+    String(s).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
+
+  /* The place the shared links point at: the last one shown on any page. */
+  function place() {
+    try {
+      const c = JSON.parse(get(PLACE_KEY) || "null");
+      if (c && REGIONS[c.section] && typeof c.slug === "string" && c.slug) return { ...DEFAULTS[c.section], ...c };
+    } catch {}
+    return DEFAULTS[get(REGION_KEY) === "ne" ? "ne" : "utah"];
+  }
+  function setPlace(c) {
+    if (!c || !REGIONS[c.section] || !c.slug) return;
+    const next = { section: c.section, slug: c.slug, name: c.name || c.slug, cam: c.cam || "" },
+      cur = place();
+    put(PLACE_KEY, JSON.stringify(next));
+    put(REGION_KEY, next.section);
+    if (cur.section !== next.section || cur.slug !== next.slug || cur.cam !== next.cam || cur.name !== next.name) paint();
+  }
+  function region() {
+    return place().section;
+  }
+  /* Pages with a region of their own (radar, long range) remember it as the default for the next visit. */
+  function setRegion(r) {
+    if (REGIONS[r]) put(REGION_KEY, r);
   }
   function setActive(key) {
+    if (key === active) return;
     active = key;
     paint();
   }
-  function regionSwitch(cls) {
-    if (regionLocked) return `<span class="ww-region-fixed ${cls}">${REGIONS[regionLocked]} only</span>`;
-    const r = region();
-    return `<div class="ww-region ${cls}" role="group" aria-label="Region">${Object.entries(REGIONS)
-      .map(([k, n]) => `<button type="button" data-ww-region="${k}" aria-pressed="${k === r}">${n}</button>`)
-      .join("")}</div>`;
-  }
-  function link(s, r, cls) {
-    const cur = s.key === active;
-    const tab = s.key === "forecast" ? ` data-tab="${r}"` : "";
-    return `<a class="${cls}" href="${s.href(base, r)}" data-ww="${s.key}"${tab}${cur ? ' aria-current="page"' : ""}><span class="ww-ico" aria-hidden="true">${s.icon}</span><span class="ww-lbl">${s.short && cls === "ww-tab" ? s.short : s.label}</span></a>`;
+  function link(s, c, cls) {
+    const tab = s.key === "forecast" ? ` data-tab="${c.section}"` : "";
+    return `<a class="${cls}" href="${s.href(base, c)}" data-ww="${s.key}"${tab}${s.key === active ? ' aria-current="page"' : ""}><span class="ww-ico" aria-hidden="true">${s.icon}</span><span class="ww-lbl">${s.label}</span></a>`;
   }
   function paint() {
-    const r = region();
+    const c = place();
     const top = document.querySelector(".suite-nav-inner");
     if (top) {
-      top.setAttribute("aria-label", sectionName);
-      top.removeAttribute("role");
-      top.innerHTML = `<div class="ww-links">${SECTIONS.map((s) => link(s, r, "suite-tab ww-top")).join("")}</div>${regionSwitch("ww-region-top")}`;
+      const mapsOn = SECTIONS.some((s) => s.maps && s.key === active);
+      top.setAttribute("aria-label", "Weather Window sections");
+      top.innerHTML = `<div class="ww-links">${SECTIONS.filter((s) => !s.maps)
+        .map((s) => link(s, c, "suite-tab ww-top"))
+        .join(
+          "",
+        )}<div class="ww-menu"><button type="button" class="suite-tab ww-top ww-menu-btn" aria-expanded="false" aria-haspopup="true"${mapsOn ? ' aria-current="page"' : ""}><span class="ww-ico" aria-hidden="true">◎</span><span class="ww-lbl">Maps &amp; outlooks</span><span class="ww-caret" aria-hidden="true">▾</span></button><div class="ww-menu-list" hidden>${SECTIONS.filter((s) => s.maps)
+        .map((s) => link(s, c, "ww-menu-link"))
+        .join("")}</div></div></div><span class="ww-place">📍 ${esc(c.name)}</span>`;
     }
     let bar = document.querySelector(".ww-tabbar");
     if (!bar) {
       bar = document.createElement("nav");
       bar.className = "ww-tabbar";
-      bar.setAttribute("aria-label", sectionName);
+      bar.setAttribute("aria-label", "Weather Window sections");
       document.body.appendChild(bar);
     }
-    const hasMore = SECTIONS.some((s) => s.more);
-    bar.style.gridTemplateColumns = `repeat(${SECTIONS.filter((s) => !s.more).length + (hasMore ? 1 : 0)}, 1fr)`;
-    const inMore = SECTIONS.some((s) => s.more && s.key === active);
-    bar.innerHTML = `${SECTIONS.filter((s) => !s.more)
-      .map((s) => link(s, r, "ww-tab"))
-      .join(
-        "",
-      )}${hasMore ? `<button type="button" class="ww-tab ww-more-btn" aria-expanded="false" aria-controls="ww-sheet"${inMore ? ' aria-current="page"' : ""}><span class="ww-ico" aria-hidden="true">⋯</span><span class="ww-lbl">More</span></button>` : ""}`;
+    const inMore = !BAR.includes(active);
+    bar.innerHTML = `${BAR.map((k) => link(SECTIONS.find((s) => s.key === k), c, "ww-tab")).join("")}<button type="button" class="ww-tab ww-more-btn" aria-expanded="false" aria-controls="ww-sheet"${inMore ? ' aria-current="page"' : ""}><span class="ww-ico" aria-hidden="true">⋯</span><span class="ww-lbl">More</span></button>`;
     let sheet = document.querySelector("#ww-sheet");
     if (!sheet) {
       sheet = document.createElement("div");
@@ -93,10 +101,10 @@ window.WW = (function () {
       sheet.hidden = true;
       document.body.appendChild(sheet);
     }
-    sheet.innerHTML = `<div class="ww-sheet-panel" role="dialog" aria-label="More sections"><div class="ww-sheet-head"><b>Region</b><button type="button" class="ww-sheet-close" aria-label="Close">✕</button></div>${regionSwitch("ww-region-sheet")}<div class="ww-sheet-links">${SECTIONS.filter(
-      (s) => s.more,
+    sheet.innerHTML = `<div class="ww-sheet-panel" role="dialog" aria-label="More sections"><div class="ww-sheet-head"><b>More</b><button type="button" class="ww-sheet-close" aria-label="Close">✕</button></div><div class="ww-sheet-links">${SECTIONS.filter(
+      (s) => !BAR.includes(s.key),
     )
-      .map((s) => link(s, r, "ww-sheet-link"))
+      .map((s) => link(s, c, "ww-sheet-link"))
       .join(
         "",
       )}<a class="ww-sheet-link" href="https://bg197550.github.io/surf-window/"><span class="ww-ico" aria-hidden="true">≈</span><span class="ww-lbl">Surf</span></a></div></div>`;
@@ -110,23 +118,41 @@ window.WW = (function () {
     btn?.setAttribute("aria-expanded", String(open));
     if (open) sheet.querySelector("button,a")?.focus();
   }
+  function openMenu(open) {
+    const btn = document.querySelector(".ww-menu-btn"),
+      list = document.querySelector(".ww-menu-list");
+    if (!btn || !list) return;
+    list.hidden = !open;
+    btn.setAttribute("aria-expanded", String(open));
+    if (open) {
+      const r = btn.getBoundingClientRect();
+      list.style.left = `${Math.max(8, Math.min(r.left, innerWidth - 230))}px`;
+      list.style.top = `${r.bottom + 4}px`;
+    }
+  }
   function wire() {
-    document.querySelectorAll("[data-ww-region]").forEach(
-      (b) =>
-        (b.onclick = () => {
-          setRegion(b.dataset.wwRegion);
-          openSheet(false);
-        }),
-    );
     const more = document.querySelector(".ww-more-btn");
     if (more) more.onclick = () => openSheet(more.getAttribute("aria-expanded") !== "true");
     const sheet = document.querySelector("#ww-sheet");
-    if (sheet) {
+    if (sheet)
       sheet.onclick = (e) => {
-        if (e.target === sheet || e.target.closest(".ww-sheet-close") || e.target.closest("a"))
-          openSheet(false);
+        if (e.target === sheet || e.target.closest(".ww-sheet-close") || e.target.closest("a")) openSheet(false);
       };
-    }
+    const menu = document.querySelector(".ww-menu-btn");
+    if (menu)
+      menu.onclick = (e) => {
+        e.stopPropagation();
+        openMenu(menu.getAttribute("aria-expanded") !== "true");
+      };
+    document.querySelectorAll(".ww-menu-link").forEach((a) => (a.onclick = () => openMenu(false)));
+  }
+  /* The shared app bar (from Surf Window) links to the live site; inside the preview, point it at the preview. */
+  function localizeSuite() {
+    const m = location.pathname.match(/^(.*\/preview\/)/);
+    if (!m) return;
+    document.querySelectorAll('.suite-apps a[href*="/weather-window/"]').forEach((a) => {
+      a.href = a.href.replace(/^https?:\/\/[^/]+\/weather-window\//, location.origin + m[1]);
+    });
   }
   function offline() {
     let el = document.querySelector(".ww-offline");
@@ -143,16 +169,21 @@ window.WW = (function () {
     }
   }
   function init(opts) {
-    SECTIONS = opts.section === "snow" ? SNOW_SECTIONS : WEATHER_SECTIONS;
-    sectionName = opts.section === "snow" ? "Snow sections" : "Weather sections";
     base = opts.base || "";
     active = opts.active || "forecast";
-    regionLocked = opts.lockRegion || null;
     document.documentElement.classList.add("ww-has-tabbar");
     paint();
+    localizeSuite();
     addEventListener("keydown", (e) => {
-      if (e.key === "Escape") openSheet(false);
+      if (e.key === "Escape") {
+        openSheet(false);
+        openMenu(false);
+      }
     });
+    addEventListener("click", (e) => {
+      if (!e.target.closest(".ww-menu")) openMenu(false);
+    });
+    addEventListener("scroll", () => openMenu(false), { passive: true });
     addEventListener("online", offline);
     addEventListener("offline", offline);
     offline();
@@ -160,5 +191,5 @@ window.WW = (function () {
       navigator.serviceWorker.register(base + "sw.js").catch(() => {});
     }
   }
-  return { init, region, setRegion, setActive, REGIONS };
+  return { init, region, setRegion, setActive, setPlace, place, REGIONS };
 })();

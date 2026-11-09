@@ -42,8 +42,13 @@ function viewRegion() {
   return longRegion;
 }
 function render() {
-  WW.setRegion(viewRegion(), true);
-  WW.setActive(tab === "utah" || tab === "ne" ? "forecast" : tab);
+  WW.setRegion(viewRegion());
+  if (tab === "utah" || tab === "ne") {
+    const mode = view[tab],
+      p = mode === "mountain" ? utahResorts()[profileResort] : (tab === "utah" ? utah : ne)[selection[tab]];
+    WW.setActive(mode === "insights" || mode === "afd" || mode === "models" ? "insights" : mode === "snow" ? "snow" : "forecast");
+    if (p) WW.setPlace({ section: tab, slug: slug(p.name), name: p.name, cam: CAMS[p.name] || "" });
+  } else WW.setActive(tab);
   rememberPlace();
   if (tab !== "radar") destroyRadar();
   if (tab !== "precip" && precipMap) {
@@ -237,7 +242,7 @@ const FORECAST_VIEWS = [
 ];
 const VIEW_NOTES = {
   forecast: "Current observation and every NWS forecast period; select a period for its hours",
-  insights: "Storm totals, model ranges, likely outcomes and the weather pattern",
+  insights: "Storm totals, model ranges, the weather pattern, forecaster notes and model comparison",
   afd: "The full discussion from the responsible NWS office",
   models: "GFS, ECMWF and GEM scenarios for the next 10 days",
   mountain: "Mid mountain and peak conditions side by side",
@@ -307,22 +312,17 @@ function forecastView() {
             : mode === "forecast"
               ? '<div class="elevations discussion-mode" id="discussion"><div class="state">Loading NWS forecast…</div></div>'
               : '<div class="ov" id="ov"><div class="state">Loading NWS forecast…</div></div>';
-  content.innerHTML = `<nav class="place-pills" aria-label="${section === "utah" ? "Utah" : "New England"} locations">${places
-    .map(
-      (p, i) =>
-        `<button type="button" class="location" data-place="${i}" aria-current="${i === selected ? "true" : "false"}">${escapeHTML(p.name)}</button>`,
-    )
-    .join(
-      "",
-    )}</nav><div class="fc-head"><div class="fc-title"><h2 class="fc-name">${escapeHTML(place.name)}</h2><label class="place-picker"><span class="sr-only">Forecast location</span><select id="place-select">${placeOptions(section, absIndex, mode)}</select></label><p class="fc-sub">${escapeHTML(VIEW_NOTES[mode] || "")}</p></div><div class="fc-actions"><button type="button" class="icon-btn" id="place-search-btn" title="Search ZIP code or town" aria-label="Search for a ZIP code or town">🔍</button><button type="button" class="icon-btn nearby" id="locate" title="Closest forecast to you" aria-label="Show the closest forecast to you">⌖</button><button type="button" class="icon-btn" id="refresh" title="Refresh" aria-label="Refresh forecast">↻</button></div></div><div class="place-search" id="place-search" hidden></div><div class="place-links">${placeLinks(place, section)}</div><div id="alert-banner"></div>${mode === "forecast" ? "" : `<button type="button" class="back-overview" data-view="forecast">‹ ${escapeHTML(place.name)} forecast</button>`}<div class="forecast-tabs" role="tablist" aria-label="${escapeHTML(place.name)} forecast views">${views
-    .map(
-      ([k, n]) =>
-        `<button type="button" role="tab" data-view="${k}" aria-selected="${mode === k}">${n}</button>`,
-    )
-    .join("")}</div>${body}${
-    (mode === "forecast" || mode === "insights")
-      ? `<nav class="more-views" aria-label="More for ${escapeHTML(place.name)}"><h3>More for ${escapeHTML(place.name)}</h3>${views
-          .filter(([key]) => key !== mode)
+  const kind = place.searched ? "Your search" : place.p.length > 1 ? "Resort" : (place.p[0][2] || "").split(" · ")[0];
+  const more = [
+    ...(section === "utah" && place.p.length > 1 && mode !== "mountain" ? [["mountain", "Mountain profile"]] : []),
+    ...(mode !== "afd" ? [["afd", "Full forecast discussion"]] : []),
+  ];
+  const back = ["afd", "models", "mountain", "snow"].includes(mode)
+    ? `<button type="button" class="back-link" data-view="${mode === "afd" || mode === "models" ? "insights" : "forecast"}">‹ ${mode === "afd" || mode === "models" ? "Insights" : "Forecast"}</button>`
+    : "";
+  content.innerHTML = `${back}<div class="fc-head"><div class="fc-title"><button type="button" class="place-switch" id="place-switch" aria-expanded="false" aria-controls="place-search" title="Change place"><span class="fc-name">${escapeHTML(place.name)}</span><span class="ps-caret" aria-hidden="true">▾</span></button><p class="fc-sub"><span class="fc-kind">${escapeHTML(section === "utah" ? "Utah" : "New England")}${kind ? " · " + escapeHTML(kind) : ""}</span><span class="fc-note"> — ${escapeHTML(VIEW_NOTES[mode] || "")}</span></p></div><div class="fc-actions"><button type="button" class="icon-btn nearby" id="locate" title="Closest forecast to me" aria-label="Show the closest forecast to my location">⌖</button><button type="button" class="icon-btn" id="refresh" title="Refresh" aria-label="Refresh forecasts">↻</button></div></div><div class="place-search" id="place-search" hidden></div><div class="place-links">${placeLinks(place, section)}</div>${body}${
+    (mode === "forecast" || mode === "insights") && more.length
+      ? `<nav class="more-views" aria-label="More for ${escapeHTML(place.name)}"><h3>More for ${escapeHTML(place.name)}</h3>${more
           .map(
             ([k, n]) =>
               `<button type="button" data-view="${k}"><span><b>${n}</b><small>${escapeHTML(VIEW_NOTES[k])}</small></span><i aria-hidden="true">›</i></button>`,
@@ -330,63 +330,39 @@ function forecastView() {
           .join("")}</nav>`
       : ""
   }${mode === "insights" || mode === "forecast" ? `<p class="source">NWS forecasts use a grid of roughly 2.5 km. When two points fall in the same grid square they share one forecast and are shown once. Point elevations are approximate; each card shows the NWS grid elevation.</p>` : ""}`;
-  content.querySelectorAll("[data-place]").forEach(
-    (b) =>
-      (b.onclick = () => {
-        if (mode === "mountain") profileResort = +b.dataset.place;
-        else {
-          selection[section] = +b.dataset.place;
-          if (mode === "snow") view[section] = "forecast";
-        }
-        forecastView();
-        rememberPlace();
-      }),
-  );
-  const openSearch = () =>
-    openPlaceSearch(
-      content.querySelector("#place-search"),
-      (sec, i) => {
-        selection[sec] = i;
-        if (view[sec] === "mountain" || view[sec] === "snow") view[sec] = "forecast";
-        tab = sec;
-        render();
-        rememberPlace();
-        scrollTo(0, 0);
-      },
-      () => {
-        for (const sec of ["utah", "ne"]) if (selection[sec] >= (sec === "utah" ? utah : ne).length) selection[sec] = 0;
-        render();
-        openSearch();
-      },
-    );
-  content.querySelector("#place-search-btn").onclick = openSearch;
-  content.querySelector("#place-select").onchange = (e) => {
-    if (e.target.value === "search") {
-      e.target.value = `${mode === "mountain" ? "utah" : section}:${absIndex}`;
-      openSearch();
-      return;
-    }
-    const [sec, i] = e.target.value.split(":");
-    if (mode === "mountain") profileResort = +i - 2;
+  const show = (sec, i) => {
+    const target = (sec === "utah" ? utah : ne)[i];
+    if (mode === "mountain" && sec === "utah" && target?.p.length > 1 && !target.searched)
+      profileResort = utahResorts().indexOf(target);
     else {
-      selection[sec] = +i;
-      if (sec !== section && (view[sec] === "mountain" || view[sec] === "snow")) view[sec] = "forecast";
-      tab = sec;
+      selection[sec] = i;
+      view[sec] = ["insights", "afd", "models"].includes(mode) ? "insights" : "forecast";
     }
+    tab = sec;
     render();
+    rememberPlace();
+    scrollTo(0, 0);
   };
+  const openPicker = () => {
+    const host = content.querySelector("#place-search"),
+      btn = content.querySelector("#place-switch");
+    openPlaceSearch(host, show, () => {
+      for (const sec of ["utah", "ne"]) if (selection[sec] >= (sec === "utah" ? utah : ne).length) selection[sec] = 0;
+      render();
+      openPicker();
+    }, { section, index: absIndex });
+    btn.setAttribute("aria-expanded", String(!host.hidden));
+  };
+  content.querySelector("#place-switch").onclick = openPicker;
   content.querySelectorAll("[data-view]").forEach(
     (b) =>
       (b.onclick = () => {
         const v = b.dataset.view;
-        if (v === "mountain" && mode !== "mountain") {
-          if (selection.utah < 2) selection.utah = 2;
-          profileResort = selection.utah - 2;
-        }
-        if (mode === "mountain" && v !== "mountain") selection.utah = profileResort + 2;
+        if (v === "mountain" && mode !== "mountain") profileResort = Math.max(0, utahResorts().indexOf(place));
+        if (mode === "mountain" && v !== "mountain") selection.utah = utah.indexOf(utahResorts()[profileResort]);
         view[section] = v;
-        forecastView();
-        if (!b.closest(".forecast-tabs")) content.scrollIntoView({ block: "start" });
+        render();
+        scrollTo(0, 0);
       }),
   );
   content.querySelector("#locate").onclick = () => showClosestForecast(false);
@@ -539,7 +515,7 @@ async function loadOverview(place, section) {
             )
             .join("")}</div>`
         : ""
-    }<div class="ins" id="ins" data-key="${pts[daysPick].p.slice(0, 2).join(",")}"></div><article class="card afd-card hourly-card ov-hourly" id="hourly"><div class="state">Loading hourly forecast…</div></article>`;
+    }<div class="ins" id="ins" data-key="${pts[daysPick].p.slice(0, 2).join(",")}"></div><article class="card afd-card hourly-card ov-hourly" id="hourly"><div class="state">Loading hourly forecast…</div></article><article class="card afd-card ov-models" id="model-comparison"><div class="state">Loading model comparison…</div></article>`;
     el.querySelectorAll("[data-elev]").forEach(
       (b) =>
         (b.onclick = () => {
@@ -550,6 +526,7 @@ async function loadOverview(place, section) {
     );
     loadInsights(pts[daysPick], section);
     loadHourly(place, section, pts);
+    loadModels(place, section);
   };
   draw();
 }
@@ -1740,7 +1717,11 @@ function readHash() {
     view[t] = mode;
     return;
   }
-  tab = WW.region();
+  const c = WW.place(),
+    list = c.section === "utah" ? utah : ne,
+    i = list.findIndex((x) => slug(x.name) === c.slug);
+  tab = c.section;
+  if (i >= 0) selection[tab] = i;
 }
 window.addEventListener("hashchange", () => {
   const before = tab;
