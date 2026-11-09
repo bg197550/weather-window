@@ -515,7 +515,12 @@ async function loadOverview(place, section) {
             )
             .join("")}</div>`
         : ""
-    }<div class="ins" id="ins" data-key="${pts[daysPick].p.slice(0, 2).join(",")}"></div><article class="card afd-card hourly-card ov-hourly" id="hourly"><div class="state">Loading hourly forecast…</div></article><article class="card afd-card ov-models" id="model-comparison"><div class="state">Loading model comparison…</div></article>`;
+    }<div class="ins" id="ins" data-key="${pts[daysPick].p.slice(0, 2).join(",")}"></div><article class="card afd-card hourly-card ov-hourly" id="hourly"><div class="state">Loading hourly forecast…</div></article><article class="card afd-card ov-models" id="model-comparison"><div class="state">Loading model comparison…</div></article><p class="ins-afd-link ov-afd-link"><button type="button" class="linkish" data-view="afd">Read the full NWS forecast discussion ›</button></p>`;
+    el.querySelector(".ov-afd-link button").onclick = () => {
+      view[section] = "afd";
+      render();
+      scrollTo(0, 0);
+    };
     el.querySelectorAll("[data-elev]").forEach(
       (b) =>
         (b.onclick = () => {

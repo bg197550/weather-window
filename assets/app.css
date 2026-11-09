@@ -2452,13 +2452,14 @@ p {
 .ov.ov-ins,
 .ov.ov-ins[data-n="2"] {
   grid-template-columns: minmax(0, 1fr);
-  grid-template-areas: "ins" "hourly" "models";
+  grid-template-areas: "ins" "hourly" "models" "afdlink";
 }
+.ov-ins > .ov-afd-link { grid-area: afdlink; }
 .ov-ins > .ov-models { grid-area: models; min-width: 0; }
 .ov-ins > .ins { grid-area: ins; margin-bottom: 0; min-width: 0; }
 @media (max-width: 760px) {
   .ov.ov-ins,
-  .ov.ov-ins[data-n="2"] { grid-template-areas: "toggle" "ins" "hourly" "models"; }
+  .ov.ov-ins[data-n="2"] { grid-template-areas: "toggle" "ins" "hourly" "models" "afdlink"; }
 }
 @media (min-width: 1100px) {
   .ins { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
@@ -2505,3 +2506,20 @@ p {
   .fc-note { display: none; }
   .fc-sub { font-size: 14px; }
 }
+
+/* Insights: plain-English summary first, technical details folded away. */
+.ins .ins-summary { grid-column: 1 / -1; }
+.ins-summary .ins-head { align-items: baseline; }
+.ins-summary section { margin-top: 14px; }
+.ins-summary ul { padding-left: 20px; margin: 6px 0 0; }
+.ins-summary li { margin: 7px 0; line-height: 1.55; }
+.ins-summary li b { color: #fff; }
+.ins-more { margin-top: 12px; }
+.ins-more > summary, .ins-tech > summary { cursor: pointer; color: #70d9de; font-weight: 650; }
+.ins-tech > summary { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; list-style: none; color: inherit; }
+.ins-tech > summary::-webkit-details-marker { display: none; }
+.ins-tech > summary h3 { display: inline; margin: 0; }
+.ins-tech > summary::after { content: "Show ▾"; margin-left: auto; color: #70d9de; font-size: 14px; font-weight: 650; }
+.ins-tech[open] > summary::after { content: "Hide ▴"; }
+.ins-afd-link { grid-column: 1 / -1; margin: 0; }
+.ins-learn { margin: 12px 0 0; padding: 10px 12px; border-radius: 10px; background: #0b2433; border: 1px solid #294858; color: #cfe2e8; line-height: 1.5; }
