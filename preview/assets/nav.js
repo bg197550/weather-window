@@ -1,6 +1,7 @@
 /* One navigation for every Weather Window page (Weather, Webcams, Snow report).
    Desktop: Forecast · Insights · Cams · Snow report · Maps & outlooks ▾ under the app bar.
-   Phones: a fixed bottom bar with Forecast · Insights · Cams · Radar · More.
+   Phones: a fixed bottom bar with Forecast · Insights · Cams · Radar · More (Precip models, Long range).
+   The Snow report and Surf are reached from the app bar at the top.
    Forecast, Insights and Cams follow the current place, which every page shares through localStorage. */
 window.WW = (function () {
   const REGION_KEY = "ww:region";
@@ -91,7 +92,7 @@ window.WW = (function () {
       bar.setAttribute("aria-label", "Weather Window sections");
       document.body.appendChild(bar);
     }
-    const inMore = !BAR.includes(active);
+    const inMore = SECTIONS.some((s) => s.maps && !BAR.includes(s.key) && s.key === active);
     bar.innerHTML = `${BAR.map((k) => link(SECTIONS.find((s) => s.key === k), c, "ww-tab")).join("")}<button type="button" class="ww-tab ww-more-btn" aria-expanded="false" aria-controls="ww-sheet"${inMore ? ' aria-current="page"' : ""}><span class="ww-ico" aria-hidden="true">⋯</span><span class="ww-lbl">More</span></button>`;
     let sheet = document.querySelector("#ww-sheet");
     if (!sheet) {
@@ -101,13 +102,9 @@ window.WW = (function () {
       sheet.hidden = true;
       document.body.appendChild(sheet);
     }
-    sheet.innerHTML = `<div class="ww-sheet-panel" role="dialog" aria-label="More sections"><div class="ww-sheet-head"><b>More</b><button type="button" class="ww-sheet-close" aria-label="Close">✕</button></div><div class="ww-sheet-links">${SECTIONS.filter(
-      (s) => !BAR.includes(s.key),
-    )
+    sheet.innerHTML = `<div class="ww-sheet-panel" role="dialog" aria-label="More sections"><div class="ww-sheet-head"><b>More</b><button type="button" class="ww-sheet-close" aria-label="Close">✕</button></div><div class="ww-sheet-links">${SECTIONS.filter((s) => s.maps && !BAR.includes(s.key))
       .map((s) => link(s, c, "ww-sheet-link"))
-      .join(
-        "",
-      )}<a class="ww-sheet-link" href="https://bg197550.github.io/surf-window/"><span class="ww-ico" aria-hidden="true">≈</span><span class="ww-lbl">Surf</span></a></div></div>`;
+      .join("")}</div></div>`;
     wire();
   }
   function openSheet(open) {
