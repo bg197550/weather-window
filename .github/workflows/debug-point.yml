@@ -1,0 +1,19 @@
+name: Debug NWS point (temporary)
+on: workflow_dispatch
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Compare api.weather.gov with forecast.weather.gov
+        run: |
+          UA="weather-window debug"
+          P="43.6045,-72.8201"
+          curl -s -A "$UA" "https://api.weather.gov/points/$P" > pt.json
+          jq -c '.properties | {gridId,gridX,gridY,forecast,timeZone,city:.relativeLocation.properties.city}' pt.json
+          F=$(jq -r .properties.forecast pt.json)
+          curl -s -A "$UA" -H "Accept: application/geo+json" "$F" > fc.json
+          echo "== API forecast"; jq -r '.properties | "updated \(.updateTime) generated \(.generatedAt) elev \(.elevation.value)", (.periods[:8][] | "\(.name): \(.temperature)\(.temperatureUnit) | \(.shortForecast) | \(.probabilityOfPrecipitation.value)%")' fc.json
+          curl -s -A "$UA" "https://forecast.weather.gov/MapClick.php?lat=43.6045&lon=-72.8201&FcstType=json" > web.json
+          echo "== Website JSON"; jq -r '"\(.location.areaDescription) elev \(.location.elevation) wfo \(.location.wfo) issued \(.creationDateLocal)", (range(0;8) as $i | "\(.time.startPeriodName[$i]): \(.data.temperature[$i]) \(.time.tempLabel[$i]) | \(.data.weather[$i]) | \(.data.pop[$i])%")' web.json
+          echo "== Website HTML header"; curl -s -A "$UA" "https://forecast.weather.gov/MapClick.php?lat=43.6045&lon=-72.8201" | sed 's/<[^>]*>/ /g' | tr -s ' \n' ' ' | grep -o -E "Point Forecast:.{0,220}"
+          echo "== Website HTML periods"; curl -s -A "$UA" "https://forecast.weather.gov/MapClick.php?lat=43.6045&lon=-72.8201" | grep -o -E 'class="period-name">[^<]*(<br>[^<]*)?</p>.{0,400}temp[^>]*>[^<]*' | sed 's/<[^>]*>/ /g' | tr -s ' ' | head -8
