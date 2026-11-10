@@ -3,11 +3,12 @@ const RESORTS = utah.slice(2);
 const SNOTEL_URL = "https://raw.githubusercontent.com/bg197550/weather-window/data/snotel.json";
 let snotel = null;
 const content = document.querySelector("#content");
-let tab = "resorts",
+let tab = "forecast",
+  forecastRegion = WW.region() === "ne" ? "ne" : "utah",
   hourlyResort = 0,
   hourlyPoint = 1,
   lastLoad = Date.now();
-const TABS = { resorts: "Resorts", snowpack: "Snowpack", models: "Models", hourly: "Hourly" };
+const TABS = { forecast: "Snow forecast", resorts: "Resorts", snowpack: "Snowpack", models: "Models", hourly: "Hourly" };
 
 function makePlot(series, labels, unit, type, selected) {
   const n = labels.length,
@@ -158,6 +159,83 @@ async function loadMountainAlerts() {
 function resortPills(sel, attr) {
   return `<div class="day-pills" aria-label="Resort">${RESORTS.map((x, i) => `<button ${attr}="${i}" class="${i === sel ? "active" : ""}">${escapeHTML(x.name)}</button>`).join("")}</div>`;
 }
+
+/* ---------- 10-day snow forecast (OpenSnow-style favorites table) ---------- */
+const FORECAST_DAYS = 10;
+function zoneMidnight(dateStr, zone) {
+  const guess = Date.parse(dateStr + "T00:00:00Z");
+  const off = new Intl.DateTimeFormat("en-US", { timeZone: zone, timeZoneName: "longOffset" })
+    .formatToParts(new Date(guess))
+    .find((p) => p.type === "timeZoneName")?.value.match(/GMT([+-])(\d\d):?(\d\d)?/);
+  const mins = off ? (off[1] === "-" ? -1 : 1) * (+off[2] * 60 + +(off[3] || 0)) : 0;
+  return guess - mins * 60000;
+}
+function forecastDays(zone) {
+  const out = [];
+  const start = new Date().toLocaleDateString("en-CA", { timeZone: zone });
+  for (let k = 0; k < FORECAST_DAYS; k++) {
+    const d = new Date(Date.parse(start + "T12:00:00Z") + k * 86400000).toISOString().slice(0, 10);
+    const from = zoneMidnight(d, zone),
+      next = new Date(Date.parse(d + "T12:00:00Z") + 86400000).toISOString().slice(0, 10);
+    out.push({ date: d, from, to: zoneMidnight(next, zone) });
+  }
+  return out;
+}
+function gridEnd(values) {
+  let end = 0;
+  for (const q of values || []) {
+    const [stamp, dur] = q.validTime.split("/");
+    const m = dur.match(/P(?:(\d+)D)?T?(?:(\d+)H)?/);
+    end = Math.max(end, Date.parse(stamp) + ((+(m?.[1] || 0)) * 24 + +(m?.[2] || 0)) * 3600000);
+  }
+  return end;
+}
+async function loadSnowForecast(region) {
+  const el = document.querySelector("#snow-forecast");
+  if (!el) return;
+  const zone = region === "ne" ? "America/New_York" : "America/Denver";
+  const list = region === "ne" ? ne.filter((x) => /Summit/.test(x.p[0][2] || "")) : utahResorts();
+  const days = forecastDays(zone);
+  const rows = await Promise.all(
+    list.map(async (r) => {
+      const p = r.p[0];
+      const [nws, models] = await Promise.allSettled([mountainPoint(p), snowModelData(p)]);
+      const values = nws.status === "fulfilled" ? nws.value.grid.snowfallAmount?.values : null;
+      const until = gridEnd(values);
+      const mod = models.status === "fulfilled" ? models.value.filter((x) => x.status === "fulfilled").map((x) => x.value) : [];
+      const cells = days.map((d) => {
+        if (values && until >= d.to - 3 * 3600000) return { v: periodSnow(values, d.from, d.to) ?? 0, src: "nws" };
+        const vals = mod.map((m) => m.snow[m.time.indexOf(d.date)]).filter(Number.isFinite);
+        return vals.length ? { v: vals.reduce((a, b) => a + b, 0) / vals.length, src: "model" } : { v: null, src: "" };
+      });
+      const sum = (a, b) => cells.slice(a, b).reduce((t, c) => t + (c.v || 0), 0);
+      return { r, cells, next5: sum(0, 5), later: sum(5, 10), ok: values != null || mod.length };
+    }),
+  );
+  if (!el.isConnected || region !== forecastRegion) return;
+  const max = Math.max(1, ...rows.flatMap((x) => x.cells.map((c) => c.v || 0)));
+  const fmt = (v) => (v == null ? "–" : v < 0.5 ? (v >= 0.05 ? "<1" : "0") : `${Math.round(v)}`);
+  const top5 = Math.max(...rows.map((x) => x.next5));
+  const dayLbl = (d, k) =>
+    `<span>${k === 0 ? "Today" : new Date(d.from + 3 * 3600000).toLocaleDateString("en-US", { weekday: "short", timeZone: zone })}</span><small>${new Date(d.from + 3 * 3600000).toLocaleDateString("en-US", { month: "numeric", day: "numeric", timeZone: zone })}</small>`;
+  const modelFrom = rows[0]?.cells.findIndex((c) => c.src === "model");
+  el.innerHTML = `<div class="snowfc-wrap"><table class="snowfc"><thead><tr><th class="snowfc-name">Resort</th><th class="snowfc-tot">Next 5 days<small>days 6–10</small></th>${days
+    .map((d, k) => `<th class="snowfc-day ${rows[0]?.cells[k]?.src === "model" ? "is-model" : ""}">${dayLbl(d, k)}</th>`)
+    .join("")}</tr></thead><tbody>${rows
+    .map(
+      (x) =>
+        `<tr class="${x.next5 === top5 && top5 >= 1 ? "flag" : ""}"><th class="snowfc-name"><a href="${siteBase()}#${region}/${slug(x.r.name)}/forecast">${escapeHTML(x.r.name)}</a></th><td class="snowfc-tot"><b>${fmt(x.next5)}″</b><small>+${fmt(x.later)}″</small></td>${x.cells
+          .map((c) => {
+            const h = c.v ? Math.max(c.v >= 0.5 ? 4 : 0, Math.round((Math.min(c.v, max) / max) * 34)) : 0;
+            return `<td class="snowfc-cell ${c.src === "model" ? "is-model" : ""}" title="${c.src === "model" ? "Model average" : "NWS forecast"}"><i style="height:${h}px"></i><span>${fmt(c.v)}</span></td>`;
+          })
+          .join("")}</tr>`,
+    )
+    .join("")}</tbody></table></div><p class="source">Inches of new snow per day at ${region === "ne" ? "each mountain's summit" : "each resort's mid-mountain point"}. ${
+    modelFrom > 0 ? `Days 1–${modelFrom} are the NWS forecast; days ${modelFrom + 1}–10 (shaded) are an average of the GFS, ECMWF, AIFS and GEM models, which tend to run low in the mountains.` : "NWS gridded forecast, with global models beyond the NWS range (shaded)."
+  } Highlighted row: most snow in the next 5 days. Tap a resort for its full forecast.</p>`;
+}
+
 function snowTabs() {
   return `<nav class="seg snow-tabs" aria-label="Snow report sections">${Object.entries(TABS)
     .map(([k, n]) => `<a href="#${k}" class="${k === tab ? "active" : ""}" ${k === tab ? 'aria-current="page"' : ""}>${escapeHTML(n)}</a>`)
@@ -165,7 +243,18 @@ function snowTabs() {
 }
 function render() {
   const head = `<div class="toolbar"><div><h2>Snow Report</h2><p class="sub">Wasatch resorts · NWS forecasts, global models and measured snowpack</p></div><div class="detail-actions"><a class="xlink" href="https://utahavalanchecenter.org/" target="_blank" rel="noopener">Avalanche forecast ↗</a></div></div><div id="alert-banner"></div>`;
-  if (tab === "resorts") {
+  if (tab === "forecast") {
+    content.innerHTML =
+      head.replace("Wasatch resorts · NWS forecasts, global models and measured snowpack", "Daily snowfall for the next 10 days at each resort") +
+      `<article class="card afd-card snowfc-card"><div class="snowfc-head"><h3>Snow forecast</h3><nav class="seg snowfc-region" aria-label="Region">${[
+        ["utah", "Utah"],
+        ["ne", "New England"],
+      ]
+        .map(([k, n]) => `<a href="#forecast/${k}" class="${k === forecastRegion ? "active" : ""}" ${k === forecastRegion ? 'aria-current="true"' : ""}>${n}</a>`)
+        .join("")}</nav></div><div id="snow-forecast"><div class="state">Loading 10-day snow forecasts…</div></div></article>`;
+    if (forecastRegion === "ne") content.querySelector(".detail-actions")?.remove();
+    loadSnowForecast(forecastRegion);
+  } else if (tab === "resorts") {
     content.innerHTML =
       head +
       `<article class="card afd-card" id="resort-snow"><div class="state">Loading NWS snow grids for all resorts…</div></article>`;
@@ -198,12 +287,13 @@ function render() {
   }
   content.querySelector(".toolbar")?.insertAdjacentHTML("afterend", snowTabs());
   loadMountainAlerts();
-  const h = tab + (tab === "hourly" ? "/" + slug(RESORTS[hourlyResort].name) : "");
+  const h = tab + (tab === "hourly" ? "/" + slug(RESORTS[hourlyResort].name) : tab === "forecast" ? "/" + forecastRegion : "");
   if (location.hash.slice(1) !== h) history.replaceState(null, "", "#" + h);
 }
 function readHash() {
   const [t, a] = location.hash.slice(1).split("/");
   if (TABS[t]) tab = t;
+  if (t === "forecast" && (a === "utah" || a === "ne")) forecastRegion = a;
   if (t === "hourly" && a) {
     const i = RESORTS.findIndex((r) => slug(r.name) === a);
     if (i >= 0) hourlyResort = i;

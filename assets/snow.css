@@ -27,3 +27,37 @@
 .snow-tabs a { padding: 9px 16px; border-radius: 8px; color: #b8cbd5; font-weight: 700; font-size: 14px; text-decoration: none; white-space: nowrap; }
 .snow-tabs a.active { background: #d4f4ee; color: #082832; }
 @media (max-width: 760px) { .snow-tabs { width: auto; } .snow-tabs a { flex: 1; text-align: center; padding: 10px 8px; } }
+
+/* 10-day snow forecast table */
+.snowfc-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.snowfc-head h3 { margin: 0; }
+.snowfc-region { display: flex; gap: 2px; background: #15344a; border-radius: 10px; padding: 3px; }
+.snowfc-region a { padding: 8px 14px; border-radius: 8px; color: #b8cbd5; font-weight: 700; font-size: 14px; text-decoration: none; white-space: nowrap; }
+.snowfc-region a.active { background: #d4f4ee; color: #082832; }
+.snowfc-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -4px; }
+.snowfc { border-collapse: separate; border-spacing: 0; width: 100%; min-width: 760px; font-variant-numeric: tabular-nums; }
+.snowfc th, .snowfc td { padding: 8px 6px; border-bottom: 1px solid #23414f; text-align: center; vertical-align: bottom; }
+.snowfc thead th { font-size: 12px; color: #9fb1bc; font-weight: 650; vertical-align: bottom; }
+.snowfc-day span { display: block; color: #d9ecf8; font-size: 13px; }
+.snowfc-day small { display: block; font-size: 11px; }
+.snowfc .snowfc-name { position: sticky; left: 0; z-index: 1; background: #102c3b; text-align: left; white-space: nowrap; min-width: 128px; }
+.snowfc tbody .snowfc-name a { color: #eaf6f8; font-weight: 700; text-decoration: none; }
+.snowfc tbody .snowfc-name a:hover { text-decoration: underline; }
+.snowfc-tot { white-space: nowrap; min-width: 74px; }
+.snowfc-tot b { display: block; font-size: 20px; }
+.snowfc-tot small { display: block; color: #9fb1bc; font-size: 12px; font-weight: 600; }
+.snowfc thead .snowfc-tot small { font-weight: 500; }
+.snowfc-cell { min-width: 44px; height: 64px; }
+.snowfc-cell i { display: block; width: 18px; margin: 0 auto 4px; border-radius: 4px 4px 1px 1px; background: #79d7e5; }
+.snowfc-cell span { font-weight: 650; font-size: 14px; }
+.snowfc .is-model { background: #0d2533; }
+.snowfc-cell.is-model i { background: repeating-linear-gradient(45deg, #79d7e5 0 3px, #3f8796 3px 6px); }
+.snowfc-cell.is-model span { color: #a9c2d0; font-style: italic; }
+.snowfc tr.flag .snowfc-name { box-shadow: inset 3px 0 0 #f2c780; }
+.snowfc tr.flag .snowfc-tot b { color: #f2c780; }
+@media (max-width: 760px) {
+  .snowfc { min-width: 640px; }
+  .snowfc .snowfc-name { min-width: 92px; max-width: 108px; white-space: normal; font-size: 14px; line-height: 1.25; }
+  .snowfc-tot { min-width: 62px; }
+  .snowfc-cell { min-width: 38px; }
+}

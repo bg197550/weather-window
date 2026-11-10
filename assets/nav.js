@@ -15,7 +15,7 @@ window.WW = (function () {
     { key: "forecast", label: "Forecast", icon: "☀", href: (b, c) => `${b}#${c.section}/${c.slug}/forecast` },
     { key: "insights", label: "Insights", icon: "◆", href: (b, c) => `${b}#${c.section}/${c.slug}/insights` },
     { key: "cams", label: "Cams", icon: "▣", href: (b, c) => `${b}webcams/#${c.cam || c.section}` },
-    { key: "snow", label: "Snow report", icon: "❄", href: (b) => `${b}snow/#resorts` },
+    { key: "snow", label: "Snow report", icon: "❄", href: (b, c) => `${b}snow/#forecast/${c.section}` },
     { key: "radar", label: "Radar", icon: "◎", href: (b, c) => `${b}#radar/${c.section === "ne" ? "sne" : "wasatch"}`, maps: true },
     { key: "precip", label: "Precip models", icon: "☂", href: (b, c) => `${b}#precip/${c.section}`, maps: true },
     { key: "long", label: "Long range", icon: "≋", href: (b) => `${b}#long`, maps: true },
