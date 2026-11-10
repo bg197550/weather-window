@@ -190,50 +190,157 @@ function gridEnd(values) {
   }
   return end;
 }
+/* Half-day segments (6am–6pm and 6pm–6am local), like OpenSnow's day/night bars. */
+function forecastSegments(zone) {
+  const days = forecastDays(zone);
+  return days.flatMap((d) => [
+    { date: d.date, half: "day", from: d.from + 6 * 3600000, to: d.from + 18 * 3600000 },
+    { date: d.date, half: "night", from: d.from + 18 * 3600000, to: d.to + 6 * 3600000 },
+  ]);
+}
+function gridStat(values, from, to, pick) {
+  const vals = [];
+  for (const q of values || []) {
+    const [stamp, dur] = q.validTime.split("/");
+    const m = dur.match(/P(?:(\d+)D)?T?(?:(\d+)H)?/);
+    const a = Date.parse(stamp),
+      b = a + ((+(m?.[1] || 0)) * 24 + +(m?.[2] || 0)) * 3600000;
+    if (b > from && a < to && Number.isFinite(q.value)) vals.push(q.value);
+  }
+  return vals.length ? pick(...vals) : null;
+}
+const hourlySnowCache = new Map();
+function modelHourly(p, zone) {
+  const key = p.slice(0, 2).join(",");
+  const hit = hourlySnowCache.get(key);
+  if (hit && Date.now() - hit.time < 30 * 60000) return hit.promise;
+  const u = new URL("https://api.open-meteo.com/v1/forecast");
+  Object.entries({
+    latitude: p[0],
+    longitude: p[1],
+    hourly: "snowfall,temperature_2m",
+    models: "gfs_seamless,ecmwf_ifs025,gem_seamless",
+    forecast_days: 11,
+    timezone: "UTC",
+    precipitation_unit: "inch",
+    temperature_unit: "fahrenheit",
+  }).forEach(([k, v]) => u.searchParams.set(k, v));
+  const promise = getJSON(u.toString());
+  hourlySnowCache.set(key, { time: Date.now(), promise });
+  return promise;
+}
+/* A forecast amount as a range, the way OpenSnow shows it (1-2", 3-5", 4-8"). */
+function snowRange(lo, hi) {
+  if (hi < 0.05) return [0, 0];
+  let a = Math.max(0, Math.round(lo - 0.2)),
+    b = Math.round(hi + 0.2);
+  if (b <= a) b = a + 1;
+  if (b - a === 1 && b >= 3) b++;
+  return [Math.max(0, a), b];
+}
+const rangeText = ([a, b]) => (b === 0 ? '0"' : `${a}-${b}"`);
 async function loadSnowForecast(region) {
   const el = document.querySelector("#snow-forecast");
   if (!el) return;
   const zone = region === "ne" ? "America/New_York" : "America/Denver";
   const list = region === "ne" ? ne.filter((x) => /Summit/.test(x.p[0][2] || "")) : utahResorts();
-  const days = forecastDays(zone);
-  const rows = await Promise.all(
+  const segs = forecastSegments(zone);
+  const results = await Promise.all(
     list.map(async (r) => {
       const p = r.p[0];
-      const [nws, models] = await Promise.allSettled([mountainPoint(p), snowModelData(p)]);
-      const values = nws.status === "fulfilled" ? nws.value.grid.snowfallAmount?.values : null;
-      const until = gridEnd(values);
-      const mod = models.status === "fulfilled" ? models.value.filter((x) => x.status === "fulfilled").map((x) => x.value) : [];
-      const cells = days.map((d) => {
-        if (values && until >= d.to - 3 * 3600000) return { v: periodSnow(values, d.from, d.to) ?? 0, src: "nws" };
-        const vals = mod.map((m) => m.snow[m.time.indexOf(d.date)]).filter(Number.isFinite);
-        return vals.length ? { v: vals.reduce((a, b) => a + b, 0) / vals.length, src: "model" } : { v: null, src: "" };
+      const [nws, mod] = await Promise.allSettled([mountainPoint(p), modelHourly(p, zone)]);
+      const grid = nws.status === "fulfilled" ? nws.value.grid : null;
+      const elevFt = nws.status === "fulfilled" && nws.value.forecast?.elevation?.value != null ? Math.round(nws.value.forecast.elevation.value * 3.28084) : null;
+      const snowVals = grid?.snowfallAmount?.values,
+        until = gridEnd(snowVals),
+        tUntil = gridEnd(grid?.temperature?.values);
+      const h = mod.status === "fulfilled" ? mod.value.hourly : null;
+      const ht = h ? h.time.map((t) => Date.parse(t + "Z")) : [];
+      const modelSeg = (from, to) => {
+        if (!h) return null;
+        const totals = ["gfs_seamless", "ecmwf_ifs025", "gem_seamless"]
+          .map((id) => {
+            const v = h[`snowfall_${id}`];
+            if (!v) return null;
+            let t = 0,
+              any = false;
+            ht.forEach((x, i) => {
+              if (x >= from && x < to && Number.isFinite(v[i])) {
+                t += v[i];
+                any = true;
+              }
+            });
+            return any ? t : null;
+          })
+          .filter((v) => v != null);
+        const temps = ["gfs_seamless", "ecmwf_ifs025", "gem_seamless"].flatMap((id) => ht.map((x, i) => (x >= from && x < to ? h[`temperature_2m_${id}`]?.[i] : null)).filter(Number.isFinite));
+        return totals.length ? { lo: Math.min(...totals), hi: Math.max(...totals), mid: totals.reduce((a, b) => a + b, 0) / totals.length, temps } : null;
+      };
+      const cells = segs.map((g) => {
+        const m = modelSeg(g.from, g.to);
+        let src = "",
+          range = null,
+          mid = null,
+          temp = null;
+        if (snowVals && until >= g.to - 2 * 3600000) {
+          const v = periodSnow(snowVals, g.from, g.to) ?? 0;
+          // NWS gives one number: spread it like OpenSnow, widening toward the models when they disagree.
+          range = snowRange(Math.max(v * 0.6, Math.min(v * 0.8, m ? m.lo : v)), Math.max(v * 1.3, m ? Math.min(m.hi, v * 2) : v));
+          mid = v;
+          src = "nws";
+        } else if (m) {
+          range = snowRange(m.lo, m.hi);
+          mid = m.mid;
+          src = "model";
+        }
+        const pick = g.half === "day" ? Math.max : Math.min;
+        if (grid?.temperature && tUntil >= g.to - 2 * 3600000) {
+          const c = gridStat(grid.temperature.values, g.from, g.to, pick);
+          if (c != null) temp = Math.round((c * 9) / 5 + 32);
+        } else if (m?.temps?.length) temp = Math.round(pick(...m.temps));
+        return { ...g, src, range, mid, temp };
       });
-      const sum = (a, b) => cells.slice(a, b).reduce((t, c) => t + (c.v || 0), 0);
-      return { r, cells, next5: sum(0, 5), later: sum(5, 10), ok: values != null || mod.length };
+      const total = (a, b) => {
+        const c = cells.slice(a * 2, b * 2).filter((x) => x.range);
+        if (!c.length) return null;
+        // Summed ranges overstate the spread (not every period hits its high end), so pull them toward the middle.
+        const lo = c.reduce((t, x) => t + x.range[0], 0),
+          hi = c.reduce((t, x) => t + x.range[1], 0),
+          mid = c.reduce((t, x) => t + (x.mid || 0), 0);
+        return snowRange(mid - (mid - lo) * 0.6, mid + (hi - mid) * 0.6);
+      };
+      return { r, elevFt, cells, next5: total(0, 5), later: total(5, 10), next5mid: cells.slice(0, 10).reduce((t, x) => t + (x.mid || 0), 0) };
     }),
   );
   if (!el.isConnected || region !== forecastRegion) return;
-  const max = Math.max(1, ...rows.flatMap((x) => x.cells.map((c) => c.v || 0)));
-  const fmt = (v) => (v == null ? "–" : v < 0.5 ? (v >= 0.05 ? "<1" : "0") : `${Math.round(v)}`);
-  const top5 = Math.max(...rows.map((x) => x.next5));
-  const dayLbl = (d, k) =>
-    `<span>${k === 0 ? "Today" : new Date(d.from + 3 * 3600000).toLocaleDateString("en-US", { weekday: "short", timeZone: zone })}</span><small>${new Date(d.from + 3 * 3600000).toLocaleDateString("en-US", { month: "numeric", day: "numeric", timeZone: zone })}</small>`;
-  const modelFrom = rows[0]?.cells.findIndex((c) => c.src === "model");
-  el.innerHTML = `<div class="snowfc-wrap"><table class="snowfc"><thead><tr><th class="snowfc-name">Resort</th><th class="snowfc-tot">Next 5 days<small>days 6–10</small></th>${days
-    .map((d, k) => `<th class="snowfc-day ${rows[0]?.cells[k]?.src === "model" ? "is-model" : ""}">${dayLbl(d, k)}</th>`)
-    .join("")}</tr></thead><tbody>${rows
-    .map(
-      (x) =>
-        `<tr class="${x.next5 === top5 && top5 >= 1 ? "flag" : ""}"><th class="snowfc-name"><a href="${siteBase()}#${region}/${slug(x.r.name)}/forecast">${escapeHTML(x.r.name)}</a></th><td class="snowfc-tot"><b>${fmt(x.next5)}″</b><small>+${fmt(x.later)}″</small></td>${x.cells
-          .map((c) => {
-            const h = c.v ? Math.max(c.v >= 0.5 ? 4 : 0, Math.round((Math.min(c.v, max) / max) * 34)) : 0;
-            return `<td class="snowfc-cell ${c.src === "model" ? "is-model" : ""}" title="${c.src === "model" ? "Model average" : "NWS forecast"}"><i style="height:${h}px"></i><span>${fmt(c.v)}</span></td>`;
-          })
-          .join("")}</tr>`,
-    )
-    .join("")}</tbody></table></div><p class="source">Inches of new snow per day at ${region === "ne" ? "each mountain's summit" : "each resort's mid-mountain point"}. ${
-    modelFrom > 0 ? `Days 1–${modelFrom} are the NWS forecast; days ${modelFrom + 1}–10 (shaded) are an average of the GFS, ECMWF, AIFS and GEM models, which tend to run low in the mountains.` : "NWS gridded forecast, with global models beyond the NWS range (shaded)."
-  } Highlighted row: most snow in the next 5 days. Tap a resort for its full forecast.</p>`;
+  const max = Math.max(4, ...results.flatMap((x) => x.cells.map((c) => c.range?.[1] || 0)));
+  const best = Math.max(...results.map((x) => x.next5mid));
+  const firstModel = results[0]?.cells.findIndex((c) => c.src === "model");
+  const area = (r) => (region === "ne" ? { "Stratton Mountain": "Vermont", Killington: "Vermont", Stowe: "Vermont", Gunstock: "New Hampshire" }[r.name] || "New England" : r.name === "Snowbasin" ? "Ogden Valley" : /Deer Valley|Canyons/.test(r.name) ? "Park City" : "Cottonwood Canyons");
+  el.innerHTML = results
+    .map((x) => {
+      const top = x.next5mid === best && best >= 1;
+      const bars = x.cells
+        .map((c, k) => {
+          const hgt = c.range ? Math.max(c.range[1] ? 3 : 0, Math.round(((c.range[0] + c.range[1]) / 2 / max) * 56)) : 0;
+          const big = c.range && c.range[1] >= 6;
+          return `<div class="sf-seg ${c.half} ${c.src === "model" ? "is-model" : ""} ${big ? "is-big" : ""}" title="${escapeHTML(`${c.date} ${c.half}: ${c.range ? rangeText(c.range) : "–"}${c.src === "model" ? " (models)" : ""}`)}"><span class="sf-amt">${c.range ? rangeText(c.range) : "–"}</span><i style="height:${hgt}px"></i><span class="sf-temp">${c.temp != null ? c.temp + "°F" : ""}</span>${
+            c.half === "day" ? `<span class="sf-day">${k === 0 ? "Today" : new Date(c.from).toLocaleDateString("en-US", { weekday: "short", day: "numeric", timeZone: zone })}</span>` : ""
+          }</div>`;
+        })
+        .join("");
+      return `<article class="sf-card ${top ? "is-top" : ""}"><div class="sf-head"><div><a class="sf-name" href="${siteBase()}#${region}/${slug(x.r.name)}/forecast">${escapeHTML(x.r.name)}</a><div class="sf-meta">${x.elevFt ? x.elevFt.toLocaleString() + " ft · " : ""}${escapeHTML(area(x.r))}${CAMS[x.r.name] ? ` · <a href="${siteBase()}webcams/#${CAMS[x.r.name]}">cams</a>` : ""}</div></div><div class="sf-totals"><div><small>Next 5 days</small><b>${x.next5 ? rangeText(x.next5) : "–"}</b></div><div><small>Days 6–10</small><b>${x.later ? rangeText(x.later) : "–"}</b></div></div></div><div class="sf-strip-wrap"><div class="sf-strip">${bars}</div><button type="button" class="sf-next" aria-label="Scroll ${escapeHTML(x.r.name)} forecast">›</button></div></article>`;
+    })
+    .join("") +
+    `<p class="source">New snow in each 12-hour period (6am–6pm and 6pm–6am), shown as a likely range, with the high or low temperature below. Elevation is the NWS forecast point. ${
+      firstModel > 0
+        ? `NWS forecast through ${new Date(results[0].cells[firstModel].from).toLocaleDateString("en-US", { weekday: "long", timeZone: zone })}; after that (lighter, striped bars) the range spans the GFS, ECMWF and GEM models, which often run low in the mountains.`
+        : "Striped bars are from global models (GFS, ECMWF, GEM) beyond the NWS forecast."
+    } Highlighted resort: most snow in the next 5 days. Orange bars: 6″ or more possible.</p>`;
+  el.querySelectorAll(".sf-next").forEach((b) => {
+    const strip = b.previousElementSibling;
+    b.onclick = () => strip.scrollBy({ left: strip.clientWidth * 0.8, behavior: "smooth" });
+  });
 }
 
 function snowTabs() {
