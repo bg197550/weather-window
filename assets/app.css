@@ -2523,3 +2523,17 @@ p {
 .ins-tech[open] > summary::after { content: "Hide ▴"; }
 .ins-afd-link { grid-column: 1 / -1; margin: 0; }
 .ins-learn { margin: 12px 0 0; padding: 10px 12px; border-radius: 10px; background: #0b2433; border: 1px solid #294858; color: #cfe2e8; line-height: 1.5; }
+
+/* Alerts: names in the alerts bar open the full text. */
+.ab-event { border: 0; background: transparent; color: inherit; font: inherit; font-weight: 800; padding: 0; cursor: pointer; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.ab-event:hover, .ab-event:focus-visible { color: #fff; }
+.alert-dialog { width: min(720px, calc(100vw - 24px)); max-height: calc(100vh - 48px); padding: 0; border: 0; border-radius: 16px; background: transparent; color: #eaf6f8; }
+.alert-dialog::backdrop { background: #000a; }
+.alert-dialog-body { background: #3b2f11; border: 1px solid #735e26; border-left: 6px solid #b8860b; border-radius: 16px; padding: 16px 18px; max-height: calc(100vh - 48px); overflow-y: auto; }
+.alert-dialog-body.warning { background: #350f0f; border-color: #673232 #673232 #673232 #9c2f2f; }
+.alert-dialog-body.watch { background: #3e2b12; border-left-color: #c26a00; }
+.alert-dialog-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.alert-dialog-head h3 { margin: 0; font-size: 20px; }
+.alert-dialog-close { flex: none; width: 38px; height: 38px; border-radius: 50%; border: 1px solid #ffffff44; background: #0006; color: #fff; font: inherit; cursor: pointer; }
+.alert-dialog-when { color: #d7c9a8; margin: 6px 0 0; }
+.alert-dialog .alert-text { white-space: pre-wrap; font-family: inherit; line-height: 1.5; margin: 10px 0; }

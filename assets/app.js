@@ -1153,7 +1153,7 @@ function alertsBar() {
     ? `<div class="alerts-bar-inner"><span class="alert-icon" aria-hidden="true">▲</span>${rows
         .map(
           (r) =>
-            `<span class="ab-item"><b>${escapeHTML(r.a.event)}</b> ${r.where
+            `<span class="ab-item"><button type="button" class="ab-event" data-alert="${rows.indexOf(r)}" title="Read the full alert">${escapeHTML(r.a.event)} ›</button> ${r.where
               .slice(0, 4)
               .map((pl) => `<a href="#${r.sec}/${slug(pl.name)}/forecast">${escapeHTML(pl.name)}</a>`)
               .join(
@@ -1162,6 +1162,10 @@ function alertsBar() {
         )
         .join("")}</div>`
     : "";
+  el.querySelectorAll("[data-alert]").forEach((b) => {
+    const r = rows[+b.dataset.alert];
+    b.onclick = () => openAlertDialog(r.a, r.sec);
+  });
 }
 function updateAlertBadges() {
   alertsBar();

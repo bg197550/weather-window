@@ -526,6 +526,29 @@ function alertHTML(list, section) {
   return `<div class="alerts" role="region" aria-label="Active NWS alerts">${list.map((a) => `<details class="alert ${alertKind(a)}"><summary><span class="alert-icon" aria-hidden="true">${alertKind(a) === "warning" ? "▲" : alertKind(a) === "watch" ? "◆" : "●"}</span><b>${escapeHTML(a.event)}</b> <span class="alert-when">${escapeHTML(alertTime(a, section))}</span></summary><p><b>${escapeHTML(a.headline || "")}</b></p><pre class="alert-text">${escapeHTML((a.description || "").trim())}${a.instruction ? "\n\n" + escapeHTML(a.instruction.trim()) : ""}</pre><div class="source">${escapeHTML(a.senderName || "National Weather Service")}${a.areaDesc ? " · " + escapeHTML(a.areaDesc) : ""}</div></details>`).join("")}</div>`;
 }
 
+/* Full text of one alert in a dialog (used where alerts appear as short lines, like the alerts bar). */
+function openAlertDialog(a, section) {
+  let d = document.querySelector("#alert-dialog");
+  if (!d) {
+    d = document.createElement("dialog");
+    d.id = "alert-dialog";
+    d.className = "alert-dialog";
+    document.body.appendChild(d);
+    d.addEventListener("click", (e) => {
+      if (e.target === d || e.target.closest(".alert-dialog-close")) d.close();
+    });
+  }
+  const when = (v) => (v ? regionTime(v, section, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "");
+  const from = a.onset || a.effective,
+    to = a.ends || a.expires;
+  d.innerHTML = `<div class="alert-dialog-body ${alertKind(a)}"><div class="alert-dialog-head"><h3><span class="alert-icon" aria-hidden="true">${alertKind(a) === "warning" ? "▲" : alertKind(a) === "watch" ? "◆" : "●"}</span> ${escapeHTML(a.event || "Alert")}</h3><button type="button" class="alert-dialog-close" aria-label="Close">✕</button></div>${
+    from || to ? `<p class="alert-dialog-when">${from ? escapeHTML(when(from)) : ""}${to ? ` – ${escapeHTML(when(to))}` : ""}</p>` : ""
+  }${a.headline ? `<p><b>${escapeHTML(a.headline)}</b></p>` : ""}<pre class="alert-text">${escapeHTML((a.description || "").trim())}${a.instruction ? "\n\n" + escapeHTML(a.instruction.trim()) : ""}</pre><div class="source">${escapeHTML(a.senderName || "National Weather Service")}${a.areaDesc ? " · " + escapeHTML(a.areaDesc) : ""}</div></div>`;
+  if (typeof d.showModal === "function") d.showModal();
+  else d.setAttribute("open", "");
+  d.querySelector(".alert-dialog-close")?.focus();
+}
+
 function cToF(c) {
   return Number.isFinite(c) ? Math.round((c * 9) / 5 + 32) : null;
 }
