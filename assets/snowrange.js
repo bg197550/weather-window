@@ -52,10 +52,15 @@ function snowRatio(tF) {
 const snowFraction = (tF) => (tF == null ? 0 : tF <= 34 ? 1 : tF >= 38 ? 0 : (38 - tF) / 4);
 const hourSnow = (liq, tF) => (liq > 0 && tF != null ? liq * snowRatio(tF) * snowFraction(tF) : 0);
 
-/* Freezing level (ft) from the 700 mb temperature (°F) and height (m), with a standard 6.5 °C/km lapse rate. */
-function freezingFt(t700F, z700) {
-  if (!Number.isFinite(t700F) || !Number.isFinite(z700)) return null;
-  return (z700 + (t700F - 32) / 1.8 / 0.0065) * M2FT;
+/* Freezing level (ft) from the 700 mb temperature (°F) and height (ft), with a standard 6.5 °C/km lapse rate. */
+function freezingFt(t700F, z700ft) {
+  if (!Number.isFinite(t700F) || !Number.isFinite(z700ft)) return null;
+  return z700ft + ((t700F - 32) / 1.8 / 0.0065) * M2FT;
+}
+/* Open-Meteo reports heights in feet when Fahrenheit is requested and in meters otherwise; read the unit it sent. */
+function heightToFt(resp, word) {
+  const u = Object.entries(resp?.hourly_units || {}).find(([k]) => k.includes(word))?.[1];
+  return u === "ft" ? 1 : M2FT;
 }
 
 function quant(sorted, p) {
@@ -145,9 +150,9 @@ function buildRange(r, ens, g05, det, nowMs = Date.now()) {
     }
     return cum;
   };
-  const levelFrom = (t7, z7, fl) =>
+  const levelFrom = (t7, z7, fl, zMul, fMul) =>
     Array.from({ length: n }, (_, k) => {
-      const f = Number.isFinite(fl?.[k]) ? fl[k] * M2FT : freezingFt(t7?.[k], z7?.[k]);
+      const f = Number.isFinite(fl?.[k]) ? fl[k] * fMul : Number.isFinite(z7?.[k]) ? freezingFt(t7?.[k], z7[k] * zMul) : null;
       return f == null ? null : f - SNOW_LEVEL_OFFSET;
     });
 
@@ -162,7 +167,7 @@ function buildRange(r, ens, g05, det, nowMs = Date.now()) {
       temp = tail(T2.get(id)?.values);
     const t7 = T7.get(id)?.values,
       z7 = Z7.get(id)?.values;
-    const lv = t7?.some(Number.isFinite) ? levelFrom(tail(t7), tail(z7)) : null;
+    const lv = t7?.some(Number.isFinite) ? levelFrom(tail(t7), tail(z7), null, heightToFt(ens, "geopotential")) : null;
     members.push({ id, fam: ENS_NAMES[p.model] || p.model, liq, temp, cloud: tail(CC.get(id)?.values), cum: cumulative(liq, temp), level: lv });
     const m = members[members.length - 1];
     m.last = m.cum.findLastIndex((v) => v != null);
@@ -177,7 +182,7 @@ function buildRange(r, ens, g05, det, nowMs = Date.now()) {
       for (const [id, s] of t7) {
         const zz = z7.get(id)?.values;
         if (!s.values.some(Number.isFinite)) continue;
-        levels.push({ fam: "GEFS", level: levelFrom(s.values.slice(off), zz?.slice(off)) });
+        levels.push({ fam: "GEFS", level: levelFrom(s.values.slice(off), zz?.slice(off), null, heightToFt(g05, "geopotential")) });
       }
     }
   }
@@ -190,7 +195,7 @@ function buildRange(r, ens, g05, det, nowMs = Date.now()) {
         const liq = g("precipitation"),
           temp = g("temperature_2m");
         if (!liq.some(Number.isFinite)) continue;
-        const lv = levelFrom(g("temperature_700hPa"), g("geopotential_height_700hPa"), g("freezing_level_height"));
+        const lv = levelFrom(g("temperature_700hPa"), g("geopotential_height_700hPa"), g("freezing_level_height"), heightToFt(det, "geopotential"), heightToFt(det, "freezing_level"));
         const d = { ...m, liq, temp, cum: cumulative(liq, temp), level: lv.some((v) => v != null) ? lv : null };
         dets.push(d);
         if (d.level) levels.push({ fam: m.label, level: d.level, det: true });

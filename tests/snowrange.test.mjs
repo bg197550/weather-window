@@ -6,7 +6,7 @@ const src = readFileSync(new URL("../assets/snowrange.js", import.meta.url), "ut
 function ctx() {
   const s = { Date, Intl, Math, Number, URL, Map, Object, Array, String, RegExp, Promise, addEventListener() {}, setTimeout, clearTimeout, getJSON: async () => ({}), escapeHTML: (x) => String(x), document: { querySelector: () => null } };
   vm.createContext(s);
-  vm.runInContext(src + ";this.api={snowRatio,snowFraction,hourSnow,freezingFt,seriesOf,buildRange,RANGE_RESORTS};", s);
+  vm.runInContext(src + ";this.api={snowRatio,snowFraction,hourSnow,freezingFt,seriesOf,buildRange,heightToFt,RANGE_RESORTS};", s);
   return s.api;
 }
 test("snow ratio rises from ~8:1 at 32°F to 16–17:1 in the teens", () => {
@@ -21,9 +21,14 @@ test("snow ratio rises from ~8:1 at 32°F to 16–17:1 in the teens", () => {
 });
 test("freezing level from 700 mb temperature and height", () => {
   const { freezingFt } = ctx();
-  assert.equal(Math.round(freezingFt(32, 3000)), Math.round(3000 * 3.28084));
-  assert.ok(freezingFt(23, 3000) < 3000 * 3.28084);
+  assert.equal(Math.round(freezingFt(32, 10000)), 10000);
+  assert.ok(Math.abs(freezingFt(23, 10000) - (10000 - (5 / 0.0065) * 3.28084)) < 1);
   assert.equal(freezingFt(null, 3000), null);
+});
+test("heights follow the unit Open-Meteo reports", () => {
+  const { heightToFt } = ctx();
+  assert.equal(heightToFt({ hourly_units: { geopotential_height_700hPa: "ft" } }, "geopotential"), 1);
+  assert.ok(Math.abs(heightToFt({ hourly_units: { geopotential_height_700hPa: "m" } }, "geopotential") - 3.28084) < 1e-9);
 });
 test("member keys parse for multi-model and single-model responses", () => {
   const { seriesOf } = ctx();
