@@ -124,8 +124,9 @@
     <h3>Model</h3>
     <label><input type="radio" name="model" value="ecmwf_ifs" checked> ECMWF (9 km, 7 days)</label>
     <label><input type="radio" name="model" value="gfs_seamless"> GFS (7 days)</label>
-    <label><input type="radio" name="model" value="ncep_nbm_conus"> NBM blend (7 days)</label>
+    <label><input type="radio" name="model" value="ncep_nbm_conus"> NBM blend (2.5 km, 7 days)</label>
     <label><input type="radio" name="model" value="ncep_hrrr_conus"> HRRR (3 km, 48 hrs)</label>
+    <p style="margin:6px 0 0;color:var(--muted);font-size:12px">For canyon-scale detail, use HRRR or NBM and zoom in.</p>
   </div>
   <div class="grp">
     <h3>Map</h3>
@@ -218,7 +219,7 @@ function buildGrid(b = CFG.bbox) {
 }
 
 async function fetchModel(model) {
-  const key = `wxmap_${CFG.id}_${model}`;
+  const key = `wxmap_${CFG.id}_v2_${model}`;
   try {
     const c = JSON.parse(localStorage.getItem(key) || 'null');
     if (c && Date.now() - c.at < CACHE_TTL) return c.d;
@@ -265,11 +266,14 @@ async function fetchGrid(model, g) {
       const T = h.temperature_2m[ti];
       let c = NONE;
       if (p >= 0.05) {
+        // The model's own snowfall comes from its coarse grid cell, which sits far below the Wasatch peaks,
+        // so it calls mountain snow "rain". temperature_2m is adjusted to each point's real elevation: use it.
         const swe = sn * 10 / 7, frac = p > 0 ? Math.min(1, swe / p) : 0;
         if (wc === 56 || wc === 57 || wc === 66 || wc === 67) c = FZRA;
-        else if (frac >= 0.7) c = SNOW;
-        else if (frac > 0.25) c = MIX;
-        else c = RAIN;
+        else if (T !== null && T <= 32) c = SNOW;
+        else if (T !== null && T >= 38) c = frac >= 0.7 ? SNOW : RAIN;
+        else if (frac >= 0.7 || (T !== null && T <= 34)) c = SNOW;
+        else c = MIX;
       }
       cls.push(c); rate.push(+p.toFixed(2)); snow.push(+sn.toFixed(2)); temp.push(T === null ? null : Math.round(T));
     }
@@ -340,13 +344,14 @@ function frameImage(D, g, t, cache) {
     const cls = D.cls[t], rate = D.rate[t];
     // per-class intensity fields so boundaries blend smoothly
     const fields = [RAIN, SNOW, MIX, FZRA].map(c => sampler(cls.map((k, i) => k === c ? Math.max(rate[i], 0.05) : 0), g));
+    const wet = sampler(cls.map(k => (k ? 1 : 0)), g);
     for (let y = 0; y < H; y++) {
       const fy = rowFy[y];
       for (let x = 0; x < W; x++) {
         const fx = x / F;
         let best = 0, bc = 0;
         for (let k = 0; k < 4; k++) { const v = fields[k](fx, fy); if (v > best) { best = v; bc = k + 1; } }
-        if (best < 0.035) continue;
+        if (best < 0.035 || wet(fx, fy) < 0.5) continue;
         const col = ptypeColor(bc, best), o = (y * W + x) * 4;
         px[o] = col[0]; px[o + 1] = col[1]; px[o + 2] = col[2];
         px[o + 3] = Math.round(255 * clamp(0.45 + best * 0.35, 0.45, 0.95) * clamp((best - 0.035) / 0.05, 0, 1));
