@@ -2435,6 +2435,7 @@ p {
 .ins-cycle-list { list-style: none; padding: 0; margin: 12px 0 4px; display: grid; gap: 8px; }
 .ins-cycle-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; background: #0b2433; border: 1px solid #294858; border-radius: 12px; padding: 10px 12px; }
 .ins-cycle-list .amt { font-weight: 600; }
+.ins-cycle-list .amt .rng { display: inline; font-weight: 400; color: #9fb1bc; font-size: 13px; }
 .ins-cycle-list small { flex-basis: 100%; color: #9fb1bc; font-size: 13px; }
 .ins-plume { display: block; width: 100%; height: auto; margin-top: 12px; }
 .ins-legend { color: #9fb1bc; font-size: 13px; margin: 6px 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }

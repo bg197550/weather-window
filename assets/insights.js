@@ -188,7 +188,29 @@ function findStorms(det) {
     }
   }
   if (cur) storms.push(cur);
-  return storms
+  // Split back-to-back storms at a lull: 6+ hours of light or no precipitation (under 0.01″/h) with at
+  // least 0.10″ of liquid on each side. Without this, a trickle between two systems merges them into one.
+  const sum = (x, y) => pr.slice(x, y).reduce((p, q) => p + (q || 0), 0);
+  const split = [];
+  for (const s of storms) {
+    let from = s.a,
+      i = s.a;
+    while (i <= s.b) {
+      if ((pr[i] || 0) >= 0.01) {
+        i++;
+        continue;
+      }
+      let j = i;
+      while (j <= s.b && (pr[j] || 0) < 0.01) j++;
+      if (j - i >= 6 && i > from && sum(from, i) >= 0.1 && sum(j, s.b + 1) >= 0.1) {
+        split.push({ a: from, b: i - 1 });
+        from = j;
+      }
+      i = j;
+    }
+    split.push({ a: from, b: s.b });
+  }
+  return split
     .map((s) => ({ ...s, start: t[s.a], end: t[s.b] + H, total: pr.slice(s.a, s.b + 1).reduce((x, y) => x + (y || 0), 0) }))
     .filter((s) => s.total >= 0.05 && s.end > now)
     .slice(0, 4);
@@ -1013,33 +1035,60 @@ function pointSnow(j, elevFt, a, b) {
   return mean(per);
 }
 
-/* Running 10-day snow total at this point for every ensemble run, summarized as 10th/50th/90th percentiles per day. */
-function cycleBand(data, elevFt) {
-  if (!data.ens?.hourly || elevFt == null) return null;
+/* Ensemble totals at this point between a and b, one per run, using the same snow rule as the resort table
+   (snow level and ratio from the model 700 mb temperature, no NWS grid). Runs that end early are left out. */
+function memberTotals(data, elevFt, a, b) {
+  if (!data.ens?.hourly || elevFt == null) return [];
   const et = data.ens.hourly.time.map(insT),
-    factor = snowFactor(data, elevFt),
-    now = Date.now();
-  const steps = Array.from({ length: 11 }, (_, d) => now + d * 24 * H);
-  const runs = [];
+    factor = snowFactor({ det: data.det, nws: null }, elevFt),
+    out = [];
   for (const k of Object.keys(data.ens.hourly)) {
     const m = k.match(/^precipitation_(?:member\d+_)?(.+)$/);
     if (!m || !INS_ENS.includes(m[1])) continue;
     const v = data.ens.hourly[k];
-    const cum = steps.map(() => 0);
-    let last = 0;
+    let tot = 0,
+      last = 0;
     for (let i = 0; i < et.length; i++) {
-      if (et[i] < now || !Number.isFinite(v[i])) continue;
+      if (et[i] < a || et[i] >= b || !Number.isFinite(v[i])) continue;
       last = et[i] + H;
-      const s = v[i] * factor(et[i]);
-      for (let d = 1; d < steps.length; d++) if (et[i] < steps[d]) cum[d] += s;
+      tot += v[i] * factor(et[i]);
     }
-    // A run that stops early (some ensembles are shorter) only counts for the days it covers.
-    if (last) runs.push(cum.map((c, d) => (last >= steps[d] - H ? c : null)));
+    if (last >= b - H) out.push(tot);
   }
-  if (!runs.length) return null;
-  const q = (p) =>
-    steps.map((_, d) => quantile(runs.map((r) => r[d]).filter(Number.isFinite).sort((x, y) => x - y), p));
-  return { steps, p10: q(0.1), p50: q(0.5), p90: q(0.9), n: runs.length };
+  return out.sort((x, y) => x - y);
+}
+
+/* Snow between a and b at this point: the middle is the GFS/ECMWF/GEM/ICON average (identical to this point's cell
+   in the resort table); the low and high ends are the ensemble 10th/90th percentiles, rescaled so the ensemble
+   median lands on that average. The coarser ensembles run dry over the Wasatch, so their raw amounts sit low. */
+function cycleRange(data, elevFt, a, b) {
+  const mid = pointSnow(data.det, elevFt, a, b),
+    tots = memberTotals(data, elevFt, a, b),
+    med = quantile(tots, 0.5);
+  if (mid == null) return null;
+  const k = med != null && med >= 0.3 ? mid / med : null;
+  return {
+    lo: k != null ? quantile(tots, 0.1) * k : null,
+    mid,
+    hi: k != null ? quantile(tots, 0.9) * k : null,
+    n: tots.length,
+  };
+}
+
+/* Running 10-day total at this point: model average for the middle line, rescaled ensemble range for the band. */
+function cycleBand(data, elevFt) {
+  if (!data.det?.hourly || elevFt == null) return null;
+  const now = Date.now();
+  const steps = Array.from({ length: 11 }, (_, d) => now + d * 24 * H);
+  const r = steps.map((t, d) => (d ? cycleRange(data, elevFt, now, t) : { lo: 0, mid: 0, hi: 0, n: 0 }));
+  if (!r[10]) return null;
+  return {
+    steps,
+    p10: r.map((x) => x?.lo ?? null),
+    p50: r.map((x) => x?.mid ?? null),
+    p90: r.map((x) => x?.hi ?? null),
+    n: r[10].n,
+  };
 }
 
 function bandChart(band, storms, section) {
@@ -1054,7 +1103,7 @@ function bandChart(band, storms, section) {
   const t0 = band.steps[0],
     t1 = band.steps[band.steps.length - 1];
   const x = (ms) => L + ((ms - t0) / (t1 - t0)) * pw;
-  const top = Math.max(4, ...band.p90.filter(Number.isFinite)) * 1.1;
+  const top = Math.max(4, ...band.p90.filter(Number.isFinite), ...band.p50.filter(Number.isFinite)) * 1.1;
   const y = (v) => T + ph - (v / top) * ph;
   const stepIn = top > 60 ? 20 : top > 30 ? 10 : top > 12 ? 5 : top > 6 ? 2 : 1;
   let grid = "";
@@ -1070,7 +1119,8 @@ function bandChart(band, storms, section) {
     .join("");
   const idx = band.steps.map((_, d) => d).filter((d) => Number.isFinite(band.p50[d]));
   const pts = (arr) => idx.map((d) => `${x(band.steps[d]).toFixed(1)},${y(arr[d]).toFixed(1)}`);
-  const area = `<polygon points="${[...pts(band.p90), ...pts(band.p10).reverse()].join(" ")}" fill="#79d7e5" opacity="0.22"/>`;
+  const hasBand = idx.every((d) => Number.isFinite(band.p10[d]) && Number.isFinite(band.p90[d]));
+  const area = hasBand ? `<polygon points="${[...pts(band.p90), ...pts(band.p10).reverse()].join(" ")}" fill="#79d7e5" opacity="0.22"/>` : "";
   const line = (arr, extra) => `<polyline points="${pts(arr).join(" ")}" fill="none" stroke="#79d7e5" ${extra}/>`;
   const zone = regionZone(section);
   const labels = band.steps
@@ -1079,8 +1129,8 @@ function bandChart(band, storms, section) {
     )
     .join("");
   const last = idx[idx.length - 1];
-  const label = `Running snow total over the next 10 days: median ${fmtAmt(band.p50[last], true)}, 10th to 90th percentile ${fmtAmt(band.p10[last], true)} to ${fmtAmt(band.p90[last], true)}.`;
-  return `<svg class="ins-plume" viewBox="0 0 ${w} ${h}" role="img" aria-label="${escapeHTML(label)}">${grid}${shades}${area}${line(band.p10, 'stroke-width="1.5" stroke-dasharray="4 4"')}${line(band.p90, 'stroke-width="1.5" stroke-dasharray="4 4"')}${line(band.p50, 'stroke-width="3"')}${labels}</svg><p class="ins-legend"><span class="ins-key ins-key-line"></span>Median <span class="ins-key ins-key-band"></span>10th–90th percentile of ${band.n} ensemble runs <span class="ins-key ins-key-storm"></span>Storm windows</p>`;
+  const label = `Running snow total over the next 10 days: model average ${fmtAmt(band.p50[last], true)}${hasBand ? `, likely range ${fmtAmt(band.p10[last], true)} to ${fmtAmt(band.p90[last], true)}` : ""}.`;
+  return `<svg class="ins-plume" viewBox="0 0 ${w} ${h}" role="img" aria-label="${escapeHTML(label)}">${grid}${shades}${area}${hasBand ? line(band.p10, 'stroke-width="1.5" stroke-dasharray="4 4"') + line(band.p90, 'stroke-width="1.5" stroke-dasharray="4 4"') : ""}${line(band.p50, 'stroke-width="3"')}${labels}</svg><p class="ins-legend"><span class="ins-key ins-key-line"></span>Model average ${hasBand ? `<span class="ins-key ins-key-band"></span>Likely range (spread of ${band.n} ensemble runs) ` : ""}<span class="ins-key ins-key-storm"></span>Storm windows</p>`;
 }
 
 const stormWindow = (x) => [x.current ? Date.now() : x.start - 6 * H, x.end + 6 * H];
@@ -1101,7 +1151,8 @@ function cycleCard(storms, data, section, elevFt, placeName) {
           ? `Snow level about ${(Math.round(snowLevelAt(null, 0, x.t700mean) / 100) * 100).toLocaleString()} ft (models)`
           : "";
       const q = snowQuality(x.t700mean);
-      const amt = x.snowRange[0] != null ? `${fmtAmt(x.snowRange[0], true)}–${fmtAmt(x.snowRange[2], true)}` : "–";
+      const r = cycleRange(data, elevFt, ...stormWindow(x));
+      const amt = !r ? "–" : r.lo != null ? `${fmtAmt(r.mid, true)} <small class="rng">(${fmtAmt(r.lo, true)}–${fmtAmt(r.hi, true)})</small>` : fmtAmt(r.mid, true);
       return `<li><b>Storm ${i + 1}</b><span>${escapeHTML(x.current ? `Now → ${partOfDay(x.end, section)}` : `${cap(partOfDay(x.start, section))} → ${partOfDay(x.end, section)}`)}</span><span class="amt">${amt} here</span><span class="ins-conf ins-conf-${(x.conf || "na").toLowerCase()}">${x.conf ? x.conf + " confidence" : "Confidence n/a"}</span><small>${[lvl, q?.label].filter(Boolean).map(escapeHTML).join(" · ")}</small></li>`;
     })
     .join("");
@@ -1109,9 +1160,9 @@ function cycleCard(storms, data, section, elevFt, placeName) {
   const last = band ? band.steps.map((_, d) => d).filter((d) => Number.isFinite(band.p50[d])).pop() : null;
   const totals =
     band && last != null
-      ? `<h4>10-day total${placeName ? ` · ${escapeHTML(placeName)}` : ""}</h4><div class="ins-stats"><div><span>Low end</span><strong>${fmtAmt(band.p10[last], true)}</strong><small>10th percentile</small></div><div><span>Middle</span><strong>${fmtAmt(band.p50[last], true)}</strong><small>ensemble median</small></div><div><span>High end</span><strong>${fmtAmt(band.p90[last], true)}</strong><small>90th percentile</small></div></div>${bandChart(band, storms, section)}`
+      ? `<h4>10-day total${placeName ? ` · ${escapeHTML(placeName)}` : ""}</h4><div class="ins-stats"><div><span>Low end</span><strong>${fmtAmt(band.p10[last], true)}</strong><small>ensemble spread, 10th percentile</small></div><div><span>Middle</span><strong>${fmtAmt(band.p50[last], true)}</strong><small>model average · matches the table</small></div><div><span>High end</span><strong>${fmtAmt(band.p90[last], true)}</strong><small>ensemble spread, 90th percentile</small></div></div>${bandChart(band, storms, section)}`
       : "";
-  return `<article class="card afd-card ins-cycle"><div class="ins-head"><h3>Wasatch storm cycle · next 10 days</h3><span class="ins-conf">${storms.length} storm${storms.length === 1 ? "" : "s"}</span></div><ol class="ins-cycle-list">${list}</ol>${totals}<h4>By mountain</h4><div id="ins-cycle-table"><div class="state">Loading resort totals…</div></div><p class="source">Storm amounts “here” and the 10-day range use GEFS, ECMWF ENS and GEM ENS runs at this point. The resort table averages GFS, ECMWF, GEM and ICON; snow ratio and snow level come from each model's 700 mb temperature, so it can differ a little from the storm cards below.</p></article>`;
+  return `<article class="card afd-card ins-cycle"><div class="ins-head"><h3>Wasatch storm cycle · next 10 days</h3><span class="ins-conf">${storms.length} storm${storms.length === 1 ? "" : "s"}</span></div><ol class="ins-cycle-list">${list}</ol>${totals}<h4>By mountain</h4><div id="ins-cycle-table"><div class="state">Loading resort totals…</div></div><p class="source">All amounts on this card use one method: the GFS, ECMWF, GEM and ICON average, with snow level and snow ratio from each model's 700 mb temperature, so “here” matches this resort's row in the table. Ranges come from the GEFS, ECMWF ENS and GEM ENS spread, rescaled to that average because the coarser ensembles run dry over the Wasatch. The storm cards below use the ensembles directly and the NWS snow level, so they can read lower.</p></article>`;
 }
 
 async function fillCycleTable(el, key, storms, section, pt) {
@@ -1179,7 +1230,7 @@ async function loadInsights(pt, section) {
     const pattern = patternCard(data, section, storms);
     if (insKind === "utah" && storms.length) {
       const which = place && !place.searched ? `${place.name}${place.p.length > 1 ? ` ${pt.p[2]?.split(" · ")[0]?.toLowerCase() || ""}` : ""}` : "";
-      html += cycleCard(storms, data, section, elevFt, which.trim());
+      html += cycleCard(storms, data, section, elevOf(pt.p[2]) ?? elevFt, which.trim());
       cycle = storms;
     }
     html += summaryCard(storms, data, section);
