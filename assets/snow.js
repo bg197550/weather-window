@@ -9,7 +9,7 @@ let focusResort = "",
   hourlyResort = 0,
   hourlyPoint = 1,
   lastLoad = Date.now();
-const TABS = { forecast: "Snow forecast", map: "Powder map", resorts: "Resorts", snowpack: "Snowpack", models: "Models", hourly: "Hourly" };
+const TABS = { forecast: "Snow forecast", map: "Powder map", range: "Range & snow level", resorts: "Resorts", snowpack: "Snowpack", models: "Models", hourly: "Hourly" };
 
 function makePlot(series, labels, unit, type, selected) {
   const n = labels.length,
@@ -489,6 +489,10 @@ function render() {
         .join("")}</nav></div><div id="powder-map" class="powder-map"><div class="state">Loading 15-day snow totals…</div></div><div id="powder-list" class="powder-list"></div><p class="source">Total new snow expected over the next 15 days: the NWS forecast for its first week, then the average of the GFS and ECMWF models (GEM through day 10). Days 11–15 are rough guidance. Tap a mountain for its day-by-day forecast.</p></article>`;
     if (forecastRegion === "ne") content.querySelector(".detail-actions")?.remove();
     loadPowderMap(forecastRegion);
+  } else if (tab === "range") {
+    content.innerHTML =
+      head.replace("Wasatch resorts · NWS forecasts, global models and measured snowpack", "How much snow every model run shows, and where rain turns to snow") + `<div id="range-root"></div>`;
+    loadRangeView();
   } else if (tab === "resorts") {
     content.innerHTML =
       head +
@@ -522,13 +526,14 @@ function render() {
   }
   content.querySelector(".toolbar")?.insertAdjacentHTML("afterend", snowTabs());
   loadMountainAlerts();
-  const h = tab + (tab === "hourly" ? "/" + slug(RESORTS[hourlyResort].name) : tab === "forecast" || tab === "map" ? "/" + forecastRegion + (tab === "forecast" && focusResort ? "/" + focusResort : "") : "");
+  const h = tab + (tab === "hourly" ? "/" + slug(RESORTS[hourlyResort].name) : tab === "range" ? "/" + rangeResort : tab === "forecast" || tab === "map" ? "/" + forecastRegion + (tab === "forecast" && focusResort ? "/" + focusResort : "") : "");
   if (location.hash.slice(1) !== h) history.replaceState(null, "", "#" + h);
 }
 function readHash() {
   const [t, a] = location.hash.slice(1).split("/");
   if (TABS[t]) tab = t;
   if ((t === "forecast" || t === "map") && (a === "utah" || a === "ne")) forecastRegion = a;
+  if (t === "range" && RANGE_RESORTS.some((x) => x.slug === a)) rangeResort = a;
   focusResort = t === "forecast" ? location.hash.slice(1).split("/")[2] || "" : "";
   if (t === "hourly" && a) {
     const i = RESORTS.findIndex((r) => slug(r.name) === a);
@@ -552,6 +557,7 @@ setInterval(() => {
     alertCache.clear();
     hourlyCache.clear();
     snowModelCache.clear();
+    rangeCache.clear();
     lastLoad = Date.now();
     loadSnotel();
     render();
