@@ -35,7 +35,7 @@ async function buildOne(slug, name, section, tries) {
   const pl = SnowCore.placeFor({ name, slug }, section);
   for (let attempt = 1; attempt <= tries; attempt++) {
     try {
-      return await SnowCore.outlook(pl, { nwsUA: UA });
+      return await SnowCore.outlook(pl, { nwsUA: UA, nwsSearch: 1 });
     } catch (e) {
       const wait = 30000 * attempt;
       console.log(`${slug}: ${why(e)}${attempt < tries ? `, retrying in ${wait / 1000} s` : ""}`);
@@ -50,7 +50,7 @@ function save(slug, o) {
   const { members, dets, levels, mid, times, h, temp, ...meta } = t;
   summary.places[slug] = meta;
   ok++;
-  console.log(`${slug}: 10-day ${o.totals[10].mid}″ (${o.totals[10].lo}–${o.totals[10].hi}), NWS ${o.nws ? "yes" : "no"}`);
+  console.log(`${slug}: 10-day ${o.totals[10].mid}″ (${o.totals[10].lo}–${o.totals[10].hi}), NWS ${o.nws ? `${o.nws.cell} at ${o.nws.elev} ft, scale ${o.nws.scale}` : "none"}`);
 }
 const failed = [];
 for (const [slug, [name, section]] of Object.entries(NAMES)) {
