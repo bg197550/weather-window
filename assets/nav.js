@@ -19,6 +19,8 @@ window.WW = (function () {
     { key: "radar", label: "Radar", icon: "◎", href: (b, c) => `${b}#radar/${c.section === "ne" ? "sne" : "wasatch"}`, maps: true },
     { key: "precip", label: "Precip models", icon: "☂", href: (b, c) => `${b}#precip/${c.section}`, maps: true },
     { key: "long", label: "Long range", icon: "≋", href: (b) => `${b}#long`, maps: true },
+    { key: "stormwest", label: "Storm map · Utah/West", icon: "◍", href: (b) => `${b}weather-map-west.html`, maps: true },
+    { key: "stormne", label: "Storm map · Northeast", icon: "◍", href: (b) => `${b}weather-map-northeast.html`, maps: true },
   ];
   const BAR = ["forecast", "insights", "cams", "radar"];
   let base = "",
