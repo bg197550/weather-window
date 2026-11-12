@@ -102,3 +102,29 @@
   .sf-head { gap: 6px; }
   .sf-totals { width: 100%; justify-content: flex-start; text-align: left; gap: 22px; }
 }
+
+/* Powder map */
+.powder-map { height: 460px; border-radius: 12px; overflow: hidden; background: #0b1f2b; }
+.powder-map .state, .powder-map .error { padding: 20px; }
+.powder-icon { background: none; border: 0; }
+.powder-pin { width: 84px; height: 38px; justify-content: center; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 2px 4px; border-radius: 8px; border: 2px solid #fff; background: #6c7a83; color: #fff; font: inherit; cursor: pointer; box-shadow: 0 2px 8px #0009; white-space: nowrap; transform: translate(0, 0); }
+.powder-pin b { font-size: 17px; line-height: 1.1; }
+.powder-pin span { font-size: 10px; font-weight: 700; opacity: 0.95; max-width: 76px; overflow: hidden; text-overflow: ellipsis; }
+.powder-pin.some { background: #2f78c4; }
+.powder-pin.good { background: #e07a10; }
+.powder-pin.deep { background: #c2410c; border-color: #ffd7a3; }
+.powder-pop b { font-size: 15px; }
+.powder-pop .pp-total { font-size: 22px; font-weight: 800; margin: 2px 0 6px; }
+.powder-pop .pp-total small { font-size: 12px; font-weight: 500; color: #555; }
+.powder-pop .pp-bars { display: flex; align-items: flex-end; gap: 2px; height: 48px; border-bottom: 1px solid #ccc; margin-bottom: 6px; }
+.powder-pop .pp-bars i { flex: 1; background: #2f78c4; border-radius: 2px 2px 0 0; }
+.powder-pop .pp-bars i.m { background: repeating-linear-gradient(45deg, #2f78c4 0 3px, #8fb8e4 3px 6px); }
+.powder-pop .pp-parts { display: flex; gap: 10px; font-size: 12px; color: #444; margin-bottom: 8px; flex-wrap: wrap; }
+.powder-pop a { display: block; font-weight: 700; margin-top: 4px; }
+.powder-list ol { list-style: none; margin: 12px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 6px; }
+.powder-list a { display: flex; align-items: baseline; gap: 8px; padding: 8px 12px; border-radius: 10px; background: #0d2533; border: 1px solid #23414f; color: #eaf6f8; text-decoration: none; }
+.powder-list a span { flex: 1; font-weight: 650; }
+.powder-list a b { font-size: 17px; color: #f2c780; }
+.powder-list a small { color: #9fb1bc; font-size: 12px; }
+.sf-card.is-focus { border-color: #70d9de; box-shadow: 0 0 0 2px #70d9de55; }
+@media (max-width: 760px) { .powder-map { height: 380px; } }
