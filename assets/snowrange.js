@@ -59,7 +59,8 @@ function freezingFt(t700F, z700ft) {
 }
 /* Open-Meteo reports heights in feet when Fahrenheit is requested and in meters otherwise; read the unit it sent. */
 function heightToFt(resp, word) {
-  const u = Object.entries(resp?.hourly_units || {}).find(([k]) => k.includes(word))?.[1];
+  // Models with no data for a variable report its unit as "undefined", so only a real unit counts.
+  const u = Object.entries(resp?.hourly_units || {}).find(([k, v]) => k.includes(word) && (v === "ft" || v === "m"))?.[1];
   return u === "ft" ? 1 : M2FT;
 }
 

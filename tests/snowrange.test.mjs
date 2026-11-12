@@ -28,6 +28,7 @@ test("freezing level from 700 mb temperature and height", () => {
 test("heights follow the unit Open-Meteo reports", () => {
   const { heightToFt } = ctx();
   assert.equal(heightToFt({ hourly_units: { geopotential_height_700hPa: "ft" } }, "geopotential"), 1);
+  assert.equal(heightToFt({ hourly_units: { freezing_level_height_ecmwf_ifs025: "undefined", freezing_level_height_gfs_seamless: "ft" } }, "freezing_level"), 1);
   assert.ok(Math.abs(heightToFt({ hourly_units: { geopotential_height_700hPa: "m" } }, "geopotential") - 3.28084) < 1e-9);
 });
 test("member keys parse for multi-model and single-model responses", () => {
