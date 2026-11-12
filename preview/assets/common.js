@@ -4,6 +4,13 @@ const utah = [
   { name: "Snyderville", p: [[40.6957, -111.5442, "Town"]] },
   { name: "Park City", p: [[40.647, -111.498, "Town"]] },
   {
+    name: "Park City Mountain",
+    p: [
+      [40.636, -111.535, "Mid mountain · ~8,400 ft"],
+      [40.6214, -111.5588, "Peak · Jupiter Peak ~10,026 ft"],
+    ],
+  },
+  {
     name: "Deer Valley",
     p: [
       [40.62, -111.485, "Mid mountain · ~8,100 ft"],
@@ -92,6 +99,7 @@ const OBS_STATIONS = {
 const CAMS = {
   Snyderville: "canyons-resort",
   "Park City": "park-city",
+  "Park City Mountain": "park-city",
   "Deer Valley": "deer-valley",
   "Canyons Resort": "canyons-resort",
   Alta: "alta",
@@ -288,7 +296,7 @@ async function loadResortSnow() {
         p
           ? `<span><b>${f(p.s24)}</b> / <b>${f(p.s48)}</b> / <b>${f(p.s72)}</b></span>`
           : "<span>unavailable</span>";
-      return `<tr class="${top ? "flag" : ""}"><th>${/\/snow\//.test(location.pathname) ? `<a class="resort-link" href="#detail/${slug(x.name)}">${escapeHTML(x.name)}</a>` : escapeHTML(x.name)}${CAMS[x.name] ? `<a class="row-link" href="${siteBase()}webcams/#${CAMS[x.name]}" aria-label="${escapeHTML(x.name)} webcams">cams</a>` : ""}${top ? ' <span class="most">▲ most snow</span>' : ""}</th><td data-label="Mid 24/48/72h">${cell(x.pts[0])}</td><td data-label="Peak 24/48/72h">${x.pts[0] && x.pts[1] && x.pts[0].grid === x.pts[1].grid ? '<span class="same-grid">Same as mid<small>one NWS grid covers both</small></span>' : cell(x.pts[1])}</td><td data-label="Snow level"><span>${lv ? `${(Math.round(lv.ft / 100) * 100).toLocaleString()} ft<small>${new Date(lv.time).toLocaleString("en-US", { weekday: "short", hour: "numeric", timeZone: "America/Denver", timeZoneName: "short" })}</small>` : !known ? "Unavailable" : snowing ? "No snow-level data" : "No accumulating snow"}</span></td><td data-label="Avalanche"><a href="${uacURL(x.name)}" target="_blank" rel="noopener">UAC ${UAC[x.name] ? "Ogden" : "Salt Lake"} ↗</a></td></tr>`;
+      return `<tr class="${top ? "flag" : ""}"><th>${escapeHTML(x.name)}${CAMS[x.name] ? `<a class="row-link" href="${siteBase()}webcams/#${CAMS[x.name]}" aria-label="${escapeHTML(x.name)} webcams">cams</a>` : ""}${top ? ' <span class="most">▲ most snow</span>' : ""}</th><td data-label="Mid 24/48/72h">${cell(x.pts[0])}</td><td data-label="Peak 24/48/72h">${x.pts[0] && x.pts[1] && x.pts[0].grid === x.pts[1].grid ? '<span class="same-grid">Same as mid<small>one NWS grid covers both</small></span>' : cell(x.pts[1])}</td><td data-label="Snow level"><span>${lv ? `${(Math.round(lv.ft / 100) * 100).toLocaleString()} ft<small>${new Date(lv.time).toLocaleString("en-US", { weekday: "short", hour: "numeric", timeZone: "America/Denver", timeZoneName: "short" })}</small>` : !known ? "Unavailable" : snowing ? "No snow-level data" : "No accumulating snow"}</span></td><td data-label="Avalanche"><a href="${uacURL(x.name)}" target="_blank" rel="noopener">UAC ${UAC[x.name] ? "Ogden" : "Salt Lake"} ↗</a></td></tr>`;
     })
     .join(
       "",
@@ -526,6 +534,29 @@ function alertHTML(list, section) {
   return `<div class="alerts" role="region" aria-label="Active NWS alerts">${list.map((a) => `<details class="alert ${alertKind(a)}"><summary><span class="alert-icon" aria-hidden="true">${alertKind(a) === "warning" ? "▲" : alertKind(a) === "watch" ? "◆" : "●"}</span><b>${escapeHTML(a.event)}</b> <span class="alert-when">${escapeHTML(alertTime(a, section))}</span></summary><p><b>${escapeHTML(a.headline || "")}</b></p><pre class="alert-text">${escapeHTML((a.description || "").trim())}${a.instruction ? "\n\n" + escapeHTML(a.instruction.trim()) : ""}</pre><div class="source">${escapeHTML(a.senderName || "National Weather Service")}${a.areaDesc ? " · " + escapeHTML(a.areaDesc) : ""}</div></details>`).join("")}</div>`;
 }
 
+/* Full text of one alert in a dialog (used where alerts appear as short lines, like the alerts bar). */
+function openAlertDialog(a, section) {
+  let d = document.querySelector("#alert-dialog");
+  if (!d) {
+    d = document.createElement("dialog");
+    d.id = "alert-dialog";
+    d.className = "alert-dialog";
+    document.body.appendChild(d);
+    d.addEventListener("click", (e) => {
+      if (e.target === d || e.target.closest(".alert-dialog-close")) d.close();
+    });
+  }
+  const when = (v) => (v ? regionTime(v, section, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "");
+  const from = a.onset || a.effective,
+    to = a.ends || a.expires;
+  d.innerHTML = `<div class="alert-dialog-body ${alertKind(a)}"><div class="alert-dialog-head"><h3><span class="alert-icon" aria-hidden="true">${alertKind(a) === "warning" ? "▲" : alertKind(a) === "watch" ? "◆" : "●"}</span> ${escapeHTML(a.event || "Alert")}</h3><button type="button" class="alert-dialog-close" aria-label="Close">✕</button></div>${
+    from || to ? `<p class="alert-dialog-when">${from ? escapeHTML(when(from)) : ""}${to ? ` – ${escapeHTML(when(to))}` : ""}</p>` : ""
+  }${a.headline ? `<p><b>${escapeHTML(a.headline)}</b></p>` : ""}<pre class="alert-text">${escapeHTML((a.description || "").trim())}${a.instruction ? "\n\n" + escapeHTML(a.instruction.trim()) : ""}</pre><div class="source">${escapeHTML(a.senderName || "National Weather Service")}${a.areaDesc ? " · " + escapeHTML(a.areaDesc) : ""}</div></div>`;
+  if (typeof d.showModal === "function") d.showModal();
+  else d.setAttribute("open", "");
+  d.querySelector(".alert-dialog-close")?.focus();
+}
+
 function cToF(c) {
   return Number.isFinite(c) ? Math.round((c * 9) / 5 + 32) : null;
 }
@@ -571,3 +602,134 @@ function slug(s) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
 }
+
+/* ---------- Place lookups (Weather search and the Snow Report's Range & snow level search) ---------- */
+const STATES = {
+  AL: "Alabama", AK: "Alaska", AZ: "Arizona", AR: "Arkansas", CA: "California", CO: "Colorado", CT: "Connecticut",
+  DE: "Delaware", DC: "District of Columbia", FL: "Florida", GA: "Georgia", HI: "Hawaii", ID: "Idaho", IL: "Illinois",
+  IN: "Indiana", IA: "Iowa", KS: "Kansas", KY: "Kentucky", LA: "Louisiana", ME: "Maine", MD: "Maryland",
+  MA: "Massachusetts", MI: "Michigan", MN: "Minnesota", MS: "Mississippi", MO: "Missouri", MT: "Montana",
+  NE: "Nebraska", NV: "Nevada", NH: "New Hampshire", NJ: "New Jersey", NM: "New Mexico", NY: "New York",
+  NC: "North Carolina", ND: "North Dakota", OH: "Ohio", OK: "Oklahoma", OR: "Oregon", PA: "Pennsylvania",
+  RI: "Rhode Island", SC: "South Carolina", SD: "South Dakota", TN: "Tennessee", TX: "Texas", UT: "Utah",
+  VT: "Vermont", VA: "Virginia", WA: "Washington", WV: "West Virginia", WI: "Wisconsin", WY: "Wyoming",
+  PR: "Puerto Rico",
+};
+const STATE_ABBR = Object.fromEntries(Object.entries(STATES).map(([k, v]) => [v.toLowerCase(), k]));
+
+/* ---------- geocoding ---------- */
+async function searchZip(zip) {
+  const r = await fetch(`https://api.zippopotam.us/us/${zip}`);
+  if (r.status === 404) return [];
+  if (!r.ok) throw Error(`ZIP lookup ${r.status}`);
+  const j = await r.json();
+  return (j.places || []).map((p) => ({
+    name: `${p["place name"]}, ${p["state abbreviation"]}`,
+    detail: `ZIP ${zip} · ${p.state}`,
+    label: `ZIP ${zip}`,
+    lat: +p.latitude,
+    lon: +p.longitude,
+  }));
+}
+async function searchName(q, { world = false } = {}) {
+  // "Bend, OR" / "Bend Oregon": search the town, then keep matches in that state.
+  let town = q,
+    state = null;
+  const m = q.match(/^(.*?)[,\s]+([A-Za-z .]+)$/);
+  if (m) {
+    const s = m[2].trim();
+    const abbr = s.length === 2 ? s.toUpperCase() : STATE_ABBR[s.toLowerCase()];
+    if (abbr && STATES[abbr] && m[1].trim()) {
+      town = m[1].trim();
+      state = STATES[abbr];
+    }
+  }
+  const u = new URL("https://geocoding-api.open-meteo.com/v1/search");
+  Object.entries({ name: town, count: 20, language: "en", format: "json", ...(world ? {} : { countryCode: "US" }) }).forEach(([k, v]) => u.searchParams.set(k, v));
+  const r = await fetch(u);
+  if (!r.ok) throw Error(`Town lookup ${r.status}`);
+  const j = await r.json();
+  return (j.results || [])
+    .filter((x) => !state || x.admin1 === state)
+    // The geocoder sometimes lists one town twice; keep the first of each name and county.
+    .filter((x, i, all) => all.findIndex((y) => y.name === x.name && y.admin1 === x.admin1 && y.admin2 === x.admin2 && y.country_code === x.country_code) === i)
+    .slice(0, 8)
+    .map((x) => {
+      const us = x.country_code === "US",
+        abbr = us ? STATE_ABBR[(x.admin1 || "").toLowerCase()] || x.admin1 || "" : [x.admin1, x.country_code].filter(Boolean).join(", ");
+      return {
+        name: `${x.name}${abbr ? ", " + abbr : ""}`,
+        detail: [x.admin2, x.admin1, x.elevation != null ? `${Math.round(x.elevation * 3.28084).toLocaleString()} ft` : ""]
+          .filter(Boolean)
+          .join(" · "),
+        label: x.elevation != null ? `Town · ~${Math.round(x.elevation * 3.28084).toLocaleString()} ft` : "Town",
+        lat: x.latitude,
+        lon: x.longitude,
+        elevFt: x.elevation != null ? Math.round(x.elevation * 3.28084) : null,
+        zone: x.timezone || null,
+      };
+    });
+}
+async function geocode(q, opts = {}) {
+  q = q.trim();
+  const zip = q.match(/^(\d{5})(?:-\d{4})?$/);
+  if (zip) return searchZip(zip[1]);
+  if (q.length < 2) return [];
+  return searchName(q, opts);
+}
+
+/* ---------- ski areas: OpenSkiMap list, rebuilt weekly on the data branch ---------- */
+const SKI_URL = "https://raw.githubusercontent.com/bg197550/weather-window/data/ski-areas.json";
+let skiAreasPromise = null;
+const skiKey = (s) =>
+  String(s || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+const SKI_FILLER = /\b(ski|skiing|resort|resorts|area|areas|mountain|mount|mtn|mt|the|and|at)\b/g;
+const skiCore = (k) => k.replace(SKI_FILLER, " ").replace(/\s+/g, " ").trim();
+function skiAreas() {
+  if (!skiAreasPromise)
+    skiAreasPromise = fetch(SKI_URL)
+      .then((r) => {
+        if (!r.ok) throw Error(`ski list ${r.status}`);
+        return r.json();
+      })
+      .then((j) => (j.areas || []).map(([name, place, lat, lon, base, summit]) => ({ name, place, lat, lon, base, summit, key: skiKey(name), core: skiCore(skiKey(name)) })))
+      .catch((e) => {
+        skiAreasPromise = null;
+        throw e;
+      });
+  return skiAreasPromise;
+}
+/* Ski areas matching a name ("killington", "Jackson Hole", "Mt Bachelor"), best match and biggest vertical first. */
+async function searchSki(q, { usOnly = false, max = 8 } = {}) {
+  const n = skiKey(q);
+  if (n.length < 3) return [];
+  const core = skiCore(n) || n,
+    words = core.split(" ");
+  const hits = [],
+    wordStart = new RegExp(`\\b${core}`),
+    eachWord = words.map((w) => new RegExp(`\\b${w}`));
+  for (const a of await skiAreas()) {
+    if (usOnly && !/(^|, )US$/.test(a.place)) continue;
+    const s =
+      a.key === n || (a.core && a.core === core) ? 4 : (a.core && a.core.startsWith(core)) || a.key.startsWith(n) ? 3 : wordStart.test(a.key) ? 2 : eachWord.every((re) => re.test(a.key)) ? 1 : 0;
+    if (s) hits.push([s, a]);
+  }
+  return hits
+    .sort((x, y) => y[0] - x[0] || y[1].summit - y[1].base - (x[1].summit - x[1].base))
+    .slice(0, max)
+    .map(([, a]) => ({
+      name: a.name,
+      detail: `Ski area · ${a.place} · ${a.base.toLocaleString()}–${a.summit.toLocaleString()} ft`,
+      label: `Ski area · ${a.base.toLocaleString()}–${a.summit.toLocaleString()} ft`,
+      lat: a.lat,
+      lon: a.lon,
+      ski: { base: a.base, summit: a.summit },
+      place: a.place,
+    }));
+}
+

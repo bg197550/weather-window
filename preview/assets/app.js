@@ -235,6 +235,7 @@ function surfLink(name) {
 }
 const FORECAST_VIEWS = [
   ["forecast", "Forecast"],
+  ["snow", "Snow"],
   ["insights", "Insights"],
   ["afd", "Forecast discussion"],
   ["models", "Model comparison"],
@@ -242,6 +243,7 @@ const FORECAST_VIEWS = [
 ];
 const VIEW_NOTES = {
   forecast: "Current observation and every NWS forecast period; select a period for its hours",
+  snow: "Snow by day and night, every model run, and the snow level",
   insights: "Storm totals, model ranges, the weather pattern, forecaster notes and model comparison",
   afd: "The full discussion from the responsible NWS office",
   models: "GFS, ECMWF and GEM scenarios for the next 10 days",
@@ -302,7 +304,7 @@ function forecastView() {
     views = FORECAST_VIEWS.filter((v) => (!v[2] || v[2] === section) && (v[0] !== "mountain" || mode === "mountain" || place.p.length > 1));
   const body =
     mode === "snow"
-      ? '<article class="card afd-card" id="resort-snow"><div class="state">Loading NWS snow grids for all resorts…</div></article><article class="card afd-card" id="snow-models"><div class="state">Loading long-range snowfall models…</div></article>'
+      ? '<div id="place-snow"><div class="state">Loading the snow forecast…</div></div>'
       : mode === "afd"
         ? '<article class="card afd-card" id="area-discussion"><div class="state">Loading full NWS Area Forecast Discussion…</div></article>'
         : mode === "models"
@@ -317,7 +319,7 @@ function forecastView() {
     ...(section === "utah" && place.p.length > 1 && mode !== "mountain" ? [["mountain", "Mountain profile"]] : []),
     ...(mode !== "afd" ? [["afd", "Full forecast discussion"]] : []),
   ];
-  const back = ["afd", "models", "mountain", "snow"].includes(mode)
+  const back = ["afd", "models", "mountain"].includes(mode)
     ? `<button type="button" class="back-link" data-view="${mode === "afd" || mode === "models" ? "insights" : "forecast"}">‹ ${mode === "afd" || mode === "models" ? "Insights" : "Forecast"}</button>`
     : "";
   content.innerHTML = `${back}<div class="fc-head"><div class="fc-title"><button type="button" class="place-switch" id="place-switch" aria-expanded="false" aria-controls="place-search" title="Change place"><span class="fc-name">${escapeHTML(place.name)}</span><span class="ps-caret" aria-hidden="true">▾</span></button><p class="fc-sub"><span class="fc-kind">${escapeHTML(section === "utah" ? "Utah" : "New England")}${kind ? " · " + escapeHTML(kind) : ""}</span><span class="fc-note"> — ${escapeHTML(VIEW_NOTES[mode] || "")}</span></p></div><div class="fc-actions"><button type="button" class="icon-btn nearby" id="locate" title="Closest forecast to me" aria-label="Show the closest forecast to my location">⌖</button><button type="button" class="icon-btn" id="refresh" title="Refresh" aria-label="Refresh forecasts">↻</button></div></div><div class="place-search" id="place-search" hidden></div><div class="place-links">${placeLinks(place, section)}</div>${body}${
@@ -336,7 +338,7 @@ function forecastView() {
       profileResort = utahResorts().indexOf(target);
     else {
       selection[sec] = i;
-      view[sec] = ["insights", "afd", "models"].includes(mode) ? "insights" : "forecast";
+      view[sec] = ["insights", "afd", "models"].includes(mode) ? "insights" : mode === "snow" ? "snow" : "forecast";
     }
     tab = sec;
     render();
@@ -376,10 +378,18 @@ function forecastView() {
   };
   syncHash();
   updateAlertBadges();
-  if (mode !== "snow") loadAlertBanner(place);
+  loadAlertBanner(place);
   if (mode === "snow") {
-    loadResortSnow();
-    loadSnowModels();
+    const host = content.querySelector("#place-snow");
+    host.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-view]");
+      if (!b) return;
+      profileResort = Math.max(0, utahResorts().indexOf(place));
+      view[section] = b.dataset.view;
+      render();
+      scrollTo(0, 0);
+    });
+    loadPlaceSnow(place, section);
   } else if (mode === "afd") loadAFD(place.p[0]);
   else if (mode === "models") loadModels(place, section);
   else if (mode === "mountain") loadMountain(place);
@@ -515,7 +525,7 @@ async function loadOverview(place, section) {
             )
             .join("")}</div>`
         : ""
-    }<div class="ins" id="ins" data-key="${pts[daysPick].p.slice(0, 2).join(",")}"></div><article class="card afd-card ov-hourly plus-range" id="plus-range"><div class="state">Loading ensemble forecast range…</div></article><article class="card afd-card ov-runs plus-runs" id="plus-runs"><div class="state">Loading recent model runs…</div></article><article class="card afd-card ov-models" id="model-comparison"><div class="state">Loading model comparison…</div></article><p class="ins-afd-link ov-afd-link"><button type="button" class="linkish" data-view="afd">Read the full NWS forecast discussion ›</button></p>`;
+    }<div class="ins" id="ins" data-key="${pts[daysPick].p.slice(0, 2).join(",")}"></div><article class="card afd-card hourly-card ov-hourly" id="hourly"><div class="state">Loading hourly forecast…</div></article><article class="card afd-card ov-models" id="model-comparison"><div class="state">Loading model comparison…</div></article><p class="ins-afd-link ov-afd-link"><button type="button" class="linkish" data-view="afd">Read the full NWS forecast discussion ›</button></p>`;
     el.querySelector(".ov-afd-link button").onclick = () => {
       view[section] = "afd";
       render();
@@ -530,8 +540,7 @@ async function loadOverview(place, section) {
         }),
     );
     loadInsights(pts[daysPick], section);
-    plus.loadRange(pts[daysPick], section);
-    plus.loadRuns(pts[daysPick], section);
+    loadHourly(place, section, pts);
     loadModels(place, section);
   };
   draw();
@@ -652,23 +661,12 @@ async function loadDiscussion(place, section) {
       .reverse();
   }
   if (!wrap?.isConnected) return;
-  if (hourlyPoint[section] >= pts.length) hourlyPoint[section] = 0;
-  wrap.innerHTML =
-    `<p class="ins-afd-link fc-afd-link"><button type="button" class="linkish" data-view="afd">Read the NWS forecast discussion ›</button></p>` +
-    pts
-      .map(
-        (x, k) =>
-          `<article class="card forecast" id="forecast-${k}"><h3>${escapeHTML(x.label)}</h3><div class="state">Loading NWS forecast…</div></article>`,
-      )
-      .join("") +
-    `<article class="card afd-card plus-daynight" id="plus-daynight"><div class="state">Loading day and night detail…</div></article><article class="card afd-card plus-hourly" id="plus-hourly"><div class="state">Loading hourly forecast…</div></article>`;
-  wrap.querySelector(".fc-afd-link button").onclick = () => {
-    view[section] = "afd";
-    render();
-    scrollTo(0, 0);
-  };
-  plus.loadDayNight(pts, section);
-  plus.loadHourlyPlus(pts, section);
+  wrap.innerHTML = pts
+    .map(
+      (x, k) =>
+        `<article class="card forecast" id="forecast-${k}"><h3>${escapeHTML(x.label)}</h3><div class="state">Loading NWS forecast…</div></article>`,
+    )
+    .join("");
   pts.forEach(async (pt, k) => {
     const el = wrap.querySelector("#forecast-" + k),
       p = pt.p;
@@ -682,7 +680,6 @@ async function loadDiscussion(place, section) {
         detailedPeriods(periods, k, section) +
         issuedLine(data, p, section);
       loadObs(p, el.querySelector(".obs-slot"));
-      plus.enrichPeriods(el, p, periods);
       el.querySelectorAll("[data-period-hourly]").forEach(
         (button) =>
           (button.onclick = () => {
@@ -1166,7 +1163,7 @@ function alertsBar() {
     ? `<div class="alerts-bar-inner"><span class="alert-icon" aria-hidden="true">▲</span>${rows
         .map(
           (r) =>
-            `<span class="ab-item"><b>${escapeHTML(r.a.event)}</b> ${r.where
+            `<span class="ab-item"><button type="button" class="ab-event" data-alert="${rows.indexOf(r)}" title="Read the full alert">${escapeHTML(r.a.event)} ›</button> ${r.where
               .slice(0, 4)
               .map((pl) => `<a href="#${r.sec}/${slug(pl.name)}/forecast">${escapeHTML(pl.name)}</a>`)
               .join(
@@ -1175,6 +1172,10 @@ function alertsBar() {
         )
         .join("")}</div>`
     : "";
+  el.querySelectorAll("[data-alert]").forEach((b) => {
+    const r = rows[+b.dataset.alert];
+    b.onclick = () => openAlertDialog(r.a, r.sec);
+  });
 }
 function updateAlertBadges() {
   alertsBar();
@@ -1702,10 +1703,6 @@ function showClosestForecast(auto = false) {
 }
 function readHash() {
   const [t, a, b] = location.hash.slice(1).split("/");
-  if (t === "utah" && b === "snow") {
-    location.replace("snow/#resorts");
-    return;
-  }
   if (t === "long" || t === "glance") {
     tab = "long";
     return;
@@ -1725,7 +1722,7 @@ function readHash() {
     tab = t;
     const list = t === "utah" ? utah : ne,
       i = list.findIndex((x) => slug(x.name) === a),
-      modes = ["forecast", "insights", "afd", "models", ...(t === "utah" ? ["mountain", "snow"] : [])];
+      modes = ["forecast", "snow", "insights", "afd", "models", ...(t === "utah" ? ["mountain"] : [])];
     let mode = modes.includes(b) ? b : "forecast"; // Legacy overview/discussion links open the primary forecast.
     if (i >= 0) {
       if (mode === "mountain" && i < 2) mode = "forecast";
@@ -1751,6 +1748,7 @@ window.addEventListener("hashchange", () => {
 // ---------- Auto refresh ----------
 function clearCaches() {
   snowModelCache.clear();
+  if (typeof SnowCore !== "undefined") SnowCore.clear();
   cache.clear();
   afdCache.clear();
   if (typeof insCache !== "undefined") insCache.clear();
@@ -1759,7 +1757,6 @@ function clearCaches() {
   alertCache.clear();
   obsCache.clear();
   hourlyCache.clear();
-  if (window.plus) plus.clear();
   longData = null;
 }
 function stampHeader() {

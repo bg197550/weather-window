@@ -7,8 +7,6 @@ const DATA_HOSTS = [
   "api.weather.gov",
   "api.open-meteo.com",
   "ensemble-api.open-meteo.com",
-  "single-runs-api.open-meteo.com",
-  "previous-runs-api.open-meteo.com",
   "raw.githubusercontent.com",
 ];
 const NEVER = /\.(m3u8|ts|mp4|png|jpe?g|gif|webp)(\?|$)|\/tile|tile\.|\/cache\/tile\.py|\/icons\/land\//i;

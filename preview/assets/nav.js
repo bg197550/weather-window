@@ -1,8 +1,8 @@
 /* One navigation for every Weather Window page (Weather, Webcams, Snow report).
-   Desktop: Forecast · Insights · Cams · Snow report · Maps & outlooks ▾ under the app bar.
-   Phones: a fixed bottom bar with Forecast · Insights · Cams · Radar · More (Precip models, Long range).
-   The Snow report and Surf are reached from the app bar at the top.
-   Forecast, Insights and Cams follow the current place, which every page shares through localStorage. */
+   Desktop: Forecast · Snow · Insights · Cams for the current place, then Region & maps ▾ (all mountains,
+   radar, storm map, precipitation models, long range).
+   Phones: a fixed bottom bar with Forecast · Snow · Insights · Cams · More.
+   The place tabs follow the current place, which every page shares through localStorage. */
 window.WW = (function () {
   const REGION_KEY = "ww:region";
   const PLACE_KEY = "ww:current";
@@ -13,14 +13,16 @@ window.WW = (function () {
   };
   const SECTIONS = [
     { key: "forecast", label: "Forecast", icon: "☀", href: (b, c) => `${b}#${c.section}/${c.slug}/forecast` },
+    { key: "snow", label: "Snow", icon: "❄", href: (b, c) => `${b}#${c.section}/${c.slug}/snow` },
     { key: "insights", label: "Insights", icon: "◆", href: (b, c) => `${b}#${c.section}/${c.slug}/insights` },
     { key: "cams", label: "Cams", icon: "▣", href: (b, c) => `${b}webcams/#${c.cam || c.section}` },
-    { key: "snow", label: "Snow report", icon: "❄", href: (b) => `${b}snow/#resorts` },
+    { key: "snowreport", label: (c) => `All ${REGIONS[c.section]} mountains`, icon: "▤", href: (b, c) => `${b}snow/#forecast/${c.section}`, maps: true },
     { key: "radar", label: "Radar", icon: "◎", href: (b, c) => `${b}#radar/${c.section === "ne" ? "sne" : "wasatch"}`, maps: true },
+    { key: "storm", label: "Storm map", icon: "◍", href: (b, c) => `${b}${c.section === "ne" ? "weather-map-northeast.html" : "weather-map-west.html"}`, maps: true },
     { key: "precip", label: "Precip models", icon: "☂", href: (b, c) => `${b}#precip/${c.section}`, maps: true },
     { key: "long", label: "Long range", icon: "≋", href: (b) => `${b}#long`, maps: true },
   ];
-  const BAR = ["forecast", "insights", "cams", "radar"];
+  const BAR = ["forecast", "snow", "insights", "cams"];
   let base = "",
     active = "forecast";
 
@@ -69,7 +71,8 @@ window.WW = (function () {
   }
   function link(s, c, cls) {
     const tab = s.key === "forecast" ? ` data-tab="${c.section}"` : "";
-    return `<a class="${cls}" href="${s.href(base, c)}" data-ww="${s.key}"${tab}${s.key === active ? ' aria-current="page"' : ""}><span class="ww-ico" aria-hidden="true">${s.icon}</span><span class="ww-lbl">${s.label}</span></a>`;
+    const label = typeof s.label === "function" ? s.label(c) : s.label;
+    return `<a class="${cls}" href="${s.href(base, c)}" data-ww="${s.key}"${tab}${s.key === active ? ' aria-current="page"' : ""}><span class="ww-ico" aria-hidden="true">${s.icon}</span><span class="ww-lbl">${esc(label)}</span></a>`;
   }
   function paint() {
     const c = place();
@@ -81,7 +84,7 @@ window.WW = (function () {
         .map((s) => link(s, c, "suite-tab ww-top"))
         .join(
           "",
-        )}<div class="ww-menu"><button type="button" class="suite-tab ww-top ww-menu-btn" aria-expanded="false" aria-haspopup="true"${mapsOn ? ' aria-current="page"' : ""}><span class="ww-ico" aria-hidden="true">◎</span><span class="ww-lbl">Maps &amp; outlooks</span><span class="ww-caret" aria-hidden="true">▾</span></button><div class="ww-menu-list" hidden>${SECTIONS.filter((s) => s.maps)
+        )}<div class="ww-menu"><button type="button" class="suite-tab ww-top ww-menu-btn" aria-expanded="false" aria-haspopup="true"${mapsOn ? ' aria-current="page"' : ""}><span class="ww-ico" aria-hidden="true">◎</span><span class="ww-lbl">Region &amp; maps</span><span class="ww-caret" aria-hidden="true">▾</span></button><div class="ww-menu-list" hidden>${SECTIONS.filter((s) => s.maps)
         .map((s) => link(s, c, "ww-menu-link"))
         .join("")}</div></div></div><span class="ww-place">📍 ${esc(c.name)}</span>`;
     }
@@ -102,7 +105,7 @@ window.WW = (function () {
       sheet.hidden = true;
       document.body.appendChild(sheet);
     }
-    sheet.innerHTML = `<div class="ww-sheet-panel" role="dialog" aria-label="More sections"><div class="ww-sheet-head"><b>More</b><button type="button" class="ww-sheet-close" aria-label="Close">✕</button></div><div class="ww-sheet-links">${SECTIONS.filter((s) => s.maps && !BAR.includes(s.key))
+    sheet.innerHTML = `<div class="ww-sheet-panel" role="dialog" aria-label="Region and maps"><div class="ww-sheet-head"><b>Region &amp; maps</b><button type="button" class="ww-sheet-close" aria-label="Close">✕</button></div><div class="ww-sheet-links">${SECTIONS.filter((s) => s.maps && !BAR.includes(s.key))
       .map((s) => link(s, c, "ww-sheet-link"))
       .join("")}</div></div>`;
     wire();
