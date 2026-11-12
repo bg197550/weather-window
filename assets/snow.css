@@ -128,45 +128,5 @@
 .powder-list a small { color: #9fb1bc; font-size: 12px; }
 .sf-card.is-focus { border-color: #70d9de; box-shadow: 0 0 0 2px #70d9de55; }
 @media (max-width: 760px) { .powder-map { height: 380px; } }
-
-/* Range & snow level (assets/snowrange.js) */
-.rng-resorts a { white-space: nowrap; border: 1px solid #325461; background: #102c3b; border-radius: 7px; padding: 8px 12px; color: #bfd8e5; text-decoration: none; }
-.rng-resorts a.active { background: #194855; border-color: #3c96ae; font-weight: 700; color: #e6f3f8; }
-.rng-card { margin-bottom: 16px; }
-.rng-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px 16px; flex-wrap: wrap; }
-.rng-head h3 { margin: 0; }
-.rng-head .sub { margin: 4px 0 0; color: #9fb1bc; font-size: 13px; }
-.rng-days button { padding: 8px 12px; }
-.rng-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 6px; }
-.rng-chip { background: #0b2433; border: 1px solid #3c6475; border-radius: 999px; padding: 6px 12px; font-size: 14px; color: #e6f3f8; }
-.rng-chip b { margin-right: 6px; }
-.rng-chip small { color: #9fb1bc; }
-.rng-chip-soft { color: #9fb1bc; border-color: #294858; }
-.rng-wrap { position: relative; }
-.rng-svg { display: block; max-width: 100%; height: auto; touch-action: pan-y; user-select: none; -webkit-user-select: none; }
-.rng-strip { margin-top: 2px; }
-.rng-tip { position: absolute; z-index: 5; pointer-events: none; background: #061722; border: 1px solid #3c6475; border-radius: 8px; padding: 8px 10px; font-size: 13px; line-height: 1.45; color: #e6f3f8; max-width: 300px; box-shadow: 0 4px 14px #0008; }
-.rng-legend { margin-top: 8px; }
-.rng-legend .rng-swatch { vertical-align: middle; }
-.ins-key.rng-key-runs { height: 1px; background: #8fb3c4; }
-.ins-key.rng-key-med { height: 4px; background: #fff; }
-.ins-key.rng-key-ref { height: 2px; background: #ffd27a; }
-@media (max-width: 560px) {
-  .rng-chip { font-size: 13px; padding: 5px 10px; }
-  .rng-days { width: 100%; }
-  .rng-days button { flex: 1; }
-}
-.rng-card p.rng-legend, .rng-card p.rng-legend * { font-size: 13px; line-height: 1.45; }
-.rng-card p.source { font-size: 13px; line-height: 1.5; color: #9fb1bc; }
-@media (max-width: 560px) {
-  .rng-card p.rng-legend, .rng-card p.rng-legend * { font-size: 12px; }
-  .rng-card p.source { font-size: 12px; }
-}
-.rng-search { margin: 0 0 4px; max-width: 560px; }
-.rng-results { max-width: 560px; margin-bottom: 12px; }
-.rng-results:empty { display: none; }
-.rng-top { margin: 12px 0 6px; }
-.rng-region { width: fit-content; max-width: 100%; overflow-x: auto; }
-.rng-region a { white-space: nowrap; }
-.rng-pill { display: inline-flex; align-items: stretch; gap: 2px; }
-.rng-x { border: 1px solid #325461; background: transparent; color: #9fb1bc; border-radius: 7px; padding: 0 9px; font: inherit; }
+.snowfc-tools { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+@media (max-width: 560px) { .snowfc-tools { justify-content: flex-start; } }

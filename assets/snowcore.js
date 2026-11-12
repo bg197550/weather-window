@@ -451,6 +451,36 @@ const SnowCore = (() => {
   async function outlook(pl, opts = {}) {
     return build(pl, await fetchInputs(pl, opts), opts.now);
   }
-  return { MOUNTAINS, DET, TZ, placeFor, fetchInputs, build, outlook, thin, windowSnow, snowRatio, snowShare, hourSnow, freezingFt, heightToFt, seriesOf, quant, localHourKey, slugOf };
+  /* ---------- browser loading: saved file for the dashboard mountains, live for anything else ---------- */
+  const DATA = "https://raw.githubusercontent.com/bg197550/weather-window/data/outlook/";
+  const STALE = 8 * H;
+  const cache = new Map();
+  function cached(key, ttl, make) {
+    const hit = cache.get(key);
+    if (hit && Date.now() - hit.time < ttl) return hit.promise;
+    const promise = make();
+    cache.set(key, { time: Date.now(), promise });
+    promise.catch(() => cache.delete(key));
+    return promise;
+  }
+  /* The outlook for a dashboard place ({name, p, ski?, zone?}) in a region. */
+  function forPlace(place, section) {
+    const pl = placeFor(place, section);
+    return cached(`o:${section}:${pl.slug}:${pl.lat},${pl.lon}`, 10 * 60000, async () => {
+      if (MOUNTAINS[pl.slug] && !place.searched) {
+        try {
+          const o = await fetchJSON(`${DATA}${pl.slug}.json`);
+          if (Date.now() - Date.parse(o.built) < STALE) return o;
+        } catch {}
+      }
+      return outlook(pl);
+    });
+  }
+  /* Segments and totals for every dashboard mountain (Snow report table and map). */
+  function summary() {
+    return cached("summary", 10 * 60000, () => fetchJSON(`${DATA}summary.json`));
+  }
+  const clear = () => cache.clear();
+  return { MOUNTAINS, DET, TZ, placeFor, fetchInputs, build, outlook, forPlace, summary, clear, STALE, thin, windowSnow, snowRatio, snowShare, hourSnow, freezingFt, heightToFt, seriesOf, quant, localHourKey, slugOf };
 })();
 if (typeof module === "object" && module.exports) module.exports = SnowCore;

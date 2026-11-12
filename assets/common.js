@@ -4,6 +4,13 @@ const utah = [
   { name: "Snyderville", p: [[40.6957, -111.5442, "Town"]] },
   { name: "Park City", p: [[40.647, -111.498, "Town"]] },
   {
+    name: "Park City Mountain",
+    p: [
+      [40.636, -111.535, "Mid mountain · ~8,400 ft"],
+      [40.6214, -111.5588, "Peak · Jupiter Peak ~10,026 ft"],
+    ],
+  },
+  {
     name: "Deer Valley",
     p: [
       [40.62, -111.485, "Mid mountain · ~8,100 ft"],
@@ -92,6 +99,7 @@ const OBS_STATIONS = {
 const CAMS = {
   Snyderville: "canyons-resort",
   "Park City": "park-city",
+  "Park City Mountain": "park-city",
   "Deer Valley": "deer-valley",
   "Canyons Resort": "canyons-resort",
   Alta: "alta",
