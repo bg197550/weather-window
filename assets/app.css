@@ -2430,6 +2430,34 @@ p {
 .ins-pattern section, .ins-afd section { margin-top: 14px; }
 .ins-afd p { margin: 0; line-height: 1.55; }
 .ins .ins-models { margin-top: 8px; }
+/* Wasatch storm cycle */
+.ins-cycle h4 { margin: 18px 0 8px; }
+.ins-cycle-list { list-style: none; padding: 0; margin: 12px 0 4px; display: grid; gap: 8px; }
+.ins-cycle-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; background: #0b2433; border: 1px solid #294858; border-radius: 12px; padding: 10px 12px; }
+.ins-cycle-list .amt { font-weight: 600; }
+.ins-cycle-list small { flex-basis: 100%; color: #9fb1bc; font-size: 13px; }
+.ins-plume { display: block; width: 100%; height: auto; margin-top: 12px; }
+.ins-legend { color: #9fb1bc; font-size: 13px; margin: 6px 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.ins-key { display: inline-block; width: 18px; height: 10px; border-radius: 2px; }
+.ins-key-line { height: 3px; background: #79d7e5; }
+.ins-key-band { background: rgba(121, 215, 229, 0.22); border-top: 1px dashed #79d7e5; border-bottom: 1px dashed #79d7e5; }
+.ins-key-storm { background: rgba(121, 215, 229, 0.08); border: 1px solid #294858; }
+.ins .model-table.ins-cycle-table { min-width: 0; }
+.ins-cycle-table td small { display: inline; margin: 0; color: #9fb1bc; font-size: inherit; }
+.ins-cycle-table th:first-child, .ins-cycle-table tbody th { text-align: left; }
+@media (max-width: 760px) {
+  /* Keep the resort table a real table on phones: resorts down, storms across. */
+  .ins .model-table.ins-cycle-table { display: table; width: 100%; }
+  .ins .ins-cycle-table thead { display: table-header-group; }
+  .ins .ins-cycle-table tbody { display: table-row-group; }
+  .ins .ins-cycle-table tr { display: table-row; border: 0; padding: 0; background: none; }
+  .ins .ins-cycle-table tr.flag { background: #382b10; }
+  .ins .ins-cycle-table th, .ins .ins-cycle-table td { display: table-cell; padding: 7px 5px; font-size: 13px; border-bottom: 1px solid #294858; }
+  .ins .ins-cycle-table td::before { content: none; }
+  .ins .ins-cycle-table td small { display: block; }
+  .ins .card p.ins-legend, .ins .card p.ins-legend * { font-size: 13px; line-height: 1.4; }
+  .ins-cycle-list li { gap: 4px 10px; }
+}
 .linkish { background: none; border: 0; padding: 0; color: #70d9de; text-decoration: underline; font: inherit; }
 @media (max-width: 700px) {
   .ins .card { padding: 16px; }

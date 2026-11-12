@@ -191,7 +191,7 @@ function findStorms(det) {
   return storms
     .map((s) => ({ ...s, start: t[s.a], end: t[s.b] + H, total: pr.slice(s.a, s.b + 1).reduce((x, y) => x + (y || 0), 0) }))
     .filter((s) => s.total >= 0.05 && s.end > now)
-    .slice(0, 2);
+    .slice(0, 4);
 }
 function sumWindow(times, values, a, b) {
   let tot = 0,
@@ -271,6 +271,22 @@ function slrFor(t700F) {
   return c > -4 ? 9 : c > -9 ? 12 : c > -16 ? 16 : 13;
 }
 
+/* Inches of snow per inch of liquid at this point for a given hour: full ratio when the snow level is
+   300 ft or more below the point, half when within 300 ft, none above. */
+function snowFactor(data, elevFt) {
+  const det = data.det,
+    t = det.hourly.time.map(insT),
+    t700h = meanSeries(det, "temperature_700hPa"),
+    tIndex = new Map(t.map((x, i) => [x, i]));
+  return (ms) => {
+    const i = tIndex.get(ms);
+    const tf = i == null ? null : t700h[i];
+    const lvl = snowLevelAt(data.nws?.grid, ms, tf);
+    if (lvl == null || elevFt == null) return 0;
+    return lvl <= elevFt - 300 ? slrFor(tf) : lvl <= elevFt + 300 ? slrFor(tf) / 2 : 0;
+  };
+}
+
 function analyzeStorm(s, data, section, elevFt) {
   const det = data.det,
     t = det.hourly.time.map(insT),
@@ -279,16 +295,8 @@ function analyzeStorm(s, data, section, elevFt) {
   const a = current ? now : s.start - 6 * H,
     b = s.end + 6 * H;
   // Hourly snow fraction and ratio for this point (Utah: derived from liquid; New England: model snowfall).
-  const t700h = meanSeries(det, "temperature_700hPa");
-  const tIndex = new Map(t.map((x, i) => [x, i]));
   const derive = insKind === "utah" && elevFt != null;
-  const factor = (ms) => {
-    const i = tIndex.get(ms);
-    const tf = i == null ? null : t700h[i];
-    const lvl = snowLevelAt(data.nws?.grid, ms, tf);
-    if (lvl == null) return 0;
-    return lvl <= elevFt - 300 ? slrFor(tf) : lvl <= elevFt + 300 ? slrFor(tf) / 2 : 0;
-  };
+  const factor = snowFactor(data, elevFt);
   const snowSum = (times, liq, raw) => {
     if (!derive) return sumWindow(times, raw, a, b);
     let tot = 0;
@@ -443,7 +451,7 @@ function ptypeNote(x) {
 function stormCard(x, section, idx) {
   const now = Date.now();
   const current = x.current;
-  const title = idx === 0 ? (current ? "Current storm · still to come" : "Next storm") : "Following storm";
+  const title = idx === 0 ? (current ? "Current storm · still to come" : "Next storm") : `Storm ${idx + 1}`;
   const timing = `${current ? "Under way, ends" : `${partOfDay(x.start, section)} → `}${current ? " " + partOfDay(x.end, section) : partOfDay(x.end, section)}`;
   const unit = x.snowy ? "Snow" : "Precipitation";
   const range = x.p10 != null ? `${fmtAmt(x.p10, x.snowy)}–${fmtAmt(x.p90, x.snowy)}` : "–";
@@ -878,7 +886,7 @@ function shortStorm(x, data, section, idx) {
     : x.p10 != null
       ? `<b>${fmtAmt(x.p10, x.snowy)}–${fmtAmt(x.p90, x.snowy)}</b> of ${what}`
       : what;
-  return `${idx === 0 ? (x.current ? "Storm under way" : "Next storm") : "After that"}: ${when}, ${amount}.`;
+  return `${idx === 0 ? (x.current ? "Storm under way" : "Next storm") : idx === 1 ? "After that" : "Then"}: ${when}, ${amount}.`;
 }
 function confidenceLine(x, data) {
   const ms = x.models.filter((m) => (x.snowy ? m.snow : m.liquid) != null);
@@ -921,7 +929,7 @@ function summaryCard(storms, data, section) {
     items.push(story.line);
     items.push(confidenceLine(x, data));
     learn = story.learn;
-    if (storms[1]) items.push(shortStorm(storms[1], data, section, 1));
+    storms.slice(1).forEach((s, i) => items.push(shortStorm(s, data, section, i + 1)));
   } else items.push("<b>No storms</b> in the next 10 days in any of the major models.");
   // One quote from the forecasters.
   const n = afdNotes(data.afd);
@@ -953,15 +961,213 @@ function summaryCard(storms, data, section) {
     .join("")}</ul>${learn ? `<p class="ins-learn"><b>Good to know:</b> ${escapeHTML(learn)}</p>` : ""}</article>`;
 }
 
+/* ---------- Wasatch storm cycle (Utah): every storm in the next 10 days, the 10-day total at this
+   point with its ensemble range, and each resort's mid/peak snow per storm. ---------- */
+const cycleResorts = () => utah.filter((r) => r.p.length > 1);
+const elevOf = (label) => {
+  const m = String(label || "").match(/~([\d,]+)\s*ft/);
+  return m ? +m[1].replace(/,/g, "") : null;
+};
+let cycleCache = null;
+
+function cycleFetch() {
+  if (cycleCache && Date.now() - cycleCache.time < 10 * 60000) return cycleCache.promise;
+  const pts = cycleResorts().flatMap((r) => r.p);
+  const u = new URL("https://api.open-meteo.com/v1/forecast");
+  Object.entries({
+    latitude: pts.map((q) => q[0]).join(","),
+    longitude: pts.map((q) => q[1]).join(","),
+    hourly: "precipitation,temperature_700hPa",
+    models: INS_MODELS.map((m) => m[1]).join(","),
+    forecast_hours: 240,
+    past_hours: 6,
+    timezone: "UTC",
+    precipitation_unit: "inch",
+    temperature_unit: "fahrenheit",
+  }).forEach(([k, v]) => u.searchParams.set(k, v));
+  const promise = getJSON(u.toString()).then((j) => (Array.isArray(j) ? j : [j]));
+  cycleCache = { time: Date.now(), promise };
+  promise.catch(() => (cycleCache = null));
+  return promise;
+}
+
+/* Model-average snow (in) at one point between a and b: each model's hourly liquid × a snow ratio from its own
+   700 mb temperature, counted only when the snow level estimated from that temperature is below the point. */
+function pointSnow(j, elevFt, a, b) {
+  if (!j?.hourly?.time || elevFt == null) return null;
+  const t = j.hourly.time.map(insT);
+  const per = INS_MODELS.map(([, id]) => {
+    const pr = j.hourly[`precipitation_${id}`] || [],
+      tf = j.hourly[`temperature_700hPa_${id}`] || [];
+    let tot = 0,
+      any = false;
+    for (let i = 0; i < t.length; i++) {
+      if (t[i] < a || t[i] >= b || !Number.isFinite(pr[i])) continue;
+      any = true;
+      const lvl = snowLevelAt(null, t[i], tf[i]);
+      if (lvl == null) continue;
+      tot += pr[i] * (lvl <= elevFt - 300 ? slrFor(tf[i]) : lvl <= elevFt + 300 ? slrFor(tf[i]) / 2 : 0);
+    }
+    return any ? tot : null;
+  }).filter((v) => v != null);
+  return mean(per);
+}
+
+/* Running 10-day snow total at this point for every ensemble run, summarized as 10th/50th/90th percentiles per day. */
+function cycleBand(data, elevFt) {
+  if (!data.ens?.hourly || elevFt == null) return null;
+  const et = data.ens.hourly.time.map(insT),
+    factor = snowFactor(data, elevFt),
+    now = Date.now();
+  const steps = Array.from({ length: 11 }, (_, d) => now + d * 24 * H);
+  const runs = [];
+  for (const k of Object.keys(data.ens.hourly)) {
+    const m = k.match(/^precipitation_(?:member\d+_)?(.+)$/);
+    if (!m || !INS_ENS.includes(m[1])) continue;
+    const v = data.ens.hourly[k];
+    const cum = steps.map(() => 0);
+    let last = 0;
+    for (let i = 0; i < et.length; i++) {
+      if (et[i] < now || !Number.isFinite(v[i])) continue;
+      last = et[i] + H;
+      const s = v[i] * factor(et[i]);
+      for (let d = 1; d < steps.length; d++) if (et[i] < steps[d]) cum[d] += s;
+    }
+    // A run that stops early (some ensembles are shorter) only counts for the days it covers.
+    if (last) runs.push(cum.map((c, d) => (last >= steps[d] - H ? c : null)));
+  }
+  if (!runs.length) return null;
+  const q = (p) =>
+    steps.map((_, d) => quantile(runs.map((r) => r[d]).filter(Number.isFinite).sort((x, y) => x - y), p));
+  return { steps, p10: q(0.1), p50: q(0.5), p90: q(0.9), n: runs.length };
+}
+
+function bandChart(band, storms, section) {
+  const w = 560,
+    h = 240,
+    L = 40,
+    R = 14,
+    T = 16,
+    B = 34,
+    pw = w - L - R,
+    ph = h - T - B;
+  const t0 = band.steps[0],
+    t1 = band.steps[band.steps.length - 1];
+  const x = (ms) => L + ((ms - t0) / (t1 - t0)) * pw;
+  const top = Math.max(4, ...band.p90.filter(Number.isFinite)) * 1.1;
+  const y = (v) => T + ph - (v / top) * ph;
+  const stepIn = top > 60 ? 20 : top > 30 ? 10 : top > 12 ? 5 : top > 6 ? 2 : 1;
+  let grid = "";
+  for (let v = 0; v <= top; v += stepIn)
+    grid += `<line x1="${L}" x2="${w - R}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}" stroke="#294858" stroke-width="1"/><text x="${L - 6}" y="${(y(v) + 4).toFixed(1)}" text-anchor="end" fill="#9fb1bc" font-size="14">${v}″</text>`;
+  const shades = storms
+    .map((s, i) => {
+      const a = Math.max(s.start, t0),
+        b = Math.min(s.end, t1);
+      if (b <= a) return "";
+      return `<rect x="${x(a).toFixed(1)}" y="${T}" width="${Math.max(2, x(b) - x(a)).toFixed(1)}" height="${ph}" fill="#79d7e5" opacity="0.08"/><text x="${((x(a) + x(b)) / 2).toFixed(1)}" y="${T + 12}" text-anchor="middle" fill="#cfe2e8" font-size="14" font-weight="600">${i + 1}</text>`;
+    })
+    .join("");
+  const idx = band.steps.map((_, d) => d).filter((d) => Number.isFinite(band.p50[d]));
+  const pts = (arr) => idx.map((d) => `${x(band.steps[d]).toFixed(1)},${y(arr[d]).toFixed(1)}`);
+  const area = `<polygon points="${[...pts(band.p90), ...pts(band.p10).reverse()].join(" ")}" fill="#79d7e5" opacity="0.22"/>`;
+  const line = (arr, extra) => `<polyline points="${pts(arr).join(" ")}" fill="none" stroke="#79d7e5" ${extra}/>`;
+  const zone = regionZone(section);
+  const labels = band.steps
+    .map((ms, d) =>
+      d % 2 ? "" : `<text x="${x(ms).toFixed(1)}" y="${h - 12}" text-anchor="middle" fill="#9fb1bc" font-size="14">${d === 0 ? "Now" : new Date(ms).toLocaleDateString("en-US", { weekday: "short", timeZone: zone })}</text>`,
+    )
+    .join("");
+  const last = idx[idx.length - 1];
+  const label = `Running snow total over the next 10 days: median ${fmtAmt(band.p50[last], true)}, 10th to 90th percentile ${fmtAmt(band.p10[last], true)} to ${fmtAmt(band.p90[last], true)}.`;
+  return `<svg class="ins-plume" viewBox="0 0 ${w} ${h}" role="img" aria-label="${escapeHTML(label)}">${grid}${shades}${area}${line(band.p10, 'stroke-width="1.5" stroke-dasharray="4 4"')}${line(band.p90, 'stroke-width="1.5" stroke-dasharray="4 4"')}${line(band.p50, 'stroke-width="3"')}${labels}</svg><p class="ins-legend"><span class="ins-key ins-key-line"></span>Median <span class="ins-key ins-key-band"></span>10th–90th percentile of ${band.n} ensemble runs <span class="ins-key ins-key-storm"></span>Storm windows</p>`;
+}
+
+const stormWindow = (x) => [x.current ? Date.now() : x.start - 6 * H, x.end + 6 * H];
+const dayRange = (x, section) => {
+  const zone = regionZone(section),
+    d = (ms) => new Date(ms).toLocaleDateString("en-US", { weekday: "short", timeZone: zone }),
+    a = d(x.current ? Date.now() : x.start),
+    b = d(x.end);
+  return a === b ? a : `${a}–${b}`;
+};
+
+function cycleCard(storms, data, section, elevFt, placeName) {
+  const list = storms
+    .map((x, i) => {
+      const lvl = x.nws?.level
+        ? `Snow level ${(Math.round(x.nws.level.max / 100) * 100).toLocaleString()}${Math.round(x.nws.level.max / 100) !== Math.round(x.nws.level.min / 100) ? ` → ${(Math.round(x.nws.level.min / 100) * 100).toLocaleString()}` : ""} ft (NWS)`
+        : x.t700mean != null
+          ? `Snow level about ${(Math.round(snowLevelAt(null, 0, x.t700mean) / 100) * 100).toLocaleString()} ft (models)`
+          : "";
+      const q = snowQuality(x.t700mean);
+      const amt = x.snowRange[0] != null ? `${fmtAmt(x.snowRange[0], true)}–${fmtAmt(x.snowRange[2], true)}` : "–";
+      return `<li><b>Storm ${i + 1}</b><span>${escapeHTML(x.current ? `Now → ${partOfDay(x.end, section)}` : `${cap(partOfDay(x.start, section))} → ${partOfDay(x.end, section)}`)}</span><span class="amt">${amt} here</span><span class="ins-conf ins-conf-${(x.conf || "na").toLowerCase()}">${x.conf ? x.conf + " confidence" : "Confidence n/a"}</span><small>${[lvl, q?.label].filter(Boolean).map(escapeHTML).join(" · ")}</small></li>`;
+    })
+    .join("");
+  const band = cycleBand(data, elevFt);
+  const last = band ? band.steps.map((_, d) => d).filter((d) => Number.isFinite(band.p50[d])).pop() : null;
+  const totals =
+    band && last != null
+      ? `<h4>10-day total${placeName ? ` · ${escapeHTML(placeName)}` : ""}</h4><div class="ins-stats"><div><span>Low end</span><strong>${fmtAmt(band.p10[last], true)}</strong><small>10th percentile</small></div><div><span>Middle</span><strong>${fmtAmt(band.p50[last], true)}</strong><small>ensemble median</small></div><div><span>High end</span><strong>${fmtAmt(band.p90[last], true)}</strong><small>90th percentile</small></div></div>${bandChart(band, storms, section)}`
+      : "";
+  return `<article class="card afd-card ins-cycle"><div class="ins-head"><h3>Wasatch storm cycle · next 10 days</h3><span class="ins-conf">${storms.length} storm${storms.length === 1 ? "" : "s"}</span></div><ol class="ins-cycle-list">${list}</ol>${totals}<h4>By mountain</h4><div id="ins-cycle-table"><div class="state">Loading resort totals…</div></div><p class="source">Storm amounts “here” and the 10-day range use GEFS, ECMWF ENS and GEM ENS runs at this point. The resort table averages GFS, ECMWF, GEM and ICON; snow ratio and snow level come from each model's 700 mb temperature, so it can differ a little from the storm cards below.</p></article>`;
+}
+
+async function fillCycleTable(el, key, storms, section, pt) {
+  const box = el.querySelector("#ins-cycle-table");
+  if (!box) return;
+  let res;
+  try {
+    res = await cycleFetch();
+  } catch {
+    if (box.isConnected) box.innerHTML = '<div class="error">Resort totals are temporarily unavailable.</div>';
+    return;
+  }
+  if (!box.isConnected || el.dataset.key !== key) return;
+  const resorts = cycleResorts();
+  const now = Date.now(),
+    ten = [now, now + 240 * H];
+  let k = 0;
+  const rows = resorts.map((r) => {
+    const pts = r.p.map((q) => ({ q, j: res[k++], elev: elevOf(q[2]) }));
+    const mid = pts[0],
+      peak = pts[pts.length - 1];
+    const cell = ([a, b]) => [pointSnow(mid.j, mid.elev, a, b), pointSnow(peak.j, peak.elev, a, b)];
+    return {
+      name: r.name,
+      here: r.p.some((q) => q[0] === pt.p[0] && q[1] === pt.p[1]),
+      storms: storms.map((x) => cell(stormWindow(x))),
+      total: cell(ten),
+    };
+  });
+  rows.sort((a, b) => (b.total[1] ?? -1) - (a.total[1] ?? -1));
+  const r0 = (v) => (v == null ? "–" : `${v < 0.5 ? 0 : Math.round(v)}″`);
+  const pair = ([m, p]) => (m == null && p == null ? "–" : `${r0(m)} <small>/ ${r0(p)}</small>`);
+  const heads = storms.map((x, i) => `Storm ${i + 1}`),
+    days = storms.map((x) => dayRange(x, section));
+  box.innerHTML = `<div class="model-table-wrap"><table class="model-table ins-cycle-table"><thead><tr><th>Resort</th>${heads
+    .map((h, i) => `<th>${escapeHTML(h)}<small>${escapeHTML(days[i])}</small></th>`)
+    .join("")}<th>10 days</th></tr></thead><tbody>${rows
+    .map(
+      (r) =>
+        `<tr${r.here ? ' class="flag"' : ""}><th>${escapeHTML(r.name)}</th>${r.storms
+          .map((c, i) => `<td data-label="${escapeHTML(heads[i])}">${pair(c)}</td>`)
+          .join("")}<td data-label="10 days"><b>${pair(r.total)}</b></td></tr>`,
+    )
+    .join("")}</tbody></table></div><p class="ins-legend">Each cell: mid mountain / peak, model average. Sorted by 10-day peak total.</p>`;
+}
+
 async function loadInsights(pt, section) {
   const el = document.querySelector("#ins");
   if (!el) return;
   el.innerHTML = '<article class="card afd-card"><div class="state">Loading storm totals, model ensembles and the NWS discussion…</div></article>';
   const data = await insFetch(pt.p);
   if (!el.isConnected || el.dataset.key !== pt.p.slice(0, 2).join(",")) return;
-  let html = "";
+  let html = "",
+    cycle = null;
   if (data.det?.hourly) {
-    const elevFt = data.nws?.forecast?.elevation?.value != null ? data.nws.forecast.elevation.value * 3.28084 : null;
+    const elevFt = data.nws?.forecast?.elevation?.value != null ? data.nws.forecast.elevation.value * 3.28084 : elevOf(pt.p[2]);
     const [lat, lon] = pt.p;
     const wasatch = lat > 40.1 && lat < 41.5 && lon > -112.2 && lon < -111.1;
     const place = (section === "utah" ? utah : ne).find((x) => x.p.some((q) => q[0] === lat && q[1] === lon));
@@ -971,6 +1177,11 @@ async function loadInsights(pt, section) {
       .map((s) => analyzeStorm(s, data, section, elevFt))
       .filter((x) => (x.liqRange[1] ?? 0) >= 0.03 || x.models.filter((m) => m.liquid >= 0.05).length >= 2);
     const pattern = patternCard(data, section, storms);
+    if (insKind === "utah" && storms.length) {
+      const which = place && !place.searched ? `${place.name}${place.p.length > 1 ? ` ${pt.p[2]?.split(" · ")[0]?.toLowerCase() || ""}` : ""}` : "";
+      html += cycleCard(storms, data, section, elevFt, which.trim());
+      cycle = storms;
+    }
     html += summaryCard(storms, data, section);
     html += storms.length
       ? storms.map((s, i) => stormCard(s, section, i)).join("")
@@ -981,6 +1192,7 @@ async function loadInsights(pt, section) {
   }
   html += afdCard(data.afd, section);
   el.innerHTML = html;
+  if (cycle) fillCycleTable(el, el.dataset.key, cycle, section, pt);
   el.querySelectorAll("[data-view]").forEach(
     (b) =>
       (b.onclick = () => {
