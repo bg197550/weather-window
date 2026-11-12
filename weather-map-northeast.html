@@ -209,12 +209,12 @@ document.querySelector(`input[name=model][value=${S.model}]`).checked = true;
 document.getElementById('opacity').value = Math.round(S.opacity * 100);
 
 /* ---------------- Grid & data ---------------- */
-function buildGrid() {
-  const { s, n, w, e, step } = CFG.bbox;
+function buildGrid(b = CFG.bbox) {
+  const { s, n, w, e, step } = b;
   const lats = [], lons = [];
   for (let la = s; la <= n + 1e-6; la += step) lats.push(+la.toFixed(3));
   for (let lo = w; lo <= e + 1e-6; lo += step) lons.push(+lo.toFixed(3));
-  return { lats, lons, nx: lons.length, ny: lats.length };
+  return { lats, lons, nx: lons.length, ny: lats.length, step };
 }
 
 async function fetchModel(model) {
@@ -223,7 +223,16 @@ async function fetchModel(model) {
     const c = JSON.parse(localStorage.getItem(key) || 'null');
     if (c && Date.now() - c.at < CACHE_TTL) return c.d;
   } catch (e) {}
-  const g = S.grid, pts = [];
+  const d = await fetchGrid(model, S.grid);
+  try { localStorage.setItem(key, JSON.stringify({ at: Date.now(), d })); } catch (e) {
+    try { Object.keys(localStorage).filter(k => k.startsWith('wxmap_') && k !== key && k.split('_').length > 2 && !k.endsWith('model') && !k.endsWith('opacity')).forEach(k => localStorage.removeItem(k));
+          localStorage.setItem(key, JSON.stringify({ at: Date.now(), d })); } catch (e2) {}
+  }
+  return d;
+}
+
+async function fetchGrid(model, g) {
+  const pts = [];
   for (let j = 0; j < g.ny; j++) for (let i = 0; i < g.nx; i++) pts.push([g.lats[j], g.lons[i]]);
   const CHUNK = 250, out = new Array(pts.length);
   const jobs = [];
@@ -265,10 +274,6 @@ async function fetchModel(model) {
       cls.push(c); rate.push(+p.toFixed(2)); snow.push(+sn.toFixed(2)); temp.push(T === null ? null : Math.round(T));
     }
     d.cls.push(cls); d.rate.push(rate); d.snow.push(snow); d.temp.push(temp);
-  }
-  try { localStorage.setItem(key, JSON.stringify({ at: Date.now(), d })); } catch (e) {
-    try { Object.keys(localStorage).filter(k => k.startsWith('wxmap_') && k !== key && k.split('_').length > 2 && !k.endsWith('model') && !k.endsWith('opacity')).forEach(k => localStorage.removeItem(k));
-          localStorage.setItem(key, JSON.stringify({ at: Date.now(), d })); } catch (e2) {}
   }
   return d;
 }
@@ -316,10 +321,10 @@ function sampler(field, g) {
   };
 }
 
-function frameImage(t) {
+function frameImage(D, g, t, cache) {
   const key = S.layer + ':' + t;
-  if (S.frameImgs[key]) return S.frameImgs[key];
-  const g = S.grid, W = (g.nx - 1) * F + 1, H = (g.ny - 1) * F + 1;
+  if (cache[key]) return cache[key];
+  const W = (g.nx - 1) * F + 1, H = (g.ny - 1) * F + 1;
   const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
   const ctx = cv.getContext('2d'), img = ctx.createImageData(W, H), px = img.data;
   // rows are spaced evenly in Web Mercator y so one drawImage lines up with the basemap
@@ -329,10 +334,10 @@ function frameImage(t) {
   for (let y = 0; y < H; y++) {
     const m = mN + (mS - mN) * (y / (H - 1));
     const lat = (2 * Math.atan(Math.exp(m)) - Math.PI / 2) * 180 / Math.PI;
-    rowFy[y] = clamp((lat - g.lats[0]) / CFG.bbox.step, 0, g.ny - 1);
+    rowFy[y] = clamp((lat - g.lats[0]) / g.step, 0, g.ny - 1);
   }
   if (S.layer === 'ptype') {
-    const cls = S.data.cls[t], rate = S.data.rate[t];
+    const cls = D.cls[t], rate = D.rate[t];
     // per-class intensity fields so boundaries blend smoothly
     const fields = [RAIN, SNOW, MIX, FZRA].map(c => sampler(cls.map((k, i) => k === c ? Math.max(rate[i], 0.05) : 0), g));
     for (let y = 0; y < H; y++) {
@@ -348,7 +353,7 @@ function frameImage(t) {
       }
     }
   } else {
-    const temp = S.data.temp[t].map(v => v === null ? 32 : v), f = sampler(temp, g);
+    const temp = D.temp[t].map(v => v === null ? 32 : v), f = sampler(temp, g);
     for (let y = 0; y < H; y++) {
       const fy = rowFy[y];
       for (let x = 0; x < W; x++) {
@@ -358,7 +363,7 @@ function frameImage(t) {
     }
   }
   ctx.putImageData(img, 0, 0);
-  return (S.frameImgs[key] = cv);
+  return (cache[key] = cv);
 }
 
 const WxLayer = L.Layer.extend({
@@ -377,10 +382,21 @@ const WxLayer = L.Layer.extend({
     c.style.opacity = S.opacity;
     const ctx = c.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, size.x, size.y);
     if (!S.data || S.layer === 'radar') return;
-    const img = frameImage(S.frame), g = S.grid;
+    const img = frameImage(S.data, S.grid, S.frame, S.frameImgs), g = S.grid;
     const p0 = m.latLngToContainerPoint([g.lats[g.ny - 1], g.lons[0]]), p1 = m.latLngToContainerPoint([g.lats[0], g.lons[g.nx - 1]]);
     ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(img, p0.x, p0.y, p1.x - p0.x, p1.y - p0.y);
+    // Sharper grid for the zoomed-in area, drawn over the coarse one.
+    const fine = activeFine();
+    if (fine) {
+      const ft = fine.idx.get(S.data.times[S.frame]);
+      if (ft != null) {
+        const fg = fine.g;
+        const q0 = m.latLngToContainerPoint([fg.lats[fg.ny - 1], fg.lons[0]]), q1 = m.latLngToContainerPoint([fg.lats[0], fg.lons[fg.nx - 1]]);
+        ctx.clearRect(q0.x, q0.y, q1.x - q0.x, q1.y - q0.y);
+        ctx.drawImage(frameImage(fine.d, fg, ft, fine.imgs), q0.x, q0.y, q1.x - q0.x, q1.y - q0.y);
+      }
+    }
   },
 });
 const wx = new WxLayer().addTo(map);
@@ -478,8 +494,8 @@ function setTitle() {
 /* ---------------- Click readout ---------------- */
 const popup = L.popup({ maxWidth: 240 });
 let popLL = null;
-function nearestIdx(ll) {
-  const g = S.grid, st = CFG.bbox.step;
+function nearestIdx(ll, g = S.grid) {
+  const st = g.step;
   const i = Math.round((ll.lng - g.lons[0]) / st), j = Math.round((ll.lat - g.lats[0]) / st);
   if (i < 0 || j < 0 || i >= g.nx || j >= g.ny) return -1;
   return j * g.nx + i;
@@ -487,12 +503,18 @@ function nearestIdx(ll) {
 function updatePopup() {
   if (!popLL || !S.data) return;
   if (S.layer === 'radar') { popup.setContent('<div class="pop">Readouts are available on the forecast layers.</div>'); return; }
-  const idx = nearestIdx(popLL);
+  let D = S.data, g = S.grid, t = S.frame;
+  const fine = activeFine();
+  if (fine && popLL.lat >= fine.g.lats[0] && popLL.lat <= fine.g.lats[fine.g.ny - 1] && popLL.lng >= fine.g.lons[0] && popLL.lng <= fine.g.lons[fine.g.nx - 1]) {
+    const ft = fine.idx.get(S.data.times[S.frame]);
+    if (ft != null) { D = fine.d; g = fine.g; t = ft; }
+  }
+  const idx = nearestIdx(popLL, g);
   if (idx < 0) { popup.setContent('<div class="pop">Outside the forecast area.</div>'); return; }
-  const t = S.frame, c = S.data.cls[t][idx], p = S.data.rate[t][idx], sn = S.data.snow[t][idx], T = S.data.temp[t][idx];
+  const c = D.cls[t][idx], p = D.rate[t][idx], sn = D.snow[t][idx], T = D.temp[t][idx];
   // storm totals from now through this frame
   let totP = 0, totS = 0;
-  for (let k = 0; k <= t; k++) { totP += S.data.rate[k][idx]; totS += S.data.snow[k][idx]; }
+  for (let k = 0; k <= t; k++) { totP += D.rate[k][idx]; totS += D.snow[k][idx]; }
   const col = c ? `rgb(${ptypeColor(c, p).map(Math.round)})` : 'transparent';
   popup.setContent(`<div class="pop"><b>${c ? `<span class="sw" style="background:${col}"></span>${CLASS_NAME[c]}` : 'No precipitation'}</b>
     <table>
@@ -543,7 +565,7 @@ document.querySelectorAll('input[name=layer]').forEach(r => r.onchange = async (
     $('status').textContent = 'RainViewer composite';
   } else {
     hideRadar(); $('slider').max = times().length - 1; buildTicks();
-    setFrame(Math.min(S.frame, times().length - 1)); setStatus();
+    setFrame(Math.min(S.frame, times().length - 1)); setStatus(); scheduleFine();
   }
 });
 document.querySelectorAll('input[name=model]').forEach(r => r.onchange = () => {
@@ -554,8 +576,50 @@ document.querySelectorAll('input[name=model]').forEach(r => r.onchange = () => {
 
 function setStatus() {
   if (!S.data) return;
-  $('status').textContent = `${MODELS[S.model].label} · ${S.data.times.length} hrs · updated ${new Date(S.loadedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
+  const f = activeFine();
+  const detail = f ? ` · sharp detail ~${Math.round(f.g.step * 69)} mi` : map.getZoom() < DETAIL_ZOOM ? ' · zoom in for sharper detail' : '';
+  $('status').textContent = `${MODELS[S.model].label} · ${S.data.times.length} hrs · updated ${new Date(S.loadedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}${detail}`;
 }
+
+/* ---------------- Zoomed-in detail ----------------
+   Zoomed in to a state or a mountain range, the map fetches a finer grid for just the visible area,
+   down to each model's own resolution, so it stays within the forecast service's daily limits. */
+const MIN_STEP = { ecmwf_ifs: 0.1, gfs_seamless: 0.15, ncep_nbm_conus: 0.03, ncep_hrrr_conus: 0.03 };
+const STEPS = [0.03, 0.05, 0.075, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5];
+const DETAIL_ZOOM = 7, MAX_PTS = 450;
+const fineCache = new Map();
+let fineTimer = null, fineSeq = 0;
+S.fine = null;
+function activeFine() {
+  return S.fine && S.fine.model === S.model && S.layer !== 'radar' && map.getZoom() >= DETAIL_ZOOM ? S.fine : null;
+}
+function scheduleFine() { clearTimeout(fineTimer); fineTimer = setTimeout(loadFine, 450); }
+async function loadFine() {
+  if (map.getZoom() < DETAIL_ZOOM || S.layer === 'radar' || !S.data) { wx.redraw(); setStatus(); return; }
+  const b = map.getBounds().pad(0.15);
+  const want = Math.sqrt(Math.max(1e-6, (b.getNorth() - b.getSouth()) * (b.getEast() - b.getWest())) / MAX_PTS);
+  const step = STEPS.find(x => x >= Math.max(want, MIN_STEP[S.model])) || STEPS[STEPS.length - 1];
+  if (step > CFG.bbox.step * 0.7) { S.fine = null; wx.redraw(); setStatus(); return; }
+  const snap = (v, f) => +(f(v / step) * step).toFixed(3);
+  const box = { s: snap(b.getSouth(), Math.floor), n: snap(b.getNorth(), Math.ceil), w: snap(b.getWest(), Math.floor), e: snap(b.getEast(), Math.ceil), step };
+  const key = [S.model, step, box.s, box.n, box.w, box.e].join('|');
+  if (S.fine && S.fine.key === key) return;
+  const cached = fineCache.get(key);
+  if (cached && Date.now() - cached.at < CACHE_TTL) { S.fine = cached; wx.redraw(); setStatus(); return; }
+  const seq = ++fineSeq, model = S.model;
+  $('status').textContent = 'Loading sharper detail…';
+  try {
+    const g = buildGrid(box), d = await fetchGrid(model, g);
+    if (seq !== fineSeq) return;
+    S.fine = { key, model, g, d, idx: new Map(d.times.map((t, i) => [t, i])), imgs: {}, at: Date.now() };
+    fineCache.set(key, S.fine);
+    if (fineCache.size > 8) fineCache.delete(fineCache.keys().next().value);
+  } catch (e) {
+    console.error(e);
+  }
+  if (seq === fineSeq) { wx.redraw(); setStatus(); if (popup.isOpen()) updatePopup(); }
+}
+map.on('moveend zoomend', scheduleFine);
 
 /* ---------------- Boot ---------------- */
 async function load() {
@@ -565,6 +629,7 @@ async function load() {
     S.data = await fetchModel(S.model); S.loadedAt = Date.now(); S.frameImgs = {};
     $('slider').max = S.data.times.length - 1; buildTicks(); setStatus(); setFrame(0);
     $('loading').style.display = 'none';
+    scheduleFine();
   } catch (e) {
     console.error(e);
     $('loading').firstElementChild.textContent = 'Forecast failed to load — ' + (e.message || 'network error');
