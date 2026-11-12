@@ -137,7 +137,26 @@ const SnowCore = (() => {
     return u.toString();
   }
   /* Everything one place needs. nwsUA: User-Agent for api.weather.gov in Node (browsers send their own). */
-  async function fetchInputs(pl, { nwsUA, days = 15 } = {}) {
+  /* NWS grid squares are 2.5 km, which flattens summits. With search > 0, also check the squares around the
+     point and use the highest one, so a summit forecast comes from the highest terrain NWS models there. */
+  async function nwsGrid(pl, ua, search) {
+    const pt = await fetchJSON(`https://api.weather.gov/points/${pl.lat.toFixed(4)},${pl.lon.toFixed(4)}`, ua);
+    const { gridId, gridX, gridY, forecastGridData } = pt.properties;
+    const cells = [[0, 0]];
+    if (search) for (let dx = -search; dx <= search; dx++) for (let dy = -search; dy <= search; dy++) if (dx || dy) cells.push([dx, dy]);
+    let best = null;
+    for (const [dx, dy] of cells) {
+      try {
+        const url = dx || dy ? `https://api.weather.gov/gridpoints/${gridId}/${gridX + dx},${gridY + dy}` : forecastGridData;
+        const g = (await fetchJSON(url, ua)).properties;
+        const elevM = g.elevation?.value ?? null;
+        if (!best || (fin(elevM) && elevM > best.elevM)) best = { snow: g.snowfallAmount?.values || [], elevM, cell: `${gridId}/${gridX + dx},${gridY + dy}` };
+      } catch {}
+    }
+    if (!best) throw Error("NWS grid unavailable");
+    return best;
+  }
+  async function fetchInputs(pl, { nwsUA, days = 15, nwsSearch = 0 } = {}) {
     const tz = TZ[pl.section] || pl.zone || "auto";
     const common = {
       latitude: pl.lat,
@@ -149,11 +168,7 @@ const SnowCore = (() => {
       temperature_unit: "fahrenheit",
     };
     const ENS = "https://ensemble-api.open-meteo.com/v1/ensemble";
-    const nws = (async () => {
-      const pt = await fetchJSON(`https://api.weather.gov/points/${pl.lat.toFixed(4)},${pl.lon.toFixed(4)}`, nwsUA);
-      const g = await fetchJSON(pt.properties.forecastGridData, nwsUA);
-      return { snow: g.properties.snowfallAmount?.values || [], elevM: g.properties.elevation?.value ?? null };
-    })().catch(() => null);
+    const nws = nwsGrid(pl, nwsUA, pl.ski ? nwsSearch : 0).catch(() => null);
     const [ens, g05, det, nwsData] = await Promise.all([
       fetchJSON(omURL(ENS, { ...common, hourly: "precipitation,temperature_2m,cloud_cover,temperature_700hPa,geopotential_height_700hPa", models: "gfs025,ecmwf_ifs025" })),
       fetchJSON(omURL(ENS, { ...common, hourly: "temperature_700hPa,geopotential_height_700hPa", models: "gfs05" })).catch(() => null),
@@ -400,7 +415,7 @@ const SnowCore = (() => {
       dets: dets.map((d) => ({ ...d, cum: d.cum.map(r2) })),
       levels: levels.map((s) => ({ fam: s.fam, det: !!s.det, level: s.level.map((v) => (v == null ? null : Math.round(v))) })),
       temp: tempMed.map((v) => (v == null ? null : Math.round(v))),
-      nws: e > 0 ? { endIndex: e, elev: nwsElev, scale: r2(scale) } : null,
+      nws: e > 0 ? { endIndex: e, elev: nwsElev, scale: r2(scale), cell: nws.cell || null } : null,
       segments: segOut,
       blocks: blockOut,
       totals,
