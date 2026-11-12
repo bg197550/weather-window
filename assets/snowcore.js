@@ -139,7 +139,12 @@ const SnowCore = (() => {
   /* Everything one place needs. nwsUA: User-Agent for api.weather.gov in Node (browsers send their own). */
   /* NWS grid squares are 2.5 km, which flattens summits. With search > 0, also check the squares around the
      point and use the highest one, so a summit forecast comes from the highest terrain NWS models there. */
-  async function nwsGrid(pl, ua, search) {
+  async function nwsGrid(pl, ua, search, cell) {
+    if (cell) {
+      // A summit square found earlier by the outlook job: one request.
+      const g = (await fetchJSON(`https://api.weather.gov/gridpoints/${cell}`, ua)).properties;
+      return { snow: g.snowfallAmount?.values || [], elevM: g.elevation?.value ?? null, cell };
+    }
     const pt = await fetchJSON(`https://api.weather.gov/points/${pl.lat.toFixed(4)},${pl.lon.toFixed(4)}`, ua);
     const { gridId, gridX, gridY, forecastGridData } = pt.properties;
     const cells = [[0, 0]];
@@ -156,7 +161,7 @@ const SnowCore = (() => {
     if (!best) throw Error("NWS grid unavailable");
     return best;
   }
-  async function fetchInputs(pl, { nwsUA, days = 15, nwsSearch = 0 } = {}) {
+  async function fetchInputs(pl, { nwsUA, days = 15, nwsSearch = 0, nwsCell = null } = {}) {
     const tz = TZ[pl.section] || pl.zone || "auto";
     const common = {
       latitude: pl.lat,
@@ -168,7 +173,7 @@ const SnowCore = (() => {
       temperature_unit: "fahrenheit",
     };
     const ENS = "https://ensemble-api.open-meteo.com/v1/ensemble";
-    const nws = nwsGrid(pl, nwsUA, pl.ski ? nwsSearch : 0).catch(() => null);
+    const nws = nwsGrid(pl, nwsUA, pl.ski ? nwsSearch : 0, pl.ski ? nwsCell : null).catch(() => null);
     const [ens, g05, det, nwsData] = await Promise.all([
       fetchJSON(omURL(ENS, { ...common, hourly: "precipitation,temperature_2m,cloud_cover,temperature_700hPa,geopotential_height_700hPa", models: "gfs025,ecmwf_ifs025" })),
       fetchJSON(omURL(ENS, { ...common, hourly: "temperature_700hPa,geopotential_height_700hPa", models: "gfs05" })).catch(() => null),
@@ -466,9 +471,14 @@ const SnowCore = (() => {
   async function outlook(pl, opts = {}) {
     return build(pl, await fetchInputs(pl, opts), opts.now);
   }
-  /* ---------- browser loading: saved file for the dashboard mountains, live for anything else ---------- */
+  /* ---------- browser loading ----------
+     1. The outlook job's file, when it is fresh (built within STALE).
+     2. Otherwise this browser's own copy from the last hour (shared by every page of the site).
+     3. Otherwise a live build here, saved for the other pages. Each mountain uses the same source on every page. */
   const DATA = "https://raw.githubusercontent.com/bg197550/weather-window/data/outlook/";
-  const STALE = 8 * H;
+  const STALE = 6 * H,
+    LOCAL_TTL = 60 * 60000,
+    LOCAL_KEY = "ww:outlook:";
   const cache = new Map();
   function cached(key, ttl, make) {
     const hit = cache.get(key);
@@ -478,24 +488,68 @@ const SnowCore = (() => {
     promise.catch(() => cache.delete(key));
     return promise;
   }
-  /* The outlook for a dashboard place ({name, p, ski?, zone?}) in a region. */
+  function readLocal(key) {
+    try {
+      const o = JSON.parse(localStorage.getItem(LOCAL_KEY + key) || "null");
+      return o && Date.now() - Date.parse(o.built) < LOCAL_TTL ? o : null;
+    } catch {
+      return null;
+    }
+  }
+  function writeLocal(key, o) {
+    try {
+      localStorage.setItem(LOCAL_KEY + key, JSON.stringify(o));
+    } catch {
+      // Storage full: drop older outlooks and try once more.
+      try {
+        Object.keys(localStorage)
+          .filter((k) => k.startsWith(LOCAL_KEY))
+          .forEach((k) => localStorage.removeItem(k));
+        localStorage.setItem(LOCAL_KEY + key, JSON.stringify(o));
+      } catch {}
+    }
+  }
+  /* At most two live builds at a time, so a page of mountains stays inside Open-Meteo's free limits. */
+  let running = 0;
+  const waiting = [];
+  async function limited(fn) {
+    if (running >= 2) await new Promise((r) => waiting.push(r));
+    running++;
+    try {
+      return await fn();
+    } finally {
+      running--;
+      waiting.shift()?.();
+    }
+  }
+  const fresh = (o) => o && Date.now() - Date.parse(o.built) < STALE;
+  /* The outlook for a dashboard place ({name, p, ski?, zone?, searched?}) in a region. */
   function forPlace(place, section) {
     const pl = placeFor(place, section);
-    return cached(`o:${section}:${pl.slug}:${pl.lat},${pl.lon}`, 10 * 60000, async () => {
-      if (MOUNTAINS[pl.slug] && !place.searched) {
+    const key = `${section}:${pl.slug}:${pl.lat.toFixed(3)},${pl.lon.toFixed(3)}`;
+    return cached("o:" + key, 10 * 60000, async () => {
+      const own = MOUNTAINS[pl.slug] && !place.searched;
+      const sum = own ? await summary().catch(() => null) : null;
+      if (own && fresh(sum?.places?.[pl.slug])) {
         try {
           const o = await fetchJSON(`${DATA}${pl.slug}.json`);
-          if (Date.now() - Date.parse(o.built) < STALE) return o;
+          if (fresh(o)) return o;
         } catch {}
       }
-      return outlook(pl);
+      const local = readLocal(key);
+      if (local) return local;
+      const o = thin(await limited(() => outlook(pl, { nwsCell: sum?.cells?.[pl.slug] || null })));
+      writeLocal(key, o);
+      return o;
     });
   }
-  /* Segments and totals for every dashboard mountain (Snow report table and map). */
+  /* Segments and totals for every dashboard mountain (Snow report table and map), plus summit NWS squares. */
   function summary() {
     return cached("summary", 10 * 60000, () => fetchJSON(`${DATA}summary.json`));
   }
   const clear = () => cache.clear();
-  return { MOUNTAINS, DET, TZ, placeFor, fetchInputs, build, outlook, forPlace, summary, clear, STALE, thin, windowSnow, snowRatio, snowShare, hourSnow, freezingFt, heightToFt, seriesOf, quant, localHourKey, slugOf };
+  /* Is a summary entry fresh enough to use as is? */
+  const isFresh = fresh;
+  return { MOUNTAINS, DET, TZ, placeFor, fetchInputs, nwsGrid, build, outlook, forPlace, summary, clear, isFresh, STALE, thin, windowSnow, snowRatio, snowShare, hourSnow, freezingFt, heightToFt, seriesOf, quant, localHourKey, slugOf };
 })();
 if (typeof module === "object" && module.exports) module.exports = SnowCore;
