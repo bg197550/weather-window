@@ -47,6 +47,62 @@ const RANGE_DET = [
 ];
 const ENS_NAMES = { ncep_gefs025: "GEFS", ecmwf_ifs025_ensemble: "ECMWF ENS", gfs05: "GEFS" };
 
+/* ---------- searched places (any town or ski area) ----------
+   A searched place lives in the link itself: #range/at/<lat>,<lon>/<name>[/<base>-<summit>], so it can be shared. */
+const RANGE_RECENT_KEY = "ww:range-recent";
+const rr4 = (x) => Math.round(x * 10000) / 10000;
+function customKey(x) {
+  return `at/${rr4(x.lat)},${rr4(x.lon)}/${encodeURIComponent(x.name)}${x.ski ? `/${x.ski.base}-${x.ski.summit}` : ""}`;
+}
+function parseCustom(key) {
+  const m = String(key || "").match(/^at\/(-?[\d.]+),(-?[\d.]+)\/([^/]+)(?:\/(\d+)-(\d+))?$/);
+  if (!m) return null;
+  let name;
+  try {
+    name = decodeURIComponent(m[3]);
+  } catch {
+    name = m[3];
+  }
+  const lat = +m[1],
+    lon = +m[2];
+  if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) return null;
+  if (m[4]) {
+    const base = +m[4],
+      summit = +m[5];
+    if (summit > base) return { slug: key, name, region: "custom", lat, lon, base, summit, point: Math.round((base + summit) / 200) * 100, ski: true };
+  }
+  return { slug: key, name, region: "custom", lat, lon, town: true };
+}
+function readRecent() {
+  try {
+    const l = JSON.parse(localStorage.getItem(RANGE_RECENT_KEY) || "[]");
+    return Array.isArray(l) ? l.filter((x) => typeof x === "string" && parseCustom(x)).slice(0, 8) : [];
+  } catch {
+    return [];
+  }
+}
+function addRecent(key) {
+  try {
+    localStorage.setItem(RANGE_RECENT_KEY, JSON.stringify([key, ...readRecent().filter((k) => k !== key)].slice(0, 8)));
+  } catch {}
+}
+function removeRecent(key) {
+  try {
+    localStorage.setItem(RANGE_RECENT_KEY, JSON.stringify(readRecent().filter((k) => k !== key)));
+  } catch {}
+}
+/* The location key from the link's parts after "range". */
+function rangeKeyFromHash(parts) {
+  if (parts[0] === "at") {
+    const c = parseCustom(parts.join("/"));
+    return c ? c.slug : "";
+  }
+  return rangeLocations().some((x) => x.slug === parts[0]) ? parts[0] : "";
+}
+function findRange(key) {
+  return rangeLocations().find((x) => x.slug === key) || parseCustom(key);
+}
+
 let rangeResort = "",
   rangeDays = 10,
   levelDays = 10,
@@ -135,7 +191,7 @@ async function rangeData(r) {
     longitude: r.lon,
     // Towns use the ground elevation Open-Meteo looks up for the point.
     ...(r.point ? { elevation: Math.round(r.point / M2FT) } : {}),
-    timezone: RANGE_REGIONS[r.region]?.tz || "America/Denver",
+    timezone: RANGE_REGIONS[r.region]?.tz || "auto",
     forecast_days: 15,
     precipitation_unit: "inch",
     temperature_unit: "fahrenheit",
@@ -162,7 +218,7 @@ async function rangeData(r) {
 function buildRange(r, ens, g05, det, nowMs = Date.now()) {
   const times = ens?.hourly?.time;
   if (!times?.length) throw Error("No ensemble data");
-  const tz = RANGE_REGIONS[r.region]?.tz || "America/Denver";
+  const tz = RANGE_REGIONS[r.region]?.tz || ens.timezone || "UTC";
   const key = localHourKey(nowMs, tz);
   const point = r.point ?? (Number.isFinite(ens.elevation) ? Math.round((ens.elevation * M2FT) / 10) * 10 : 0);
   let i0 = times.findIndex((t) => t >= key);
@@ -576,7 +632,8 @@ async function loadRangeView() {
   if (!root) return;
   rangeState = null;
   const all = rangeLocations();
-  let r = all.find((x) => x.slug === rangeResort);
+  let r = findRange(rangeResort);
+  if (r?.region === "custom") addRecent(r.slug);
   if (!r) {
     // No location in the link: use the place picked elsewhere on the dashboard, else the region's main mountain.
     const c = WW.place();
@@ -584,20 +641,37 @@ async function loadRangeView() {
     rangeResort = r.slug;
     history.replaceState(null, "", "#range/" + r.slug);
   }
-  const regionSeg = `<nav class="seg snowfc-region rng-region" aria-label="Region">${Object.entries(RANGE_REGIONS)
+  const recent = readRecent();
+  const tabs = { ...RANGE_REGIONS, ...(recent.length ? { custom: { name: "Your searches", home: recent[0] } } : {}) };
+  const regionSeg = `<nav class="seg snowfc-region rng-region" aria-label="Region">${Object.entries(tabs)
     .map(([k, v]) => {
-      const to = k === r.region ? r.slug : all.find((x) => x.slug === v.home)?.slug || all.find((x) => x.region === k)?.slug;
+      const to = k === r.region ? r.slug : k === "custom" ? v.home : all.find((x) => x.slug === v.home)?.slug || all.find((x) => x.region === k)?.slug;
       return `<a href="#range/${to}" class="${k === r.region ? "active" : ""}"${k === r.region ? ' aria-current="true"' : ""}>${v.name}</a>`;
     })
     .join("")}</nav>`;
-  const pills = `<div class="day-pills rng-resorts" aria-label="Location">${all
-    .filter((x) => x.region === r.region)
-    .map((x) => `<a href="#range/${x.slug}" class="${x === r ? "active" : ""}${x.town ? " is-town" : ""}"${x === r ? ' aria-current="page"' : ""}>${escapeHTML(x.name)}</a>`)
+  const row = r.region === "custom" ? recent.map(parseCustom) : all.filter((x) => x.region === r.region);
+  const pills = `<div class="day-pills rng-resorts" aria-label="Location">${row
+    .map((x) => {
+      const on = x.slug === r.slug;
+      const rm = r.region === "custom" ? `<button type="button" class="rng-x" data-forget="${escapeHTML(x.slug)}" aria-label="Remove ${escapeHTML(x.name)}">✕</button>` : "";
+      return `<span class="rng-pill"><a href="#range/${x.slug}" class="${on ? "active" : ""}"${on ? ' aria-current="page"' : ""}>${escapeHTML(x.name)}</a>${rm}</span>`;
+    })
     .join("")}</div>`;
+  const search = `<form class="place-search-form rng-search" role="search"><label class="sr-only" for="rng-q">Search any town or ski area</label><input id="rng-q" type="search" autocomplete="off" enterkeyhint="search" placeholder="Search any town or ski area" /><button type="submit">Search</button></form><div class="place-search-results rng-results" aria-live="polite"></div>`;
   const elevs = r.town
     ? `Forecast at ground level${r.point ? ` (${r.point.toLocaleString()} ft)` : ""}`
     : `Base ${r.base.toLocaleString()} ft · Summit ${r.summit.toLocaleString()} ft · forecast for ${r.point.toLocaleString()} ft`;
-  root.innerHTML = `<div class="rng-top">${regionSeg}</div>${pills}<article class="card afd-card rng-card" id="rng-range"><div class="rng-head"><div><h3>Forecast range · ${escapeHTML(r.name)}</h3><p class="sub">${elevs}</p></div>${daySeg("range", rangeDays)}</div><div class="rng-body"><div class="state">Loading ensemble runs…</div></div><p class="source">Running total of new snow ${r.town ? "at ground level" : `at ${r.point.toLocaleString()} ft`} from every GEFS and ECMWF ensemble run, plus the single (deterministic) models. Snow is worked out from each run's liquid precipitation times a snow ratio from its temperature at that elevation (about 8:1 near 32°F, 16–17:1 in the teens), not the model's built-in snowfall, which assumes about 7:1 and reads low in the mountains. Hover or tap the chart for the ratio. Data: Open-Meteo.</p></article><article class="card afd-card rng-card" id="rng-level"><div class="rng-head"><div><h3>Snow level · ${escapeHTML(r.name)}</h3><p class="sub">Elevation where rain turns to snow</p></div>${daySeg("level", levelDays)}</div><div class="rng-body"><div class="state">Loading snow levels…</div></div><p class="source">Snow level ≈ freezing level minus 1,100 ft. Freezing levels come from each model where it reports one (GFS, ICON, HRRR); otherwise from its 700 mb temperature and height (ECMWF, GEM, ECMWF ENS, and the 0.5° GEFS ensemble). Hours a model leaves blank are skipped. Data: Open-Meteo.</p></article>`;
+  root.innerHTML = `${search}<div class="rng-top">${regionSeg}</div>${pills}<article class="card afd-card rng-card" id="rng-range"><div class="rng-head"><div><h3>Forecast range · ${escapeHTML(r.name)}</h3><p class="sub">${elevs}</p></div>${daySeg("range", rangeDays)}</div><div class="rng-body"><div class="state">Loading ensemble runs…</div></div><p class="source">Running total of new snow ${r.town ? "at ground level" : `at ${r.point.toLocaleString()} ft`} from every GEFS and ECMWF ensemble run, plus the single (deterministic) models. Snow is worked out from each run's liquid precipitation times a snow ratio from its temperature at that elevation (about 8:1 near 32°F, 16–17:1 in the teens), not the model's built-in snowfall, which assumes about 7:1 and reads low in the mountains. Hover or tap the chart for the ratio. Data: Open-Meteo.</p></article><article class="card afd-card rng-card" id="rng-level"><div class="rng-head"><div><h3>Snow level · ${escapeHTML(r.name)}</h3><p class="sub">Elevation where rain turns to snow</p></div>${daySeg("level", levelDays)}</div><div class="rng-body"><div class="state">Loading snow levels…</div></div><p class="source">Snow level ≈ freezing level minus 1,100 ft. Freezing levels come from each model where it reports one (GFS, ICON, HRRR); otherwise from its 700 mb temperature and height (ECMWF, GEM, ECMWF ENS, and the 0.5° GEFS ensemble). Hours a model leaves blank are skipped. Data: Open-Meteo${r.region === "custom" && !r.town ? "; ski area base and summit: OpenSkiMap (OpenStreetMap), forecast at the midpoint" : ""}.</p></article>`;
+  wireRangeSearch(root);
+  root.querySelectorAll("[data-forget]").forEach(
+    (b) =>
+      (b.onclick = () => {
+        removeRecent(b.dataset.forget);
+        const left = readRecent();
+        if (b.dataset.forget === rangeResort) location.hash = "#range/" + (left[0] || RANGE_REGIONS[WW.region()]?.home || "alta");
+        else loadRangeView();
+      }),
+  );
   root.querySelectorAll("[data-range-days]").forEach(
     (b) =>
       (b.onclick = () => {
@@ -633,6 +707,66 @@ async function loadRangeView() {
   drawRange();
   drawLevel();
 }
+/* Search box: the dashboard's own places first, then ski areas anywhere (OpenSkiMap), then towns and ZIP codes. */
+function wireRangeSearch(root) {
+  const form = root.querySelector(".rng-search"),
+    input = root.querySelector("#rng-q"),
+    out = root.querySelector(".rng-results");
+  if (!form) return;
+  let seq = 0,
+    timer = 0,
+    shown = [];
+  const go = (x) => {
+    if (x.slug) location.hash = "#range/" + x.slug;
+    else {
+      const key = customKey(x);
+      addRecent(key);
+      location.hash = "#range/" + key;
+    }
+  };
+  const draw = (list, note) => {
+    shown = list;
+    out.innerHTML = `${list.length ? `<ul>${list.map((x, i) => `<li><button type="button" data-hit="${i}"><b>${escapeHTML(x.name)}</b><small>${escapeHTML(x.detail || "")}</small></button></li>`).join("")}</ul>` : ""}${note || ""}`;
+    out.querySelectorAll("[data-hit]").forEach((b) => (b.onclick = () => go(shown[+b.dataset.hit])));
+  };
+  const local = (q) => {
+    const n = q.trim().toLowerCase();
+    return rangeLocations()
+      .filter((x) => x.name.toLowerCase().includes(n))
+      .slice(0, 4)
+      .map((x) => ({ ...x, detail: x.town ? `${RANGE_REGIONS[x.region].name} · dashboard place` : `${RANGE_REGIONS[x.region].name} · ski area on the dashboard` }));
+  };
+  const run = async (submit) => {
+    const q = input.value.trim(),
+      id = ++seq;
+    if (q.length < 2) return draw([], "");
+    const mine = local(q);
+    draw(mine, '<div class="state">Searching ski areas and towns…</div>');
+    const [ski, towns] = await Promise.all([/^\d/.test(q) ? [] : searchSki(q, { max: 6 }).catch(() => []), geocode(q, { world: true }).catch(() => [])]);
+    if (id !== seq) return;
+    // Leave out ski areas the dashboard already lists (within ~5 km of one of its mountains).
+    const near = (a, b) => Math.abs(a.lat - b.lat) < 0.05 && Math.abs(a.lon - b.lon) < 0.06;
+    const list = [...mine, ...ski.filter((sk) => !rangeLocations().some((m) => !m.town && near(m, sk))), ...towns.slice(0, 5)];
+    if (submit && list.length === 1) return go(list[0]);
+    draw(list, list.length ? "" : `<div class="state">No match for “${escapeHTML(q)}”. Try a ski area, a town (“Bend, OR”) or a US ZIP.</div>`);
+  };
+  input.oninput = () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => run(false), 350);
+  };
+  form.onsubmit = (e) => {
+    e.preventDefault();
+    clearTimeout(timer);
+    run(true);
+  };
+  input.onkeydown = (e) => {
+    if (e.key === "Escape") {
+      input.value = "";
+      draw([], "");
+    }
+  };
+}
+
 let rangeResize = 0;
 addEventListener("resize", () => {
   clearTimeout(rangeResize);

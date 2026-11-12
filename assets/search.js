@@ -4,19 +4,6 @@
 
 const SEARCH_KEY = "ww:searched";
 const SEARCH_MAX = 10;
-const STATES = {
-  AL: "Alabama", AK: "Alaska", AZ: "Arizona", AR: "Arkansas", CA: "California", CO: "Colorado", CT: "Connecticut",
-  DE: "Delaware", DC: "District of Columbia", FL: "Florida", GA: "Georgia", HI: "Hawaii", ID: "Idaho", IL: "Illinois",
-  IN: "Indiana", IA: "Iowa", KS: "Kansas", KY: "Kentucky", LA: "Louisiana", ME: "Maine", MD: "Maryland",
-  MA: "Massachusetts", MI: "Michigan", MN: "Minnesota", MS: "Mississippi", MO: "Missouri", MT: "Montana",
-  NE: "Nebraska", NV: "Nevada", NH: "New Hampshire", NJ: "New Jersey", NM: "New Mexico", NY: "New York",
-  NC: "North Carolina", ND: "North Dakota", OH: "Ohio", OK: "Oklahoma", OR: "Oregon", PA: "Pennsylvania",
-  RI: "Rhode Island", SC: "South Carolina", SD: "South Dakota", TN: "Tennessee", TX: "Texas", UT: "Utah",
-  VT: "Vermont", VA: "Virginia", WA: "Washington", WV: "West Virginia", WI: "Wisconsin", WY: "Wyoming",
-  PR: "Puerto Rico",
-};
-const STATE_ABBR = Object.fromEntries(Object.entries(STATES).map(([k, v]) => [v.toLowerCase(), k]));
-
 /* West of 100°W goes with Utah (Mountain/Pacific), east with New England. */
 const sectionFor = (lon) => (lon < -100 ? "utah" : "ne");
 const r4 = (x) => Math.round(x * 10000) / 10000;
@@ -37,7 +24,7 @@ function writeSearched(list) {
   } catch {}
 }
 function searchedPlace(x) {
-  return { name: x.name, p: [[x.lat, x.lon, x.label || "Searched location"]], zone: x.zone || null, searched: true };
+  return { name: x.name, p: [[x.lat, x.lon, x.label || "Searched location"]], zone: x.zone || null, searched: true, ...(x.ski ? { ski: x.ski } : {}) };
 }
 /* Built-in places stay first; saved searches follow in each list. */
 function installSearched() {
@@ -48,7 +35,7 @@ installSearched();
 
 /* Saves a search (most recent first) and returns where it sits in the place lists. */
 function addSearched(x) {
-  const entry = { name: x.name, lat: r4(x.lat), lon: r4(x.lon), label: x.label || "", zone: x.zone || null };
+  const entry = { name: x.name, lat: r4(x.lat), lon: r4(x.lon), label: x.label || "", zone: x.zone || null, ...(x.ski ? { ski: x.ski } : {}) };
   const builtIn = [...utah, ...ne].find((p) => !p.searched && slug(p.name) === slug(entry.name));
   if (builtIn) entry.name += ` (${entry.lat.toFixed(2)}, ${entry.lon.toFixed(2)})`;
   const list = readSearched().filter((y) => slug(y.name) !== slug(entry.name));
@@ -71,62 +58,7 @@ function setSearchedZone(name, zone) {
   for (const p of [...utah, ...ne]) if (p.searched && p.name === name) p.zone = zone;
 }
 
-/* ---------- geocoding ---------- */
-async function searchZip(zip) {
-  const r = await fetch(`https://api.zippopotam.us/us/${zip}`);
-  if (r.status === 404) return [];
-  if (!r.ok) throw Error(`ZIP lookup ${r.status}`);
-  const j = await r.json();
-  return (j.places || []).map((p) => ({
-    name: `${p["place name"]}, ${p["state abbreviation"]}`,
-    detail: `ZIP ${zip} · ${p.state}`,
-    label: `ZIP ${zip}`,
-    lat: +p.latitude,
-    lon: +p.longitude,
-  }));
-}
-async function searchName(q) {
-  // "Bend, OR" / "Bend Oregon": search the town, then keep matches in that state.
-  let town = q,
-    state = null;
-  const m = q.match(/^(.*?)[,\s]+([A-Za-z .]+)$/);
-  if (m) {
-    const s = m[2].trim();
-    const abbr = s.length === 2 ? s.toUpperCase() : STATE_ABBR[s.toLowerCase()];
-    if (abbr && STATES[abbr] && m[1].trim()) {
-      town = m[1].trim();
-      state = STATES[abbr];
-    }
-  }
-  const u = new URL("https://geocoding-api.open-meteo.com/v1/search");
-  Object.entries({ name: town, count: 20, language: "en", format: "json", countryCode: "US" }).forEach(([k, v]) => u.searchParams.set(k, v));
-  const r = await fetch(u);
-  if (!r.ok) throw Error(`Town lookup ${r.status}`);
-  const j = await r.json();
-  return (j.results || [])
-    .filter((x) => !state || x.admin1 === state)
-    .slice(0, 8)
-    .map((x) => {
-      const abbr = STATE_ABBR[(x.admin1 || "").toLowerCase()] || x.admin1 || "";
-      return {
-        name: `${x.name}${abbr ? ", " + abbr : ""}`,
-        detail: [x.admin2, x.admin1, x.elevation != null ? `${Math.round(x.elevation * 3.28084).toLocaleString()} ft` : ""]
-          .filter(Boolean)
-          .join(" · "),
-        label: x.elevation != null ? `Town · ~${Math.round(x.elevation * 3.28084).toLocaleString()} ft` : "Town",
-        lat: x.latitude,
-        lon: x.longitude,
-        zone: x.timezone || null,
-      };
-    });
-}
-async function geocode(q) {
-  q = q.trim();
-  const zip = q.match(/^(\d{5})(?:-\d{4})?$/);
-  if (zip) return searchZip(zip[1]);
-  if (q.length < 2) return [];
-  return searchName(q);
-}
+/* ZIP, town and ski-area lookups live in common.js (shared with the Snow Report). */
 
 /* ---------- place picker panel ---------- */
 const placeEntries = () => [
@@ -158,7 +90,7 @@ function openPlaceSearch(host, onOpen, onChange, cur) {
     return;
   }
   host.hidden = false;
-  host.innerHTML = `<form class="place-search-form" role="search"><label class="sr-only" for="place-search-input">Find a place</label><input id="place-search-input" type="search" inputmode="search" autocomplete="off" enterkeyhint="search" placeholder="Filter, or search any US ZIP or town" /><button type="submit">Search</button><button type="button" class="place-search-close" aria-label="Close">✕</button></form><div class="place-search-results" aria-live="polite"></div><div class="place-search-groups">${groupsHTML(cur)}</div><p class="muted place-search-note">Searches cover US locations (NWS forecasts) and are saved in this browser.</p>`;
+  host.innerHTML = `<form class="place-search-form" role="search"><label class="sr-only" for="place-search-input">Find a place</label><input id="place-search-input" type="search" inputmode="search" autocomplete="off" enterkeyhint="search" placeholder="Filter, or search a US ZIP, town or ski area" /><button type="submit">Search</button><button type="button" class="place-search-close" aria-label="Close">✕</button></form><div class="place-search-results" aria-live="polite"></div><div class="place-search-groups">${groupsHTML(cur)}</div><p class="muted place-search-note">Searches cover US towns, ZIP codes and ski areas (NWS forecasts) and are saved in this browser. Ski areas: OpenSkiMap.</p>`;
   const input = host.querySelector("#place-search-input"),
     out = host.querySelector(".place-search-results"),
     groups = host.querySelector(".place-search-groups");
@@ -225,16 +157,18 @@ function openPlaceSearch(host, onOpen, onChange, cur) {
       return;
     }
     if (/^\d{1,4}$/.test(q.trim())) return render(local, [], "");
-    render(local, [], '<div class="state">Searching ZIP codes and towns…</div>');
+    render(local, [], '<div class="state">Searching ZIP codes, towns and ski areas…</div>');
     try {
-      const res = await geocode(q);
+      // Ski areas first (the list loads once), then towns; a failed ski lookup never blocks towns.
+      const [ski, towns] = await Promise.all([/^\d/.test(q.trim()) ? [] : searchSki(q, { usOnly: true, max: 5 }).catch(() => []), geocode(q)]);
+      const res = [...ski, ...towns];
       if (id !== seq) return;
       shown = res;
       if (submit && !local.length && res.length === 1) return pick(res[0]);
       render(
         local,
         res,
-        res.length || local.length ? "" : `<div class="state">No US match for “${escapeHTML(q.trim())}”. Try a 5-digit ZIP or “Town, ST”.</div>`,
+        res.length || local.length ? "" : `<div class="state">No US match for “${escapeHTML(q.trim())}”. Try a 5-digit ZIP, “Town, ST” or a ski area name.</div>`,
       );
     } catch (e) {
       if (id === seq) render(local, [], `<div class="error">Town and ZIP search is unavailable right now (${escapeHTML(e.message)}).</div>`);

@@ -162,3 +162,11 @@
   .rng-card p.rng-legend, .rng-card p.rng-legend * { font-size: 12px; }
   .rng-card p.source { font-size: 12px; }
 }
+.rng-search { margin: 0 0 4px; max-width: 560px; }
+.rng-results { max-width: 560px; margin-bottom: 12px; }
+.rng-results:empty { display: none; }
+.rng-top { margin: 12px 0 6px; }
+.rng-region { width: fit-content; max-width: 100%; overflow-x: auto; }
+.rng-region a { white-space: nowrap; }
+.rng-pill { display: inline-flex; align-items: stretch; gap: 2px; }
+.rng-x { border: 1px solid #325461; background: transparent; color: #9fb1bc; border-radius: 7px; padding: 0 9px; font: inherit; }

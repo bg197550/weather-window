@@ -594,3 +594,132 @@ function slug(s) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
 }
+
+/* ---------- Place lookups (Weather search and the Snow Report's Range & snow level search) ---------- */
+const STATES = {
+  AL: "Alabama", AK: "Alaska", AZ: "Arizona", AR: "Arkansas", CA: "California", CO: "Colorado", CT: "Connecticut",
+  DE: "Delaware", DC: "District of Columbia", FL: "Florida", GA: "Georgia", HI: "Hawaii", ID: "Idaho", IL: "Illinois",
+  IN: "Indiana", IA: "Iowa", KS: "Kansas", KY: "Kentucky", LA: "Louisiana", ME: "Maine", MD: "Maryland",
+  MA: "Massachusetts", MI: "Michigan", MN: "Minnesota", MS: "Mississippi", MO: "Missouri", MT: "Montana",
+  NE: "Nebraska", NV: "Nevada", NH: "New Hampshire", NJ: "New Jersey", NM: "New Mexico", NY: "New York",
+  NC: "North Carolina", ND: "North Dakota", OH: "Ohio", OK: "Oklahoma", OR: "Oregon", PA: "Pennsylvania",
+  RI: "Rhode Island", SC: "South Carolina", SD: "South Dakota", TN: "Tennessee", TX: "Texas", UT: "Utah",
+  VT: "Vermont", VA: "Virginia", WA: "Washington", WV: "West Virginia", WI: "Wisconsin", WY: "Wyoming",
+  PR: "Puerto Rico",
+};
+const STATE_ABBR = Object.fromEntries(Object.entries(STATES).map(([k, v]) => [v.toLowerCase(), k]));
+
+/* ---------- geocoding ---------- */
+async function searchZip(zip) {
+  const r = await fetch(`https://api.zippopotam.us/us/${zip}`);
+  if (r.status === 404) return [];
+  if (!r.ok) throw Error(`ZIP lookup ${r.status}`);
+  const j = await r.json();
+  return (j.places || []).map((p) => ({
+    name: `${p["place name"]}, ${p["state abbreviation"]}`,
+    detail: `ZIP ${zip} · ${p.state}`,
+    label: `ZIP ${zip}`,
+    lat: +p.latitude,
+    lon: +p.longitude,
+  }));
+}
+async function searchName(q, { world = false } = {}) {
+  // "Bend, OR" / "Bend Oregon": search the town, then keep matches in that state.
+  let town = q,
+    state = null;
+  const m = q.match(/^(.*?)[,\s]+([A-Za-z .]+)$/);
+  if (m) {
+    const s = m[2].trim();
+    const abbr = s.length === 2 ? s.toUpperCase() : STATE_ABBR[s.toLowerCase()];
+    if (abbr && STATES[abbr] && m[1].trim()) {
+      town = m[1].trim();
+      state = STATES[abbr];
+    }
+  }
+  const u = new URL("https://geocoding-api.open-meteo.com/v1/search");
+  Object.entries({ name: town, count: 20, language: "en", format: "json", ...(world ? {} : { countryCode: "US" }) }).forEach(([k, v]) => u.searchParams.set(k, v));
+  const r = await fetch(u);
+  if (!r.ok) throw Error(`Town lookup ${r.status}`);
+  const j = await r.json();
+  return (j.results || [])
+    .filter((x) => !state || x.admin1 === state)
+    .slice(0, 8)
+    .map((x) => {
+      const us = x.country_code === "US",
+        abbr = us ? STATE_ABBR[(x.admin1 || "").toLowerCase()] || x.admin1 || "" : [x.admin1, x.country_code].filter(Boolean).join(", ");
+      return {
+        name: `${x.name}${abbr ? ", " + abbr : ""}`,
+        detail: [x.admin2, x.admin1, x.elevation != null ? `${Math.round(x.elevation * 3.28084).toLocaleString()} ft` : ""]
+          .filter(Boolean)
+          .join(" · "),
+        label: x.elevation != null ? `Town · ~${Math.round(x.elevation * 3.28084).toLocaleString()} ft` : "Town",
+        lat: x.latitude,
+        lon: x.longitude,
+        elevFt: x.elevation != null ? Math.round(x.elevation * 3.28084) : null,
+        zone: x.timezone || null,
+      };
+    });
+}
+async function geocode(q, opts = {}) {
+  q = q.trim();
+  const zip = q.match(/^(\d{5})(?:-\d{4})?$/);
+  if (zip) return searchZip(zip[1]);
+  if (q.length < 2) return [];
+  return searchName(q, opts);
+}
+
+/* ---------- ski areas: OpenSkiMap list, rebuilt weekly on the data branch ---------- */
+const SKI_URL = "https://raw.githubusercontent.com/bg197550/weather-window/data/ski-areas.json";
+let skiAreasPromise = null;
+const skiKey = (s) =>
+  String(s || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+const SKI_FILLER = /\b(ski|skiing|resort|resorts|area|areas|mountain|mount|mtn|mt|the|and|at)\b/g;
+const skiCore = (k) => k.replace(SKI_FILLER, " ").replace(/\s+/g, " ").trim();
+function skiAreas() {
+  if (!skiAreasPromise)
+    skiAreasPromise = fetch(SKI_URL)
+      .then((r) => {
+        if (!r.ok) throw Error(`ski list ${r.status}`);
+        return r.json();
+      })
+      .then((j) => (j.areas || []).map(([name, place, lat, lon, base, summit]) => ({ name, place, lat, lon, base, summit, key: skiKey(name), core: skiCore(skiKey(name)) })))
+      .catch((e) => {
+        skiAreasPromise = null;
+        throw e;
+      });
+  return skiAreasPromise;
+}
+/* Ski areas matching a name ("killington", "Jackson Hole", "Mt Bachelor"), best match and biggest vertical first. */
+async function searchSki(q, { usOnly = false, max = 8 } = {}) {
+  const n = skiKey(q);
+  if (n.length < 3) return [];
+  const core = skiCore(n) || n,
+    words = core.split(" ");
+  const hits = [],
+    wordStart = new RegExp(`\\b${core}`),
+    eachWord = words.map((w) => new RegExp(`\\b${w}`));
+  for (const a of await skiAreas()) {
+    if (usOnly && !/(^|, )US$/.test(a.place)) continue;
+    const s =
+      a.key === n || (a.core && a.core === core) ? 4 : (a.core && a.core.startsWith(core)) || a.key.startsWith(n) ? 3 : wordStart.test(a.key) ? 2 : eachWord.every((re) => re.test(a.key)) ? 1 : 0;
+    if (s) hits.push([s, a]);
+  }
+  return hits
+    .sort((x, y) => y[0] - x[0] || y[1].summit - y[1].base - (x[1].summit - x[1].base))
+    .slice(0, max)
+    .map(([, a]) => ({
+      name: a.name,
+      detail: `Ski area · ${a.place} · ${a.base.toLocaleString()}–${a.summit.toLocaleString()} ft`,
+      label: `Ski area · ${a.base.toLocaleString()}–${a.summit.toLocaleString()} ft`,
+      lat: a.lat,
+      lon: a.lon,
+      ski: { base: a.base, summit: a.summit },
+      place: a.place,
+    }));
+}
+

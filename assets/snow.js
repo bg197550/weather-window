@@ -533,7 +533,7 @@ function readHash() {
   const [t, a] = location.hash.slice(1).split("/");
   if (TABS[t]) tab = t;
   if ((t === "forecast" || t === "map") && (a === "utah" || a === "ne")) forecastRegion = a;
-  if (t === "range") rangeResort = rangeLocations().some((x) => x.slug === a) ? a : "";
+  if (t === "range") rangeResort = rangeKeyFromHash(location.hash.slice(1).split("/").slice(1));
   focusResort = t === "forecast" ? location.hash.slice(1).split("/")[2] || "" : "";
   if (t === "hourly" && a) {
     const i = RESORTS.findIndex((r) => slug(r.name) === a);
