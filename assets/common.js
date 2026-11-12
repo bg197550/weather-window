@@ -643,6 +643,8 @@ async function searchName(q, { world = false } = {}) {
   const j = await r.json();
   return (j.results || [])
     .filter((x) => !state || x.admin1 === state)
+    // The geocoder sometimes lists one town twice; keep the first of each name and county.
+    .filter((x, i, all) => all.findIndex((y) => y.name === x.name && y.admin1 === x.admin1 && y.admin2 === x.admin2 && y.country_code === x.country_code) === i)
     .slice(0, 8)
     .map((x) => {
       const us = x.country_code === "US",
