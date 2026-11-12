@@ -232,6 +232,19 @@ async function fetchModel(model) {
   return d;
 }
 
+/* The free forecast service allows about 600 points a minute; when it says to slow down, wait and retry. */
+async function getRetry(url, tries = 3) {
+  for (let n = 0; ; n++) {
+    const r = await fetch(url);
+    const d = await r.json().catch(() => ({ error: true, reason: `HTTP ${r.status}` }));
+    if (!d.error) return d;
+    if (n + 1 >= tries || !/limit/i.test(d.reason || '')) throw new Error(d.reason);
+    const s = document.getElementById('status');
+    if (s) s.textContent = 'Forecast service is busy — retrying in a minute…';
+    await new Promise(res => setTimeout(res, 62000));
+  }
+}
+
 async function fetchGrid(model, g) {
   const pts = [];
   for (let j = 0; j < g.ny; j++) for (let i = 0; i < g.nx; i++) pts.push([g.lats[j], g.lons[i]]);
@@ -243,8 +256,7 @@ async function fetchGrid(model, g) {
       '&longitude=' + part.map(p => p[1]).join(',') +
       '&hourly=precipitation,snowfall,weather_code,temperature_2m&models=' + model +
       '&forecast_days=' + MODELS[model].days + '&timeformat=unixtime&temperature_unit=fahrenheit';
-    jobs.push(fetch(url).then(r => r.json()).then(d => {
-      if (d.error) throw new Error(d.reason);
+    jobs.push(getRetry(url).then(d => {
       (Array.isArray(d) ? d : [d]).forEach((x, q) => out[k + q] = x.hourly);
     }));
   }
@@ -591,7 +603,7 @@ function setStatus() {
    down to each model's own resolution, so it stays within the forecast service's daily limits. */
 const MIN_STEP = { ecmwf_ifs: 0.1, gfs_seamless: 0.15, ncep_nbm_conus: 0.03, ncep_hrrr_conus: 0.03 };
 const STEPS = [0.03, 0.05, 0.075, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5];
-const DETAIL_ZOOM = 7, MAX_PTS = 450;
+const DETAIL_ZOOM = 7, MAX_PTS = 300;
 const fineCache = new Map();
 let fineTimer = null, fineSeq = 0;
 S.fine = null;
