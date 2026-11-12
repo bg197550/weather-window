@@ -1,0 +1,41 @@
+name: Refresh snow outlook
+
+on:
+  schedule:
+    - cron: '23 */3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: data-branch
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: Build outlooks (a mountain that fails keeps its last file)
+        run: |
+          mkdir -p "$RUNNER_TEMP/new"
+          curl -fsSL "https://raw.githubusercontent.com/${{ github.repository }}/data/outlook/summary.json" -o "$RUNNER_TEMP/prev.json" || true
+          node scripts/update-snow-outlook.mjs "$RUNNER_TEMP/new" "$RUNNER_TEMP/prev.json"
+      - name: Publish to data branch (single commit, keeps the other data files)
+        run: |
+          mkdir "$RUNNER_TEMP/data" && cd "$RUNNER_TEMP/data"
+          git init -q -b data
+          git remote add origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          git fetch -q --depth 1 origin data && git checkout -q FETCH_HEAD -- . || true
+          mkdir -p outlook && cp "$RUNNER_TEMP/new/outlook/"*.json outlook/
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && { echo "No change"; exit 0; }
+          git commit -q -m "Snow outlook $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push -q -f origin data
