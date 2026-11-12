@@ -526,14 +526,14 @@ function render() {
   }
   content.querySelector(".toolbar")?.insertAdjacentHTML("afterend", snowTabs());
   loadMountainAlerts();
-  const h = tab + (tab === "hourly" ? "/" + slug(RESORTS[hourlyResort].name) : tab === "range" ? "/" + rangeResort : tab === "forecast" || tab === "map" ? "/" + forecastRegion + (tab === "forecast" && focusResort ? "/" + focusResort : "") : "");
+  const h = tab + (tab === "hourly" ? "/" + slug(RESORTS[hourlyResort].name) : tab === "range" ? (rangeResort ? "/" + rangeResort : "") : tab === "forecast" || tab === "map" ? "/" + forecastRegion + (tab === "forecast" && focusResort ? "/" + focusResort : "") : "");
   if (location.hash.slice(1) !== h) history.replaceState(null, "", "#" + h);
 }
 function readHash() {
   const [t, a] = location.hash.slice(1).split("/");
   if (TABS[t]) tab = t;
   if ((t === "forecast" || t === "map") && (a === "utah" || a === "ne")) forecastRegion = a;
-  if (t === "range" && RANGE_RESORTS.some((x) => x.slug === a)) rangeResort = a;
+  if (t === "range") rangeResort = rangeLocations().some((x) => x.slug === a) ? a : "";
   focusResort = t === "forecast" ? location.hash.slice(1).split("/")[2] || "" : "";
   if (t === "hourly" && a) {
     const i = RESORTS.findIndex((r) => slug(r.name) === a);

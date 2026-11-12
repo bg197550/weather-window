@@ -1,12 +1,38 @@
 /* Snow Report · Forecast range and Snow level cards (OpenSnow-style), built from free Open-Meteo data in the browser.
    Classic script loaded before snow.js; uses getJSON and escapeHTML from common.js.
-   To add a mountain, add one line to RANGE_RESORTS: elevations in feet; "point" is the elevation the forecast is made for. */
-const RANGE_RESORTS = [
-  { slug: "alta", name: "Alta", lat: 40.59, lon: -111.64, base: 8530, summit: 10550, point: 9895 },
-  { slug: "deer-valley", name: "Deer Valley", lat: 40.62, lon: -111.485, base: 6530, summit: 9570, point: 8100 },
-  { slug: "park-city", name: "Park City Mountain", lat: 40.636, lon: -111.535, base: 6800, summit: 10026, point: 8400 },
-];
-const RANGE_TZ = "America/Denver";
+   Locations: every Utah and New England place on the dashboard (from common.js), plus extra mountains below.
+   Ski areas get base/summit lines and a mid-mountain forecast elevation from RANGE_MOUNTAINS (feet); every other
+   place is forecast at its own ground elevation. To add a mountain, add one line to RANGE_MOUNTAINS. */
+const RANGE_MOUNTAINS = {
+  // Utah
+  "park-city-mountain": { name: "Park City Mountain", after: "park-city", lat: 40.636, lon: -111.535, base: 6800, summit: 10026, point: 8400 },
+  "deer-valley": { lat: 40.62, lon: -111.485, base: 6530, summit: 9570, point: 8100 },
+  "canyons-resort": { lat: 40.687, lon: -111.572, base: 6800, summit: 9990, point: 8000 },
+  alta: { lat: 40.59, lon: -111.64, base: 8530, summit: 10550, point: 9895 },
+  snowbird: { lat: 40.579, lon: -111.657, base: 7760, summit: 11000, point: 9200 },
+  solitude: { lat: 40.622, lon: -111.592, base: 7988, summit: 10488, point: 8900 },
+  brighton: { lat: 40.6, lon: -111.582, base: 8755, summit: 10500, point: 9500 },
+  snowbasin: { lat: 41.206, lon: -111.858, base: 6391, summit: 9350, point: 7800 },
+  // New England
+  "stratton-mountain": { lat: 43.0959, lon: -72.9214, base: 1872, summit: 3875, point: 2900 },
+  killington: { lat: 43.6045, lon: -72.8201, base: 1165, summit: 4241, point: 2700 },
+  stowe: { lat: 44.5437, lon: -72.8143, base: 1559, summit: 3625, point: 2600 },
+  gunstock: { lat: 43.5256, lon: -71.3784, base: 900, summit: 2267, point: 1600 },
+};
+const RANGE_REGIONS = { utah: { name: "Utah", tz: "America/Denver", home: "alta" }, ne: { name: "New England", tz: "America/New_York", home: "killington" } };
+function rangeLocations() {
+  const out = [];
+  const lists = { utah: typeof utah !== "undefined" ? utah : [], ne: typeof ne !== "undefined" ? ne : [] };
+  for (const [region, list] of Object.entries(lists))
+    for (const x of list) {
+      if (x.searched || !x.p?.length) continue;
+      const id = slug(x.name),
+        m = RANGE_MOUNTAINS[id];
+      out.push(m ? { slug: id, name: x.name, region, ...m } : { slug: id, name: x.name, region, lat: x.p[0][0], lon: x.p[0][1], town: true });
+      for (const [eid, e] of Object.entries(RANGE_MOUNTAINS)) if (e.after === id) out.push({ slug: eid, region, ...e });
+    }
+  return out;
+}
 const M2FT = 3.28084;
 const SNOW_LEVEL_OFFSET = 1100; // snow level ≈ freezing level minus ~1,100 ft
 const MIX_HALF = 250; // the mix zone is ~500 ft deep, centered on the snow level
@@ -21,7 +47,7 @@ const RANGE_DET = [
 ];
 const ENS_NAMES = { ncep_gefs025: "GEFS", ecmwf_ifs025_ensemble: "ECMWF ENS", gfs05: "GEFS" };
 
-let rangeResort = "alta",
+let rangeResort = "",
   rangeDays = 10,
   levelDays = 10,
   rangeState = null;
@@ -73,9 +99,9 @@ function quant(sorted, p) {
 }
 /* Open-Meteo returns local times ("2026-11-15T18:00") when asked for a timezone; format them as given. */
 const tLocal = (s, o) => new Date(s + ":00Z").toLocaleString("en-US", { ...o, timeZone: "UTC" });
-function localHourKey(ms) {
+function localHourKey(ms, tz = "America/Denver") {
   const p = Object.fromEntries(
-    new Intl.DateTimeFormat("en-CA", { timeZone: RANGE_TZ, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", hourCycle: "h23" })
+    new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", hourCycle: "h23" })
       .formatToParts(new Date(ms))
       .map((x) => [x.type, x.value]),
   );
@@ -107,8 +133,9 @@ async function rangeData(r) {
   const common = {
     latitude: r.lat,
     longitude: r.lon,
-    elevation: Math.round(r.point / M2FT),
-    timezone: RANGE_TZ,
+    // Towns use the ground elevation Open-Meteo looks up for the point.
+    ...(r.point ? { elevation: Math.round(r.point / M2FT) } : {}),
+    timezone: RANGE_REGIONS[r.region]?.tz || "America/Denver",
     forecast_days: 15,
     precipitation_unit: "inch",
     temperature_unit: "fahrenheit",
@@ -135,7 +162,9 @@ async function rangeData(r) {
 function buildRange(r, ens, g05, det, nowMs = Date.now()) {
   const times = ens?.hourly?.time;
   if (!times?.length) throw Error("No ensemble data");
-  const key = localHourKey(nowMs);
+  const tz = RANGE_REGIONS[r.region]?.tz || "America/Denver";
+  const key = localHourKey(nowMs, tz);
+  const point = r.point ?? (Number.isFinite(ens.elevation) ? Math.round((ens.elevation * M2FT) / 10) * 10 : 0);
   let i0 = times.findIndex((t) => t >= key);
   if (i0 < 0) i0 = 0;
   const n = times.length - i0;
@@ -202,7 +231,7 @@ function buildRange(r, ens, g05, det, nowMs = Date.now()) {
         if (d.level) levels.push({ fam: m.label, level: d.level, det: true });
       }
   }
-  return { r, times: times.slice(i0), n, members, dets, levels };
+  return { r, point, times: times.slice(i0), n, members, dets, levels };
 }
 
 /* ---------- layout helpers ---------- */
@@ -255,7 +284,7 @@ function drawRange() {
   const n = Math.min(rangeDays * 24, rangeState.n - 1);
   const box = chartBox(body, true),
     { width, phone, L, T, h } = box;
-  const R = phone ? 86 : 132,
+  const R = phone ? 94 : 132,
     B = 30,
     pw = width - L - R,
     ph = h - T - B;
@@ -336,7 +365,7 @@ function precipType(level, point) {
   return level <= point - MIX_HALF ? "snow" : level >= point + MIX_HALF ? "rain" : "mix";
 }
 function levelBlocks(state, n) {
-  const { times, members, levels, r } = state;
+  const { times, members, levels, point } = state;
   const blocks = [];
   let cur = null;
   for (let k = 1; k <= n; k++) {
@@ -377,14 +406,14 @@ function levelBlocks(state, n) {
       chance: sums.length ? sums.filter((v) => v >= 0.02).length / sums.length : null,
       liq: quant(sums, 0.5),
       cloud: clouds.length ? clouds.reduce((a, b) => a + b, 0) / clouds.length : null,
-      type: precipType(med, r.point),
+      type: precipType(med, point),
     };
   });
 }
 function drawLevel() {
   const body = document.querySelector("#rng-level .rng-body");
   if (!body || !rangeState) return;
-  const { r, times, levels } = rangeState;
+  const { r, times, levels, point } = rangeState;
   const n = Math.min(levelDays * 24, rangeState.n - 1);
   const box = chartBox(body, true),
     { width, phone, L, T, h } = box;
@@ -405,9 +434,9 @@ function drawLevel() {
     body.innerHTML = '<div class="error">Snow-level data is unavailable for this window.</div>';
     return;
   }
-  let lo = Math.min(r.base - 1500, ...ok.map((s) => s.min)),
-    hi = Math.max(r.summit + 1500, ...ok.map((s) => s.max));
-  lo = Math.max(2000, Math.floor(lo / 1000) * 1000);
+  let lo = Math.min((r.base ?? point) - 1500, ...ok.map((s) => s.min)),
+    hi = Math.max((r.summit ?? point) + 1500, ...ok.map((s) => s.max));
+  lo = Math.max(r.town && point < 1500 ? -500 : 0, Math.floor(lo / 1000) * 1000);
   hi = Math.min(16000, Math.ceil(hi / 1000) * 1000);
   const x = (k) => L + (k / n) * pw,
     y = (v) => T + ph - ((Math.min(hi, Math.max(lo, v)) - lo) / (hi - lo)) * ph;
@@ -434,11 +463,13 @@ function drawLevel() {
   const band = `<polygon points="${[...ok.map((s) => xy(s.k, s.max)), ...ok.map((s) => xy(s.k, s.min)).reverse()].join(" ")}" fill="#79d7e5" fill-opacity="0.16" stroke="#79d7e5" stroke-opacity="0.7" stroke-dasharray="3 3"/>`;
   const median = pline(ok.map((s) => xy(s.k, s.med)), 'stroke="#0b2130" stroke-width="7" stroke-linejoin="round"') + pline(ok.map((s) => xy(s.k, s.med)), 'stroke="#ffffff" stroke-width="3.5" stroke-linejoin="round"');
   const kft = (v) => (phone ? `${(v / 1000).toFixed(1)}k` : `${v.toLocaleString()}′`);
-  const refs = [
-    { v: r.summit, text: `Summit ${kft(r.summit)}`, dash: "", w: 2 },
-    { v: r.point, text: `${phone ? "Point" : "Forecast pt"} ${kft(r.point)}`, dash: "5 4", w: 1.2 },
-    { v: r.base, text: `Base ${kft(r.base)}`, dash: "", w: 2 },
-  ];
+  const refs = r.town
+    ? [{ v: point, text: `${phone ? "Elev" : "Elevation"} ${kft(point)}`, dash: "", w: 2 }]
+    : [
+        { v: r.summit, text: `Summit ${kft(r.summit)}`, dash: "", w: 2 },
+        { v: point, text: `${phone ? "Point" : "Forecast pt"} ${kft(point)}`, dash: "5 4", w: 1.2 },
+        { v: r.base, text: `Base ${kft(r.base)}`, dash: "", w: 2 },
+      ];
   const refLines = refs.map((q) => `<line x1="${L}" x2="${L + pw}" y1="${y(q.v).toFixed(1)}" y2="${y(q.v).toFixed(1)}" stroke="#ffd27a" stroke-width="${q.w}" stroke-dasharray="${q.dash}"/>`).join("");
   const lastMed = ok[ok.length - 1].med;
   const refLabels = spreadLabels(
@@ -477,7 +508,7 @@ function drawLevel() {
     .map((f) => `<line x1="${L}" x2="${L + pw}" y1="${sy(f).toFixed(1)}" y2="${sy(f).toFixed(1)}" stroke="#294858"/><text x="${L - 6}" y="${(sy(f) + 4).toFixed(1)}" text-anchor="end" fill="#9fb1bc" font-size="11">${f * 100}%</text>`)
     .join("")}${cloud}${bars.replace(/url\(#rng-/g, "url(#rng2-")}<text x="${L + pw + 6}" y="${sT + 12}" fill="#9fb1bc" font-size="11">Precip</text><text x="${L + pw + 6}" y="${sT + 26}" fill="#9fb1bc" font-size="11">chance</text><line class="rng-rule" x1="0" x2="0" y1="${sT}" y2="${sy(0)}" stroke="#ffffff" stroke-width="1" visibility="hidden"/><rect class="rng-hit" x="${L}" y="${sT}" width="${pw}" height="${sph}" fill="transparent"/></svg>`;
   const swatch = (fill) => `<svg class="rng-swatch" width="18" height="12" aria-hidden="true"><rect width="18" height="12" fill="${fill.replace("url(#rng-", "url(#rng2-")}" stroke="#9fb1bc" stroke-width="0.6"/></svg>`;
-  body.innerHTML = `<div class="rng-chips"><span class="rng-chip"><b>Snow level now</b> ${feet(ok[0].med)} <small>(range ${feet(ok[0].min)}–${feet(ok[0].max)})</small></span><span class="rng-chip rng-chip-soft">${levels.length} model runs</span></div><div class="rng-wrap">${svg}${strip}<div class="rng-tip" hidden></div></div><p class="ins-legend rng-legend"><span class="ins-key rng-key-runs"></span>Model runs <span class="ins-key ins-key-line rng-key-med"></span>Median <span class="ins-key ins-key-band"></span>Lowest–highest <span class="ins-key rng-key-ref"></span>Summit, forecast point, base · Zones: snow above, mix (hatched, ~500 ft), rain below (dotted)</p><p class="ins-legend rng-legend">Bars: ${swatch(FILL.snow)} S = snow ${swatch("url(#rng-bar-mix)")} M = mix ${swatch("url(#rng-bar-rain)")} R = rain at the forecast point · bar height = chance of precipitation · light shading behind = cloud cover</p>`;
+  body.innerHTML = `<div class="rng-chips"><span class="rng-chip"><b>Snow level now</b> ${feet(ok[0].med)} <small>(range ${feet(ok[0].min)}–${feet(ok[0].max)})</small></span><span class="rng-chip rng-chip-soft">${levels.length} model runs</span></div><div class="rng-wrap">${svg}${strip}<div class="rng-tip" hidden></div></div><p class="ins-legend rng-legend"><span class="ins-key rng-key-runs"></span>Model runs <span class="ins-key ins-key-line rng-key-med"></span>Median <span class="ins-key ins-key-band"></span>Lowest–highest <span class="ins-key rng-key-ref"></span>${r.town ? "Ground elevation" : "Summit, forecast point, base"} · Zones: snow above, mix (hatched, ~500 ft), rain below (dotted)</p><p class="ins-legend rng-legend">Bars: ${swatch(FILL.snow)} S = snow ${swatch("url(#rng-bar-mix)")} M = mix ${swatch("url(#rng-bar-rain)")} R = rain at ${r.town ? "ground level" : "the forecast point"} · bar height = chance of precipitation · light shading behind = cloud cover</p>`;
   hover(
     body,
     n,
@@ -489,7 +520,7 @@ function drawLevel() {
       const precip =
         b.chance == null
           ? ""
-          : `<br>Precip chance ${Math.round(b.chance * 100)}%${b.liq >= 0.01 ? ` · median ${b.liq.toFixed(2)}″ liquid` : ""}${b.chance >= 0.1 && type ? ` · ${type} at ${r.point.toLocaleString()} ft` : ""}${b.cloud != null ? ` · Clouds ${Math.round(b.cloud)}%` : ""}`;
+          : `<br>Precip chance ${Math.round(b.chance * 100)}%${b.liq >= 0.01 ? ` · median ${b.liq.toFixed(2)}″ liquid` : ""}${b.chance >= 0.1 && type ? ` · ${type} at ${point.toLocaleString()} ft` : ""}${b.cloud != null ? ` · Clouds ${Math.round(b.cloud)}%` : ""}`;
       return `<b>${escapeHTML(head)}</b> · Max ${feet(b.max)} · Median ${feet(b.med)} · Min ${feet(b.min)}${precip}`;
     },
     { L, pw, snap: (k) => {
@@ -544,10 +575,29 @@ async function loadRangeView() {
   const root = document.querySelector("#range-root");
   if (!root) return;
   rangeState = null;
-  const r = RANGE_RESORTS.find((x) => x.slug === rangeResort) || RANGE_RESORTS[0];
-  const pills = `<div class="day-pills rng-resorts" aria-label="Resort">${RANGE_RESORTS.map((x) => `<a href="#range/${x.slug}" class="${x === r ? "active" : ""}"${x === r ? ' aria-current="page"' : ""}>${escapeHTML(x.name)}</a>`).join("")}</div>`;
-  const elevs = `Base ${r.base.toLocaleString()} ft · Summit ${r.summit.toLocaleString()} ft · forecast for ${r.point.toLocaleString()} ft`;
-  root.innerHTML = `${pills}<article class="card afd-card rng-card" id="rng-range"><div class="rng-head"><div><h3>Forecast range · ${escapeHTML(r.name)}</h3><p class="sub">${elevs}</p></div>${daySeg("range", rangeDays)}</div><div class="rng-body"><div class="state">Loading ensemble runs…</div></div><p class="source">Running total of new snow at ${r.point.toLocaleString()} ft from every GEFS and ECMWF ensemble run, plus the single (deterministic) models. Snow is worked out from each run's liquid precipitation times a snow ratio from its temperature at that elevation (about 8:1 near 32°F, 16–17:1 in the teens), not the model's built-in snowfall, which assumes about 7:1 and reads low in the Wasatch. Hover or tap the chart for the ratio. Data: Open-Meteo.</p></article><article class="card afd-card rng-card" id="rng-level"><div class="rng-head"><div><h3>Snow level · ${escapeHTML(r.name)}</h3><p class="sub">Elevation where rain turns to snow</p></div>${daySeg("level", levelDays)}</div><div class="rng-body"><div class="state">Loading snow levels…</div></div><p class="source">Snow level ≈ freezing level minus 1,100 ft. Freezing levels come from each model where it reports one (GFS, ICON, HRRR); otherwise from its 700 mb temperature and height (ECMWF, GEM, ECMWF ENS, and the 0.5° GEFS ensemble). Hours a model leaves blank are skipped. Data: Open-Meteo.</p></article>`;
+  const all = rangeLocations();
+  let r = all.find((x) => x.slug === rangeResort);
+  if (!r) {
+    // No location in the link: use the place picked elsewhere on the dashboard, else the region's main mountain.
+    const c = WW.place();
+    r = all.find((x) => x.slug === c.slug) || all.find((x) => x.slug === RANGE_REGIONS[c.section]?.home) || all[0];
+    rangeResort = r.slug;
+    history.replaceState(null, "", "#range/" + r.slug);
+  }
+  const regionSeg = `<nav class="seg snowfc-region rng-region" aria-label="Region">${Object.entries(RANGE_REGIONS)
+    .map(([k, v]) => {
+      const to = k === r.region ? r.slug : all.find((x) => x.slug === v.home)?.slug || all.find((x) => x.region === k)?.slug;
+      return `<a href="#range/${to}" class="${k === r.region ? "active" : ""}"${k === r.region ? ' aria-current="true"' : ""}>${v.name}</a>`;
+    })
+    .join("")}</nav>`;
+  const pills = `<div class="day-pills rng-resorts" aria-label="Location">${all
+    .filter((x) => x.region === r.region)
+    .map((x) => `<a href="#range/${x.slug}" class="${x === r ? "active" : ""}${x.town ? " is-town" : ""}"${x === r ? ' aria-current="page"' : ""}>${escapeHTML(x.name)}</a>`)
+    .join("")}</div>`;
+  const elevs = r.town
+    ? `Forecast at ground level${r.point ? ` (${r.point.toLocaleString()} ft)` : ""}`
+    : `Base ${r.base.toLocaleString()} ft · Summit ${r.summit.toLocaleString()} ft · forecast for ${r.point.toLocaleString()} ft`;
+  root.innerHTML = `<div class="rng-top">${regionSeg}</div>${pills}<article class="card afd-card rng-card" id="rng-range"><div class="rng-head"><div><h3>Forecast range · ${escapeHTML(r.name)}</h3><p class="sub">${elevs}</p></div>${daySeg("range", rangeDays)}</div><div class="rng-body"><div class="state">Loading ensemble runs…</div></div><p class="source">Running total of new snow ${r.town ? "at ground level" : `at ${r.point.toLocaleString()} ft`} from every GEFS and ECMWF ensemble run, plus the single (deterministic) models. Snow is worked out from each run's liquid precipitation times a snow ratio from its temperature at that elevation (about 8:1 near 32°F, 16–17:1 in the teens), not the model's built-in snowfall, which assumes about 7:1 and reads low in the mountains. Hover or tap the chart for the ratio. Data: Open-Meteo.</p></article><article class="card afd-card rng-card" id="rng-level"><div class="rng-head"><div><h3>Snow level · ${escapeHTML(r.name)}</h3><p class="sub">Elevation where rain turns to snow</p></div>${daySeg("level", levelDays)}</div><div class="rng-body"><div class="state">Loading snow levels…</div></div><p class="source">Snow level ≈ freezing level minus 1,100 ft. Freezing levels come from each model where it reports one (GFS, ICON, HRRR); otherwise from its 700 mb temperature and height (ECMWF, GEM, ECMWF ENS, and the 0.5° GEFS ensemble). Hours a model leaves blank are skipped. Data: Open-Meteo.</p></article>`;
   root.querySelectorAll("[data-range-days]").forEach(
     (b) =>
       (b.onclick = () => {
@@ -579,6 +629,7 @@ async function loadRangeView() {
   }
   if (!root.isConnected || rangeResort !== r.slug) return;
   rangeState = state;
+  if (r.town) root.querySelectorAll(".rng-head .sub").forEach((el, i) => i === 0 && (el.textContent = `Forecast at ground level · ${state.point.toLocaleString()} ft`));
   drawRange();
   drawLevel();
 }
