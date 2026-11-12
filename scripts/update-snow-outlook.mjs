@@ -30,26 +30,45 @@ const prev = prevPath && existsSync(prevPath) ? JSON.parse(readFileSync(prevPath
 mkdirSync(`${out}/outlook`, { recursive: true });
 const summary = { updated: new Date().toISOString(), places: { ...prev.places } };
 let ok = 0;
-for (const [slug, [name, section]] of Object.entries(NAMES)) {
+const why = (e) => [e.message, e.cause?.code, e.cause?.message].filter(Boolean).join(" · ");
+async function buildOne(slug, name, section, tries) {
   const pl = SnowCore.placeFor({ name, slug }, section);
-  let o = null;
-  for (let attempt = 0; attempt < 3 && !o; attempt++) {
+  for (let attempt = 1; attempt <= tries; attempt++) {
     try {
-      o = await SnowCore.outlook(pl, { nwsUA: UA });
+      return await SnowCore.outlook(pl, { nwsUA: UA });
     } catch (e) {
-      console.log(`${slug}: ${e.message}${attempt < 2 ? ", retrying in 65 s" : ""}`);
-      if (attempt < 2) await sleep(65000);
+      const wait = 30000 * attempt;
+      console.log(`${slug}: ${why(e)}${attempt < tries ? `, retrying in ${wait / 1000} s` : ""}`);
+      if (attempt < tries) await sleep(wait);
     }
   }
-  if (o) {
-    const t = SnowCore.thin(o);
-    writeFileSync(`${out}/outlook/${slug}.json`, JSON.stringify(t));
-    const { members, dets, levels, mid, times, h, temp, ...meta } = t;
-    summary.places[slug] = meta;
-    ok++;
-    console.log(`${slug}: 10-day ${o.totals[10].mid}″ (${o.totals[10].lo}–${o.totals[10].hi}), NWS ${o.nws ? "yes" : "no"}`);
+  return null;
+}
+function save(slug, o) {
+  const t = SnowCore.thin(o);
+  writeFileSync(`${out}/outlook/${slug}.json`, JSON.stringify(t));
+  const { members, dets, levels, mid, times, h, temp, ...meta } = t;
+  summary.places[slug] = meta;
+  ok++;
+  console.log(`${slug}: 10-day ${o.totals[10].mid}″ (${o.totals[10].lo}–${o.totals[10].hi}), NWS ${o.nws ? "yes" : "no"}`);
+}
+const failed = [];
+for (const [slug, [name, section]] of Object.entries(NAMES)) {
+  const o = await buildOne(slug, name, section, 3);
+  if (o) save(slug, o);
+  else failed.push(slug);
+  await sleep(15000); // stay well under Open-Meteo's per-minute limit
+}
+// One more pass for any mountain that failed, after a longer pause.
+if (failed.length) {
+  console.log(`Second pass: ${failed.join(", ")}`);
+  await sleep(90000);
+  for (const slug of failed) {
+    const [name, section] = NAMES[slug];
+    const o = await buildOne(slug, name, section, 3);
+    if (o) save(slug, o);
+    await sleep(20000);
   }
-  await sleep(12000); // stay well under Open-Meteo's per-minute limit
 }
 if (!ok) throw Error("No mountain built; keeping the last files");
 writeFileSync(`${out}/outlook/summary.json`, JSON.stringify(summary));
