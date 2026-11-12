@@ -248,7 +248,7 @@ async function resortOutlook(r, region) {
   try {
     const sum = await SnowCore.summary();
     const o = sum.places?.[slug(r.name)];
-    if (o && Date.now() - Date.parse(o.built) < SnowCore.STALE) return o;
+    if (SnowCore.isFresh(o)) return o;
   } catch {}
   return SnowCore.forPlace(r, region);
 }
