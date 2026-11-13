@@ -28,7 +28,32 @@ function savedSkiAreas() {
     return [];
   }
 }
+/* Places searched here in the Snow section: any ski area (OpenSkiMap) or town, anywhere. Region "world". */
+const SNOW_SEARCH_KEY = "ww:snow-searched";
+function snowSearched() {
+  try {
+    return JSON.parse(localStorage.getItem(SNOW_SEARCH_KEY) || "[]")
+      .filter((x) => x && x.name && Number.isFinite(x.lat))
+      .map((x) => ({ name: x.name, p: [[x.lat, x.lon, x.ski ? "Ski area" : "Town"]], ski: x.ski || null, zone: x.zone || null, place: x.place || "", searched: true, snowSearched: true, section: "world" }));
+  } catch {
+    return [];
+  }
+}
+function saveSnowSearch(x) {
+  const r4 = (v) => Math.round(v * 10000) / 10000;
+  const entry = { name: x.name, lat: r4(x.lat), lon: r4(x.lon), ...(x.ski ? { ski: x.ski } : {}), place: x.place || x.detail || "", zone: x.zone || null };
+  try {
+    const list = JSON.parse(localStorage.getItem(SNOW_SEARCH_KEY) || "[]").filter((y) => y.name !== entry.name);
+    localStorage.setItem(SNOW_SEARCH_KEY, JSON.stringify([entry, ...list].slice(0, 10)));
+  } catch {}
+}
+function forgetSnowSearch(name) {
+  try {
+    localStorage.setItem(SNOW_SEARCH_KEY, JSON.stringify(JSON.parse(localStorage.getItem(SNOW_SEARCH_KEY) || "[]").filter((y) => y.name !== name)));
+  } catch {}
+}
 function findMountain(region, id) {
+  if (region === "world") return snowSearched().find((x) => slug(x.name) === id);
   return [...mountainList(region), ...savedSkiAreas().filter((x) => x.section === region)].find((x) => slug(x.name) === id);
 }
 
@@ -454,13 +479,6 @@ function forecastHead(view) {
   const seg = (items, cls, label) => `<nav class="seg snowfc-region ${cls}" aria-label="${label}">${items.map(([href, n, on]) => `<a href="${href}" class="${on ? "active" : ""}"${on ? ' aria-current="true"' : ""}>${n}</a>`).join("")}</nav>`;
   return `<div class="snowfc-head"><h3>${view === "map" ? "Next 15 days" : "Next 10 days"}</h3><div class="snowfc-tools">${seg(
     [
-      [`#forecast/${forecastRegion}`, "List", view === "forecast"],
-      [`#map/${forecastRegion}`, "Map", view === "map"],
-    ],
-    "snowfc-view",
-    "View",
-  )}${seg(
-    [
       [`#${view}/utah`, "Utah", forecastRegion === "utah"],
       [`#${view}/ne`, "New England", forecastRegion === "ne"],
     ],
@@ -468,43 +486,92 @@ function forecastHead(view) {
     "Region",
   )}</div></div>`;
 }
-/* The mountain switcher: every ski area, grouped by region. */
-function mountainPicker(cur) {
-  const chip = (m, region) => {
+/* The mountain switcher: a search for any ski area or town, then every mountain grouped by region. */
+function mountainPicker() {
+  const chip = (m, region, x) => {
     const id = slug(m.name),
       on = region === mtnRegion && id === mtnSlug;
-    return `<a class="chip-link" href="#mountain/${region}/${id}"${on ? ' aria-current="true"' : ""}>${escapeHTML(m.name)}</a>`;
+    return `<span class="chip-wrap"><a class="chip-link" href="#mountain/${region}/${id}"${on ? ' aria-current="true"' : ""}>${escapeHTML(m.name)}</a>${x ? `<button type="button" class="chip-x" data-forget="${escapeHTML(m.name)}" aria-label="Remove ${escapeHTML(m.name)}">✕</button>` : ""}</span>`;
   };
-  const group = (title, list) => (list.length ? `<section><h4>${title}</h4><div class="chips">${list.map(([m, r]) => chip(m, r)).join("")}</div></section>` : "");
-  const saved = savedSkiAreas();
-  return `<div class="place-pick-groups">${group(
+  const group = (title, list) => (list.length ? `<section><h4>${title}</h4><div class="chips">${list.map(([m, r, x]) => chip(m, r, x)).join("")}</div></section>` : "");
+  const yours = [...snowSearched().map((m) => [m, "world", true]), ...savedSkiAreas().map((m) => [m, m.section, false])];
+  return `<form class="place-search-form" id="mtn-search" role="search"><label class="sr-only" for="mtn-q">Search a ski area or location</label><input id="mtn-q" type="search" autocomplete="off" enterkeyhint="search" placeholder="Search any ski area, town or ZIP" /><button type="submit">Search</button></form><div class="place-search-results" id="mtn-results" aria-live="polite"></div><div class="place-pick-groups">${group(
     "Utah",
     mountainList("utah").map((m) => [m, "utah"]),
   )}${group(
     "New England",
     mountainList("ne").map((m) => [m, "ne"]),
-  )}${group(
-    "Your ski areas",
-    saved.map((m) => [m, m.section]),
-  )}</div><p class="note">To add another US ski area, search for it in Weather (place picker ▾); it then appears here.</p>`;
+  )}${group("Your searches", yours)}</div>`;
+}
+function wireMountainPicker(pick) {
+  const form = pick.querySelector("#mtn-search"),
+    input = pick.querySelector("#mtn-q"),
+    out = pick.querySelector("#mtn-results");
+  let seq = 0,
+    timer = 0,
+    shown = [];
+  const go = (x) => {
+    saveSnowSearch(x);
+    location.hash = `#mountain/world/${slug(x.name)}`;
+  };
+  const draw = (list, note) => {
+    shown = list;
+    out.innerHTML = `${list.length ? `<ul>${list.map((x, i) => `<li><button type="button" data-hit="${i}"><b>${escapeHTML(x.name)}</b><small>${escapeHTML(x.detail || "")}</small></button></li>`).join("")}</ul>` : ""}${note || ""}`;
+    out.querySelectorAll("[data-hit]").forEach((b) => (b.onclick = () => go(shown[+b.dataset.hit])));
+  };
+  const run = async (submit) => {
+    const q = input.value.trim(),
+      id = ++seq;
+    if (q.length < 2) return draw([], "");
+    // The dashboard's own mountains first, then ski areas anywhere, then towns and ZIP codes.
+    const mine = [...mountainList("utah").map((m) => [m, "utah"]), ...mountainList("ne").map((m) => [m, "ne"])].filter(([m]) => m.name.toLowerCase().includes(q.toLowerCase()));
+    out.innerHTML = `${mine.length ? `<div class="chips mtn-mine">${mine.map(([m, r]) => `<a class="chip-link" href="#mountain/${r}/${slug(m.name)}">${escapeHTML(m.name)}</a>`).join("")}</div>` : ""}<div class="state">Searching ski areas and places…</div>`;
+    const [ski, towns] = await Promise.all([/^\d/.test(q) ? [] : searchSki(q, { max: 6 }).catch(() => []), geocode(q, { world: true }).catch(() => [])]);
+    if (id !== seq) return;
+    const near = (a, b) => Math.abs(a.lat - b[0]) < 0.06 && Math.abs(a.lon - b[1]) < 0.08;
+    const list = [...ski.filter((sk) => !mine.some(([m]) => m.p.some((q2) => near(sk, q2)))), ...towns.slice(0, 5).map((t) => ({ ...t, place: t.detail }))];
+    if (submit && list.length === 1 && !mine.length) return go(list[0]);
+    draw(list, list.length || mine.length ? "" : `<div class="state">No match for “${escapeHTML(q)}”. Try a ski area name, a town (“Bend, OR”) or a US ZIP.</div>`);
+    if (mine.length) out.insertAdjacentHTML("afterbegin", `<div class="chips mtn-mine">${mine.map(([m, r]) => `<a class="chip-link" href="#mountain/${r}/${slug(m.name)}">${escapeHTML(m.name)}</a>`).join("")}</div>`);
+  };
+  input.oninput = () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => run(false), 350);
+  };
+  form.onsubmit = (e) => {
+    e.preventDefault();
+    clearTimeout(timer);
+    run(true);
+  };
+  pick.querySelectorAll("[data-forget]").forEach(
+    (b) =>
+      (b.onclick = () => {
+        forgetSnowSearch(b.dataset.forget);
+        if (mtnRegion === "world" && slug(b.dataset.forget) === mtnSlug) location.hash = "#mountain";
+        else b.closest(".chip-wrap").remove();
+      }),
+  );
 }
 function render() {
   const area = forecastRegion === "ne" ? "New England" : "Utah";
-  WW.setActive(tab === "mountain" ? "mountain" : tab === "snowpack" ? "snowpack" : "snowreport", "snow");
+  WW.setActive(tab === "mountain" ? "mountain" : tab === "snowpack" ? "snowpack" : tab === "map" ? "snowmap" : "snowreport", "snow");
   if (tab === "mountain") {
     const m = findMountain(mtnRegion, mtnSlug);
-    content.innerHTML = `<div class="fc-head"><div class="fc-title"><button type="button" class="place-switch" id="mtn-switch" aria-expanded="false" aria-controls="mtn-pick" title="Change mountain"><span class="fc-name">${escapeHTML(m.name)}</span><span class="ps-caret" aria-hidden="true">▾</span></button><p class="fc-sub"><span class="fc-kind">${mtnRegion === "ne" ? "New England" : "Utah"} · Ski area</span><span class="fc-note"> — snow by day and night, every model run, and the snow level</span></p></div></div><div class="place-search" id="mtn-pick" hidden>${mountainPicker()}</div><div id="alert-banner"></div><div id="place-snow"><div class="state">Loading the snow forecast…</div></div>`;
+    const kind = m.snowSearched ? [m.ski ? "Ski area" : "Your search", m.place].filter(Boolean).join(" · ") : `${mtnRegion === "ne" ? "New England" : "Utah"} · Ski area`;
+    content.innerHTML = `<div class="fc-head"><div class="fc-title"><button type="button" class="place-switch" id="mtn-switch" aria-expanded="false" aria-controls="mtn-pick" title="Change mountain or search"><span class="fc-name">${escapeHTML(m.name)}</span><span class="ps-caret" aria-hidden="true">▾</span></button><p class="fc-sub"><span class="fc-kind">${escapeHTML(kind)}</span><span class="fc-note"> — snow by day and night, every model run, and the snow level</span></p></div></div><div class="place-search" id="mtn-pick" hidden>${mountainPicker()}</div><div id="alert-banner"></div><div id="place-snow"><div class="state">Loading the snow forecast…</div></div>`;
     const btn = content.querySelector("#mtn-switch"),
       pick = content.querySelector("#mtn-pick");
     btn.onclick = () => {
       pick.hidden = !pick.hidden;
       btn.setAttribute("aria-expanded", String(!pick.hidden));
+      if (!pick.hidden) pick.querySelector("#mtn-q")?.focus();
     };
+    wireMountainPicker(pick);
     pick.addEventListener("click", (e) => e.target.closest("a") && (pick.hidden = true));
     WW.setMountain({ section: mtnRegion, slug: mtnSlug, name: m.name, cam: CAMS[m.name] || "" });
-    loadPlaceSnow(m, mtnRegion, { weather: siteBase(), snow: "" });
+    loadPlaceSnow(m, mtnRegion, { weather: m.snowSearched ? null : siteBase(), snow: m.snowSearched ? null : "" });
   } else if (tab === "forecast" || tab === "map") {
-    const head = `<div class="toolbar"><div><h2>All ${area} mountains</h2><p class="sub">${tab === "map" ? "Snow expected at each summit over the next 15 days" : "Every mountain side by side · tap one for its Snow forecast"}</p></div><div class="detail-actions">${forecastRegion === "ne" ? "" : '<a class="xlink" href="https://utahavalanchecenter.org/" target="_blank" rel="noopener">Avalanche forecast ↗</a>'}</div></div><div id="alert-banner"></div>`;
+    const head = `<div class="toolbar"><div><h2>${tab === "map" ? `Snow map · ${area}` : `All ${area} mountains`}</h2><p class="sub">${tab === "map" ? "Snow expected at each summit over the next 15 days" : "Every mountain side by side · tap one for its Snow forecast"}</p></div><div class="detail-actions">${forecastRegion === "ne" ? "" : '<a class="xlink" href="https://utahavalanchecenter.org/" target="_blank" rel="noopener">Avalanche forecast ↗</a>'}</div></div><div id="alert-banner"></div>`;
     if (tab === "forecast") {
       content.innerHTML = head + `<article class="card afd-card snowfc-card">${forecastHead("forecast")}<div id="snow-forecast"><div class="state">Loading 10-day snow forecasts…</div></div></article>`;
       loadSnowForecast(forecastRegion);
@@ -537,9 +604,14 @@ function readHash() {
   if (t === "mountain" || !t || t === "range") {
     tab = "mountain";
     const m = WW.mountain();
-    mtnRegion = a === "utah" || a === "ne" ? a : m.section;
-    mtnSlug = b && findMountain(mtnRegion, b) ? b : findMountain(mtnRegion, m.slug) ? m.slug : slug(mountainList(mtnRegion)[0].name);
-    forecastRegion = mtnRegion;
+    mtnRegion = a === "utah" || a === "ne" || a === "world" ? a : m.section;
+    if (b && findMountain(mtnRegion, b)) mtnSlug = b;
+    else if (findMountain(mtnRegion, m.slug) && (!a || a === m.section)) mtnSlug = m.slug;
+    else {
+      if (mtnRegion === "world") mtnRegion = WW.region();
+      mtnSlug = slug(mountainList(mtnRegion)[0].name);
+    }
+    if (mtnRegion !== "world") forecastRegion = mtnRegion;
     return;
   }
   tab = t === "map" ? "map" : t === "snowpack" ? "snowpack" : "forecast";
