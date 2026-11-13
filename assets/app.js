@@ -46,8 +46,8 @@ function render() {
   if (tab === "utah" || tab === "ne") {
     const mode = view[tab],
       p = mode === "mountain" ? utahResorts()[profileResort] : (tab === "utah" ? utah : ne)[selection[tab]];
-    WW.setActive(mode === "insights" || mode === "afd" || mode === "models" ? "insights" : mode === "snow" ? "snow" : "forecast");
-    if (p) WW.setPlace({ section: tab, slug: slug(p.name), name: p.name, cam: CAMS[p.name] || "" });
+    WW.setActive(mode === "insights" || mode === "afd" || mode === "models" ? "insights" : "forecast");
+    if (p) WW.setPlace({ section: tab, slug: slug(p.name), name: p.name, cam: CAMS[p.name] || "", ...(isMountain(p) ? { mtn: true } : {}) });
   } else WW.setActive(tab);
   rememberPlace();
   if (tab !== "radar") destroyRadar();
@@ -251,9 +251,16 @@ const VIEW_NOTES = {
 };
 /* Links to the same place elsewhere on the site: webcams, snow report, avalanche forecast, surf. */
 function placeLinks(place, section) {
-  if (place.searched) return "";
   const lbl = (long, short) => `<span class="lg">${long}</span><span class="sm">${short}</span>`;
-  const links = [];
+  // Snow detail: a ski area's is in the Snow section; a town's opens on this page.
+  const mode = view[section];
+  const snow = isMountain(place)
+    ? `<a class="xlink" href="snow/#mountain/${section}/${slug(place.name)}">${lbl("Snow forecast", "Snow")} ›</a>`
+    : mode !== "snow"
+      ? `<a class="xlink" href="#${section}/${slug(place.name)}/snow">${lbl("Snow detail", "Snow")} ›</a>`
+      : "";
+  if (place.searched) return snow;
+  const links = [snow];
   if (section === "utah" && place.p.length > 1) {
     links.push(
       `<a class="xlink" href="${uacURL(place.name)}" target="_blank" rel="noopener">${lbl("Avalanche forecast", "Avalanche")} ↗</a>`,
@@ -302,6 +309,10 @@ function forecastView() {
     place = places[selected],
     absIndex = mode === "mountain" ? selected + 2 : selected,
     views = FORECAST_VIEWS.filter((v) => (!v[2] || v[2] === section) && (v[0] !== "mountain" || mode === "mountain" || place.p.length > 1));
+  if (mode === "snow" && isMountain(place)) {
+    location.href = `snow/#mountain/${section}/${slug(place.name)}`;
+    return;
+  }
   const body =
     mode === "snow"
       ? '<div id="place-snow"><div class="state">Loading the snow forecast…</div></div>'
@@ -315,19 +326,23 @@ function forecastView() {
               ? '<div class="elevations discussion-mode" id="discussion"><div class="state">Loading NWS forecast…</div></div>'
               : '<div class="ov" id="ov"><div class="state">Loading NWS forecast…</div></div>';
   const kind = place.searched ? "Your search" : place.p.length > 1 ? "Resort" : (place.p[0][2] || "").split(" · ")[0];
+  // Snow detail: a ski area's lives in the Snow section; a town's opens here.
+  const snowLink = isMountain(place) ? `snow/#mountain/${section}/${slug(place.name)}` : "";
   const more = [
+    ...(mode !== "snow" ? [["snow", "Snow detail", snowLink]] : []),
     ...(section === "utah" && place.p.length > 1 && mode !== "mountain" ? [["mountain", "Mountain profile"]] : []),
     ...(mode !== "afd" ? [["afd", "Full forecast discussion"]] : []),
   ];
-  const back = ["afd", "models", "mountain"].includes(mode)
+  const back = ["afd", "models", "mountain", "snow"].includes(mode)
     ? `<button type="button" class="back-link" data-view="${mode === "afd" || mode === "models" ? "insights" : "forecast"}">‹ ${mode === "afd" || mode === "models" ? "Insights" : "Forecast"}</button>`
     : "";
   content.innerHTML = `${back}<div class="fc-head"><div class="fc-title"><button type="button" class="place-switch" id="place-switch" aria-expanded="false" aria-controls="place-search" title="Change place"><span class="fc-name">${escapeHTML(place.name)}</span><span class="ps-caret" aria-hidden="true">▾</span></button><p class="fc-sub"><span class="fc-kind">${escapeHTML(section === "utah" ? "Utah" : "New England")}${kind ? " · " + escapeHTML(kind) : ""}</span><span class="fc-note"> — ${escapeHTML(VIEW_NOTES[mode] || "")}</span></p></div><div class="fc-actions"><button type="button" class="icon-btn nearby" id="locate" title="Closest forecast to me" aria-label="Show the closest forecast to my location">⌖</button><button type="button" class="icon-btn" id="refresh" title="Refresh" aria-label="Refresh forecasts">↻</button></div></div><div class="place-search" id="place-search" hidden></div><div class="place-links">${placeLinks(place, section)}</div>${body}${
     (mode === "forecast" || mode === "insights") && more.length
       ? `<nav class="more-views" aria-label="More for ${escapeHTML(place.name)}"><h3>More for ${escapeHTML(place.name)}</h3>${more
-          .map(
-            ([k, n]) =>
-              `<button type="button" data-view="${k}"><span><b>${n}</b><small>${escapeHTML(VIEW_NOTES[k])}</small></span><i aria-hidden="true">›</i></button>`,
+          .map(([k, n, href]) =>
+            href
+              ? `<a class="more-link" href="${href}"><span><b>${n}</b><small>${escapeHTML(VIEW_NOTES[k])}</small></span><i aria-hidden="true">›</i></a>`
+              : `<button type="button" data-view="${k}"><span><b>${n}</b><small>${escapeHTML(VIEW_NOTES[k])}</small></span><i aria-hidden="true">›</i></button>`,
           )
           .join("")}</nav>`
       : ""
@@ -1723,6 +1738,14 @@ function readHash() {
     const list = t === "utah" ? utah : ne,
       i = list.findIndex((x) => slug(x.name) === a),
       modes = ["forecast", "snow", "insights", "afd", "models", ...(t === "utah" ? ["mountain"] : [])];
+    // A ski area's snow detail lives in the Snow section.
+    if (b === "snow") {
+      const pl = (t === "utah" ? utah : ne).find((x) => slug(x.name) === a);
+      if (pl && isMountain(pl)) {
+        location.replace(`snow/#mountain/${t}/${a}`);
+        return;
+      }
+    }
     let mode = modes.includes(b) ? b : "forecast"; // Legacy overview/discussion links open the primary forecast.
     if (i >= 0) {
       if (mode === "mountain" && i < 2) mode = "forecast";
@@ -1746,6 +1769,10 @@ window.addEventListener("hashchange", () => {
 });
 
 // ---------- Auto refresh ----------
+/* Ski areas: dashboard resorts, summits and searched ski areas. */
+function isMountain(p) {
+  return !!(p && (WW.MOUNTAINS[slug(p.name)] || p.ski));
+}
 function clearCaches() {
   snowModelCache.clear();
   if (typeof SnowCore !== "undefined") SnowCore.clear();

@@ -316,8 +316,9 @@ function rngHover(body, { L, pw, hours }, text) {
   });
 }
 
-/* The Snow tab. place: a dashboard place or saved search; section: "utah" | "ne". */
-async function loadPlaceSnow(place, section) {
+/* Snow forecast for one place. place: a dashboard place or saved search; section: "utah" | "ne".
+   links: where the Weather and Snow pages are relative to this page. */
+async function loadPlaceSnow(place, section, links = { weather: "", snow: "snow/" }) {
   const root = document.querySelector("#place-snow");
   if (!root) return;
   rngState = null;
@@ -325,8 +326,10 @@ async function loadPlaceSnow(place, section) {
   root.dataset.key = key;
   const pl = SnowCore.placeFor(place, section);
   const region = section === "utah" ? "Utah" : "New England";
-  const profile = section === "utah" && place.p.length > 1 && !place.searched ? `<button type="button" class="xlink" data-view="mountain">Mountain profile ›</button>` : "";
-  root.innerHTML = `<article class="card afd-card rng-card" id="ps-days"><div class="rng-head"><div><h3>Snow forecast · next 10 days</h3><p class="sub">${pl.ski ? `Forecast for the summit (${pl.summit.toLocaleString()} ft)` : "Forecast at ground level"}</p></div><div class="ps-links">${profile}<a class="xlink" href="snow/#forecast/${section}">Compare all ${region} mountains ›</a></div></div><div class="ps-body"><div class="state">Loading the snow forecast…</div></div></article><article class="card afd-card rng-card" id="rng-range"><div class="rng-head"><div><h3>Forecast range</h3><p class="sub">Every ensemble run, and how far apart they are</p></div>${rngSeg("range", rngDays)}</div><div class="rng-body"><div class="state">Loading ensemble runs…</div></div></article><article class="card afd-card rng-card" id="rng-level"><div class="rng-head"><div><h3>Snow level</h3><p class="sub">Elevation where rain turns to snow</p></div>${rngSeg("level", rngLevelDays)}</div><div class="rng-body"><div class="state">Loading snow levels…</div></div></article><p class="source ps-source"></p>`;
+  const id = slug(place.name);
+  const profile = section === "utah" && place.p.length > 1 && !place.searched ? `<a class="xlink" href="${links.weather}#utah/${id}/mountain">Mountain profile ›</a>` : "";
+  const forecast = `<a class="xlink" href="${links.weather}#${section}/${id}/forecast">Weather forecast ›</a>`;
+  root.innerHTML = `<article class="card afd-card rng-card" id="ps-days"><div class="rng-head"><div><h3>Snow forecast · next 10 days</h3><p class="sub">${pl.ski ? `Forecast for the summit (${pl.summit.toLocaleString()} ft)` : "Forecast at ground level"}</p></div><div class="ps-links">${forecast}${profile}<a class="xlink" href="${links.snow}#forecast/${section}">Compare all ${region} mountains ›</a></div></div><div class="ps-body"><div class="state">Loading the snow forecast…</div></div></article><article class="card afd-card rng-card" id="rng-range"><div class="rng-head"><div><h3>Forecast range</h3><p class="sub">Every ensemble run, and how far apart they are</p></div>${rngSeg("range", rngDays)}</div><div class="rng-body"><div class="state">Loading ensemble runs…</div></div></article><article class="card afd-card rng-card" id="rng-level"><div class="rng-head"><div><h3>Snow level</h3><p class="sub">Elevation where rain turns to snow</p></div>${rngSeg("level", rngLevelDays)}</div><div class="rng-body"><div class="state">Loading snow levels…</div></div></article><p class="source ps-source"></p>`;
   root.querySelectorAll("[data-range-days]").forEach(
     (b) =>
       (b.onclick = () => {
@@ -364,7 +367,7 @@ async function loadPlaceSnow(place, section) {
   drawRange();
   drawLevel();
   const age = Math.max(0, Math.round((Date.now() - Date.parse(o.built)) / 60000));
-  root.querySelector(".ps-source").innerHTML = `How this is worked out: the NWS gridded forecast${o.nws?.elev ? ` (its grid square sits at ${o.nws.elev.toLocaleString()} ft)` : ""} sets the forecast for its first ~7 days; after that, the median of ${o.members.length} GEFS and ECMWF ensemble runs is added. The likely range comes from those runs${o.nws ? `, scaled ×${o.nws.scale} to match NWS over its days` : ""}. Each run's rain counts as snow when its snow level is below ${o.ski ? "the summit" : "ground level"}, using a snow ratio from its temperature (about 8:1 near 32°F, 16:1 in the teens). The Snow report table, the Powder map and Insights use these same numbers. Updated ${age < 60 ? `${age} min` : `${Math.round(age / 60)} h`} ago · Data: NWS, Open-Meteo.`;
+  root.querySelector(".ps-source").innerHTML = `How this is worked out: the NWS gridded forecast${o.nws?.elev ? ` (its grid square sits at ${o.nws.elev.toLocaleString()} ft)` : ""} sets the forecast for its first ~7 days; after that, the median of ${o.members.length} GEFS and ECMWF ensemble runs is added. The likely range comes from those runs${o.nws ? `, scaled ×${o.nws.scale} to match NWS over its days` : ""}. Each run's rain counts as snow when its snow level is below ${o.ski ? "the summit" : "ground level"}, using a snow ratio from its temperature (about 8:1 near 32°F, 16:1 in the teens). The All mountains list and map, and Insights, use these same numbers. Updated ${age < 60 ? `${age} min` : `${Math.round(age / 60)} h`} ago · Data: NWS, Open-Meteo.`;
 }
 let rngResize = 0;
 addEventListener("resize", () => {
