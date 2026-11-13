@@ -853,6 +853,6 @@ window.suiteContext = () => ({
   text: content.innerText,
   note: "Camera images and video are resort feeds, not a weather forecast. Still images refresh every 30 seconds; embedded camera timestamps indicate image freshness.",
 });
-WW.init({ base: "../", active: "cams" });
+WW.init({ base: "../", group: "snow", active: "cams" });
 readHash();
 stamp();
