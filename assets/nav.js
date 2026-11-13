@@ -29,6 +29,8 @@ window.WW = (function () {
     gunstock: ["Gunstock", "ne", "gunstock"],
   };
   const NEAR = { snyderville: "canyons-resort", "park-city": "park-city-mountain", utah: "alta", ne: "killington" };
+  /* Searched places anywhere (section "world") use the current region for region-wide pages. */
+  const regionOf = (m, c) => (REGIONS[m.section] ? m.section : c.section);
   const mountainFrom = (id) => (MOUNTAINS[id] ? { section: MOUNTAINS[id][1], slug: id, name: MOUNTAINS[id][0], cam: MOUNTAINS[id][2], mtn: true } : null);
   const SECTIONS = {
     weather: [
@@ -40,10 +42,11 @@ window.WW = (function () {
       { key: "long", label: "Long range", icon: "≋", href: (b) => `${b}#long`, menu: true },
     ],
     snow: [
-      { key: "mountain", label: "Snow forecast", icon: "❄", href: (b, c, m) => `${b}snow/#mountain/${m.section}/${m.slug}` },
-      { key: "cams", label: "Cams", icon: "▣", href: (b, c, m) => `${b}webcams/#${m.cam || m.section}` },
-      { key: "snowreport", label: "All mountains", icon: "▤", href: (b, c, m) => `${b}snow/#forecast/${m.section}` },
-      { key: "snowpack", label: "Snowpack", icon: "≈", href: (b, c, m) => `${b}snow/#snowpack/${m.section}` },
+      { key: "mountain", label: "Snow forecast", short: "Forecast", icon: "❄", href: (b, c, m) => `${b}snow/#mountain/${m.section}/${m.slug}` },
+      { key: "cams", label: "Cams", icon: "▣", href: (b, c, m) => `${b}webcams/#${m.cam || regionOf(m, c)}` },
+      { key: "snowreport", label: "All mountains", short: "Mountains", icon: "▤", href: (b, c, m) => `${b}snow/#forecast/${regionOf(m, c)}` },
+      { key: "snowmap", label: "Snow map", short: "Map", icon: "◈", href: (b, c, m) => `${b}snow/#map/${regionOf(m, c)}` },
+      { key: "snowpack", label: "Snowpack", icon: "≈", href: (b, c, m) => `${b}snow/#snowpack/${regionOf(m, c)}` },
     ],
   };
   let base = "",
@@ -77,26 +80,36 @@ window.WW = (function () {
      else the one nearest the current town, else the region's main mountain. */
   function mountain() {
     const c = place();
+    let saved = null;
+    try {
+      saved = JSON.parse(get(MOUNTAIN_KEY) || "null");
+    } catch {}
+    // A place searched in the Snow section wins while it is the most recent choice.
+    if (saved?.section === "world" && saved.slug && (saved.t || 0) > (c.t || 0)) return saved;
     if (c.mtn || MOUNTAINS[c.slug]) return mountainFrom(c.slug) || c;
     try {
-      const m = JSON.parse(get(MOUNTAIN_KEY) || "null");
-      if (m && REGIONS[m.section] && m.slug && m.section === c.section) return m;
+      const m = saved;
+      if (m && m.slug && (m.section === c.section || m.section === "world")) return m;
     } catch {}
     return mountainFrom(NEAR[c.slug]) || mountainFrom(NEAR[c.section]);
   }
   function setPlace(c) {
     if (!c || !REGIONS[c.section] || !c.slug) return;
     const mtn = !!(c.mtn || MOUNTAINS[c.slug]);
-    const next = { section: c.section, slug: c.slug, name: c.name || c.slug, cam: c.cam || MOUNTAINS[c.slug]?.[2] || "", ...(mtn ? { mtn: true } : {}) },
+    const next = { section: c.section, slug: c.slug, name: c.name || c.slug, cam: c.cam || MOUNTAINS[c.slug]?.[2] || "", t: Date.now(), ...(mtn ? { mtn: true } : {}) },
       cur = place();
     put(PLACE_KEY, JSON.stringify(next));
     put(REGION_KEY, next.section);
     if (mtn) put(MOUNTAIN_KEY, JSON.stringify(next));
     if (cur.section !== next.section || cur.slug !== next.slug || cur.cam !== next.cam || cur.name !== next.name) paint();
   }
-  /* Snow section: show a mountain (also becomes the current place, so Weather follows). */
+  /* Snow section: show a mountain. A dashboard region's mountain also becomes the current place, so Weather
+     follows; a place searched in the Snow section (anywhere) is only remembered as the current mountain. */
   function setMountain(m) {
-    setPlace({ ...m, mtn: true });
+    if (REGIONS[m.section]) return setPlace({ ...m, mtn: true });
+    const cur = mountain();
+    put(MOUNTAIN_KEY, JSON.stringify({ section: m.section, slug: m.slug, name: m.name || m.slug, cam: "", mtn: true, t: Date.now() }));
+    if (cur.slug !== m.slug) paint();
   }
   function region() {
     return place().section;
@@ -113,7 +126,7 @@ window.WW = (function () {
   }
   function link(s, c, m, cls) {
     const tab = s.key === "forecast" ? ` data-tab="${c.section}"` : "";
-    return `<a class="${cls}" href="${s.href(base, c, m)}" data-ww="${s.key}"${tab}${s.key === active ? ' aria-current="page"' : ""}><span class="ww-ico" aria-hidden="true">${s.icon}</span><span class="ww-lbl">${esc(s.label)}</span></a>`;
+    return `<a class="${cls}" href="${s.href(base, c, m)}" data-ww="${s.key}"${tab}${s.key === active ? ' aria-current="page"' : ""}><span class="ww-ico" aria-hidden="true">${s.icon}</span><span class="ww-lbl">${s.short ? `<span class="ww-lg">${esc(s.label)}</span><span class="ww-sm">${esc(s.short)}</span>` : esc(s.label)}</span></a>`;
   }
   function paint() {
     const c = place(),

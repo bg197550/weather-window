@@ -2628,3 +2628,6 @@ p {
 .place-pick-groups .chips .chip-link { display: inline-flex; align-items: center; min-height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid #355464; background: #102c3b; color: #eaf6f8; font-weight: 600; font-size: 14px; text-decoration: none; }
 .place-pick-groups .chips .chip-link[aria-current="true"] { background: #d4f4ee; color: #082832; border-color: #d4f4ee; }
 .more-views a.more-link { display: flex; align-items: center; justify-content: space-between; gap: 12px; text-decoration: none; color: inherit; }
+.place-pick-groups .chip-wrap { display: inline-flex; gap: 2px; }
+.mtn-mine { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.mtn-mine .chip-link { display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid #355464; background: #102c3b; color: #eaf6f8; font-weight: 600; font-size: 14px; text-decoration: none; }

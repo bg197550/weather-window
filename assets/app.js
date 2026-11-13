@@ -252,15 +252,8 @@ const VIEW_NOTES = {
 /* Links to the same place elsewhere on the site: webcams, snow report, avalanche forecast, surf. */
 function placeLinks(place, section) {
   const lbl = (long, short) => `<span class="lg">${long}</span><span class="sm">${short}</span>`;
-  // Snow detail: a ski area's is in the Snow section; a town's opens on this page.
-  const mode = view[section];
-  const snow = isMountain(place)
-    ? `<a class="xlink" href="snow/#mountain/${section}/${slug(place.name)}">${lbl("Snow forecast", "Snow")} ›</a>`
-    : mode !== "snow"
-      ? `<a class="xlink" href="#${section}/${slug(place.name)}/snow">${lbl("Snow detail", "Snow")} ›</a>`
-      : "";
-  if (place.searched) return snow;
-  const links = [snow];
+  if (place.searched) return "";
+  const links = [];
   if (section === "utah" && place.p.length > 1) {
     links.push(
       `<a class="xlink" href="${uacURL(place.name)}" target="_blank" rel="noopener">${lbl("Avalanche forecast", "Avalanche")} ↗</a>`,
@@ -326,10 +319,7 @@ function forecastView() {
               ? '<div class="elevations discussion-mode" id="discussion"><div class="state">Loading NWS forecast…</div></div>'
               : '<div class="ov" id="ov"><div class="state">Loading NWS forecast…</div></div>';
   const kind = place.searched ? "Your search" : place.p.length > 1 ? "Resort" : (place.p[0][2] || "").split(" · ")[0];
-  // Snow detail: a ski area's lives in the Snow section; a town's opens here.
-  const snowLink = isMountain(place) ? `snow/#mountain/${section}/${slug(place.name)}` : "";
   const more = [
-    ...(mode !== "snow" ? [["snow", "Snow detail", snowLink]] : []),
     ...(section === "utah" && place.p.length > 1 && mode !== "mountain" ? [["mountain", "Mountain profile"]] : []),
     ...(mode !== "afd" ? [["afd", "Full forecast discussion"]] : []),
   ];
