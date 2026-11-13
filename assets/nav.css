@@ -86,7 +86,9 @@
   }
   .ww-tabbar {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
     position: fixed;
     left: 0;
     right: 0;
@@ -251,5 +253,13 @@
   font-weight: 650;
 }
 @media (max-width: 760px) {
-  .ww-tabbar { grid-template-columns: repeat(5, 1fr); }
+  .ww-tabbar { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
+}
+
+/* Short labels in the bottom bar keep every tab on one line; the top bar uses the full names. */
+.ww-sm { display: none; }
+.ww-tab .ww-lg { display: none; }
+.ww-tab .ww-sm { display: inline; }
+@media (max-width: 760px) {
+  .ww-tab { justify-content: flex-start; padding-top: 12px; text-align: center; line-height: 1.2; white-space: nowrap; }
 }

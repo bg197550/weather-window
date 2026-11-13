@@ -9,7 +9,53 @@ let focusResort = "",
   hourlyResort = 0,
   hourlyPoint = 1,
   lastLoad = Date.now();
-const TABS = { forecast: "Snow forecast", map: "Powder map", range: "Range & snow level", resorts: "Resorts", snowpack: "Snowpack", models: "Models", hourly: "Hourly" };
+/* The Snow section: one mountain's Snow forecast (#mountain/<region>/<slug>), All mountains side by side
+   (#forecast/<region> as a list, #map/<region> as a map) and the measured Snowpack. Cams is its own page.
+   The section's tabs live in the shared navigation (nav.js). */
+const TABS = { mountain: "Snow forecast", forecast: "All mountains", snowpack: "Snowpack" };
+let mtnRegion = "utah",
+  mtnSlug = "";
+/* Ski areas: the dashboard's, plus US ski areas saved from the Weather search. */
+function mountainList(region) {
+  return region === "utah" ? utahResorts() : ne.filter((r) => /Summit/.test(r.p[0][2]));
+}
+function savedSkiAreas() {
+  try {
+    return JSON.parse(localStorage.getItem("ww:searched") || "[]")
+      .filter((x) => x && x.ski && Number.isFinite(x.lat))
+      .map((x) => ({ name: x.name, p: [[x.lat, x.lon, x.label || "Ski area"]], ski: x.ski, zone: x.zone || null, searched: true, section: x.lon < -100 ? "utah" : "ne" }));
+  } catch {
+    return [];
+  }
+}
+/* Places searched here in the Snow section: any ski area (OpenSkiMap) or town, anywhere. Region "world". */
+const SNOW_SEARCH_KEY = "ww:snow-searched";
+function snowSearched() {
+  try {
+    return JSON.parse(localStorage.getItem(SNOW_SEARCH_KEY) || "[]")
+      .filter((x) => x && x.name && Number.isFinite(x.lat))
+      .map((x) => ({ name: x.name, p: [[x.lat, x.lon, x.ski ? "Ski area" : "Town"]], ski: x.ski || null, zone: x.zone || null, place: x.place || "", searched: true, snowSearched: true, section: "world" }));
+  } catch {
+    return [];
+  }
+}
+function saveSnowSearch(x) {
+  const r4 = (v) => Math.round(v * 10000) / 10000;
+  const entry = { name: x.name, lat: r4(x.lat), lon: r4(x.lon), ...(x.ski ? { ski: x.ski } : {}), place: x.place || x.detail || "", zone: x.zone || null };
+  try {
+    const list = JSON.parse(localStorage.getItem(SNOW_SEARCH_KEY) || "[]").filter((y) => y.name !== entry.name);
+    localStorage.setItem(SNOW_SEARCH_KEY, JSON.stringify([entry, ...list].slice(0, 10)));
+  } catch {}
+}
+function forgetSnowSearch(name) {
+  try {
+    localStorage.setItem(SNOW_SEARCH_KEY, JSON.stringify(JSON.parse(localStorage.getItem(SNOW_SEARCH_KEY) || "[]").filter((y) => y.name !== name)));
+  } catch {}
+}
+function findMountain(region, id) {
+  if (region === "world") return snowSearched().find((x) => slug(x.name) === id);
+  return [...mountainList(region), ...savedSkiAreas().filter((x) => x.section === region)].find((x) => slug(x.name) === id);
+}
 
 function makePlot(series, labels, unit, type, selected) {
   const n = labels.length,
@@ -240,72 +286,35 @@ function snowRange(lo, hi) {
   return [Math.max(0, a), b];
 }
 const rangeText = ([a, b]) => (b === 0 ? '0"' : `${a}-${b}"`);
-/* One resort's snow by half-day: NWS while its forecast lasts, then the GFS/ECMWF/GEM range. */
-async function resortForecast(r, zone, segs) {
-  const p = r.p[0];
-  const [nws, mod] = await Promise.allSettled([mountainPoint(p), modelHourly(p, zone)]);
-  const grid = nws.status === "fulfilled" ? nws.value.grid : null;
-  const elevFt = nws.status === "fulfilled" && nws.value.forecast?.elevation?.value != null ? Math.round(nws.value.forecast.elevation.value * 3.28084) : null;
-  const snowVals = grid?.snowfallAmount?.values,
-    until = gridEnd(snowVals),
-    tUntil = gridEnd(grid?.temperature?.values);
-  const h = mod.status === "fulfilled" ? mod.value.hourly : null;
-  const ht = h ? h.time.map((t) => Date.parse(t + "Z")) : [];
-  const modelSeg = (from, to) => {
-    if (!h) return null;
-    const totals = ["gfs_seamless", "ecmwf_ifs025", "gem_seamless"]
-      .map((id) => {
-        const v = h[`snowfall_${id}`];
-        if (!v) return null;
-        let t = 0,
-          any = false;
-        ht.forEach((x, i) => {
-          if (x >= from && x < to && Number.isFinite(v[i])) {
-            t += v[i];
-            any = true;
-          }
-        });
-        return any ? t : null;
-      })
-      .filter((v) => v != null);
-    const temps = ["gfs_seamless", "ecmwf_ifs025", "gem_seamless"].flatMap((id) => ht.map((x, i) => (x >= from && x < to ? h[`temperature_2m_${id}`]?.[i] : null)).filter(Number.isFinite));
-    return totals.length ? { lo: Math.min(...totals), hi: Math.max(...totals), mid: totals.reduce((a, b) => a + b, 0) / totals.length, temps } : null;
-  };
+/* One resort's snow by half-day from the shared outlook (assets/snowcore.js): the file rebuilt every 3 hours,
+   or a live build if it is missing or stale. The Snow tab, the map and Insights read the same numbers. */
+async function resortOutlook(r, region) {
+  try {
+    const sum = await SnowCore.summary();
+    const o = sum.places?.[slug(r.name)];
+    if (SnowCore.isFresh(o)) return o;
+  } catch {}
+  return SnowCore.forPlace(r, region);
+}
+async function resortForecast(r, zone, segs, region) {
+  const o = await resortOutlook(r, region);
   const cells = segs.map((g) => {
-    const m = modelSeg(g.from, g.to);
-    let src = "",
-      range = null,
-      mid = null,
-      temp = null;
-    if (snowVals && until >= g.to - 2 * 3600000) {
-      const v = periodSnow(snowVals, g.from, g.to) ?? 0;
-      // NWS gives one number: spread it like OpenSnow, widening toward the models when they disagree.
-      range = snowRange(Math.max(v * 0.6, Math.min(v * 0.8, m ? m.lo : v)), Math.max(v * 1.3, m ? Math.min(m.hi, v * 2) : v));
-      mid = v;
-      src = "nws";
-    } else if (m) {
-      range = snowRange(m.lo, m.hi);
-      mid = m.mid;
-      src = "model";
-    }
-    const pick = g.half === "day" ? Math.max : Math.min;
-    if (grid?.temperature && tUntil >= g.to - 2 * 3600000) {
-      const c = gridStat(grid.temperature.values, g.from, g.to, pick);
-      if (c != null) temp = Math.round((c * 9) / 5 + 32);
-    } else if (m?.temps?.length) temp = Math.round(pick(...m.temps));
-    return { ...g, src, range, mid, temp };
+    const q = o.segments.find((x) => x.date === g.date && x.half === g.half);
+    return { ...g, src: q?.src || "", range: q ? snowRange(q.lo, q.hi) : null, mid: q?.mid ?? null, lo: q?.lo, hi: q?.hi, temp: q?.temp ?? null };
   });
+  const mids = (a, b) => cells.slice(a * 2, b * 2).reduce((t, x) => t + (x.mid || 0), 0);
   const total = (a, b) => {
+    if (a === 0 && o.totals[b]) return snowRange(o.totals[b].lo, o.totals[b].hi);
+    // A later stretch (days 6–10): the cumulative ranges' difference would overstate it, so sum and pull in.
     const c = cells.slice(a * 2, b * 2).filter((x) => x.range);
     if (!c.length) return null;
-    // Summed ranges overstate the spread (not every period hits its high end), so pull them toward the middle.
-    const lo = c.reduce((t, x) => t + x.range[0], 0),
-      hi = c.reduce((t, x) => t + x.range[1], 0),
-      mid = c.reduce((t, x) => t + (x.mid || 0), 0);
+    const lo = c.reduce((t, x) => t + (x.lo || 0), 0),
+      hi = c.reduce((t, x) => t + (x.hi || 0), 0),
+      mid = mids(a, b);
     return snowRange(mid - (mid - lo) * 0.6, mid + (hi - mid) * 0.6);
   };
-  const mids = (a, b) => cells.slice(a * 2, b * 2).reduce((t, x) => t + (x.mid || 0), 0);
-  return { r, elevFt, cells, total, mids, next5: total(0, 5), later: total(5, 10), next5mid: mids(0, 5) };
+  const totalMid = (b) => o.totals[b]?.mid ?? mids(0, b);
+  return { r, o, elevFt: o.elev, cells, total, mids, totalMid, next5: total(0, 5), later: total(5, 10), next5mid: totalMid(5) };
 }
 async function loadSnowForecast(region) {
   const el = document.querySelector("#snow-forecast");
@@ -313,12 +322,18 @@ async function loadSnowForecast(region) {
   const zone = region === "ne" ? "America/New_York" : "America/Denver";
   const list = region === "ne" ? ne.filter((x) => /Summit/.test(x.p[0][2] || "")) : utahResorts();
   const segs = forecastSegments(zone);
-  const results = await Promise.all(list.map((r) => resortForecast(r, zone, segs)));
-  if (!el.isConnected || region !== forecastRegion) return;
+  let results;
+  try {
+    results = await Promise.all(list.map((r) => resortForecast(r, zone, segs, region)));
+  } catch (e) {
+    if (el.isConnected) el.innerHTML = `<div class="error">The snow forecast is temporarily unavailable (${escapeHTML(e.message)}).</div>`;
+    return;
+  }
+  if (!el.isConnected || region !== forecastRegion || tab !== "forecast") return;
   const max = Math.max(4, ...results.flatMap((x) => x.cells.map((c) => c.range?.[1] || 0)));
   const best = Math.max(...results.map((x) => x.next5mid));
   const firstModel = results[0]?.cells.findIndex((c) => c.src === "model");
-  const area = (r) => (region === "ne" ? { "Stratton Mountain": "Vermont", Killington: "Vermont", Stowe: "Vermont", Gunstock: "New Hampshire" }[r.name] || "New England" : r.name === "Snowbasin" ? "Ogden Valley" : /Deer Valley|Canyons/.test(r.name) ? "Park City" : "Cottonwood Canyons");
+  const area = (r) => (region === "ne" ? { "Stratton Mountain": "Vermont", Killington: "Vermont", Stowe: "Vermont", Gunstock: "New Hampshire" }[r.name] || "New England" : r.name === "Snowbasin" ? "Ogden Valley" : /Deer Valley|Canyons|Park City/.test(r.name) ? "Park City" : "Cottonwood Canyons");
   el.innerHTML = results
     .map((x) => {
       const top = x.next5mid === best && best >= 1;
@@ -331,14 +346,14 @@ async function loadSnowForecast(region) {
           }</div>`;
         })
         .join("");
-      return `<article class="sf-card ${top ? "is-top" : ""} ${slug(x.r.name) === focusResort ? "is-focus" : ""}" id="sf-${slug(x.r.name)}"><div class="sf-head"><div><a class="sf-name" href="${siteBase()}#${region}/${slug(x.r.name)}/forecast">${escapeHTML(x.r.name)}</a><div class="sf-meta">${x.elevFt ? x.elevFt.toLocaleString() + " ft · " : ""}${escapeHTML(area(x.r))}${CAMS[x.r.name] ? ` · <a href="${siteBase()}webcams/#${CAMS[x.r.name]}">cams</a>` : ""}</div></div><div class="sf-totals"><div><small>Next 5 days</small><b>${x.next5 ? rangeText(x.next5) : "–"}</b></div><div><small>Days 6–10</small><b>${x.later ? rangeText(x.later) : "–"}</b></div></div></div><div class="sf-strip-wrap"><div class="sf-strip">${bars}</div><button type="button" class="sf-next" aria-label="Scroll ${escapeHTML(x.r.name)} forecast">›</button></div></article>`;
+      return `<article class="sf-card ${top ? "is-top" : ""} ${slug(x.r.name) === focusResort ? "is-focus" : ""}" id="sf-${slug(x.r.name)}"><div class="sf-head"><div><a class="sf-name" href="#mountain/${region}/${slug(x.r.name)}">${escapeHTML(x.r.name)} ›</a><div class="sf-meta">Summit ${x.elevFt ? x.elevFt.toLocaleString() + " ft · " : ""}${escapeHTML(area(x.r))} · <a href="${siteBase()}#${region}/${slug(x.r.name)}/forecast">forecast</a>${CAMS[x.r.name] ? ` · <a href="${siteBase()}webcams/#${CAMS[x.r.name]}">cams</a>` : ""}</div></div><div class="sf-totals"><div><small>Next 5 days</small><b>${x.next5 ? rangeText(x.next5) : "–"}</b></div><div><small>Next 10 days</small><b>${x.total(0, 10) ? rangeText(x.total(0, 10)) : "–"}</b></div></div></div><div class="sf-strip-wrap"><div class="sf-strip">${bars}</div><button type="button" class="sf-next" aria-label="Scroll ${escapeHTML(x.r.name)} forecast">›</button></div></article>`;
     })
     .join("") +
-    `<p class="source">New snow in each 12-hour period (6am–6pm and 6pm–6am), shown as a likely range, with the high or low temperature below. Elevation is the NWS forecast point. ${
+    `<p class="source">New snow at each summit in each 12-hour period (6am–6pm and 6pm–6am), shown as a likely range, with the summit high or low temperature below. ${
       firstModel > 0
-        ? `NWS forecast through ${new Date(results[0].cells[firstModel].from).toLocaleDateString("en-US", { weekday: "long", timeZone: zone })}; after that (lighter, striped bars) the range spans the GFS, ECMWF and GEM models, which often run low in the mountains.`
-        : "Striped bars are from global models (GFS, ECMWF, GEM) beyond the NWS forecast."
-    } Highlighted resort: most snow in the next 5 days. Orange bars: 6″ or more possible.</p>`;
+        ? `NWS forecast through ${new Date(results[0].cells[firstModel].from).toLocaleDateString("en-US", { weekday: "long", timeZone: zone })}; after that (lighter, striped bars) the median of the GEFS and ECMWF ensembles.`
+        : "Striped bars come from the GEFS and ECMWF ensembles beyond the NWS forecast."
+    } Ranges are the 10th–90th percentile of the ensemble runs, scaled to match NWS over its days. Each mountain's name opens its Snow forecast, which uses these same numbers. Highlighted: most snow in the next 5 days. Orange bars: 6″ or more possible.</p>`;
   if (focusResort) document.querySelector(`#sf-${focusResort}`)?.scrollIntoView({ block: "center" });
   el.querySelectorAll(".sf-next").forEach((b) => {
     const strip = b.previousElementSibling;
@@ -379,14 +394,14 @@ async function loadPowderMap(region) {
   const segs = forecastSegments(zone, POWDER_DAYS);
   let results;
   try {
-    [results] = await Promise.all([Promise.all(list.map((r) => resortForecast(r, zone, segs))), loadLeaflet()]);
+    [results] = await Promise.all([Promise.all(list.map((r) => resortForecast(r, zone, segs, region))), loadLeaflet()]);
   } catch (e) {
     el.innerHTML = `<div class="error">${escapeHTML(e.message)}</div>`;
     return;
   }
   if (!el.isConnected || region !== forecastRegion || tab !== "map") return;
   const rows = results.map((x) => {
-    const mid = x.mids(0, POWDER_DAYS);
+    const mid = x.totalMid(POWDER_DAYS);
     return { ...x, mid, range: x.total(0, POWDER_DAYS), parts: [x.total(0, 5), x.total(5, 10), x.total(10, 15)] };
   });
   const tier = (v) => (v >= 24 ? "deep" : v >= 12 ? "good" : v >= 4 ? "some" : "little");
@@ -423,7 +438,7 @@ async function loadPowderMap(region) {
         (q, k) =>
           `<i class="${q.model ? "m" : ""}" style="height:${Math.max(q.v >= 0.5 ? 3 : 1, Math.round((q.v / mx) * 44))}px" title="${new Date(q.d.from + 3 * 3600000).toLocaleDateString("en-US", { weekday: "short", month: "numeric", day: "numeric", timeZone: zone })}: ${q.v < 0.5 ? "0" : Math.round(q.v)}″"></i>`,
       )
-      .join("")}</div><div class="pp-parts"><span>Days 1–5 <b>${x.parts[0] ? rangeText(x.parts[0]) : "–"}</b></span><span>6–10 <b>${x.parts[1] ? rangeText(x.parts[1]) : "–"}</b></span><span>11–15 <b>${x.parts[2] ? rangeText(x.parts[2]) : "–"}</b></span></div><a href="#forecast/${region}/${slug(x.r.name)}">Day-by-day snow forecast ›</a><a href="${siteBase()}#${region}/${slug(x.r.name)}/forecast">Full weather forecast ›</a></div>`;
+      .join("")}</div><div class="pp-parts"><span>Days 1–5 <b>${x.parts[0] ? rangeText(x.parts[0]) : "–"}</b></span><span>6–10 <b>${x.parts[1] ? rangeText(x.parts[1]) : "–"}</b></span><span>11–15 <b>${x.parts[2] ? rangeText(x.parts[2]) : "–"}</b></span></div><a href="#mountain/${region}/${slug(x.r.name)}">Snow forecast ›</a><a href="${siteBase()}#${region}/${slug(x.r.name)}/forecast">Full weather forecast ›</a></div>`;
     markers.push({ x, m: L.marker([lat, lon], { icon, riseOnHover: true }).addTo(powderMap).bindPopup(pop, { maxWidth: 280 }) });
   }
   // Resorts a mile apart (Alta and Snowbird) would stack: nudge labels apart at the current zoom.
@@ -456,95 +471,158 @@ async function loadPowderMap(region) {
   const best = [...rows].sort((a, b) => b.mid - a.mid);
   if (listEl)
     listEl.innerHTML = `<ol>${best
-      .map((x) => `<li><a href="#forecast/${region}/${slug(x.r.name)}"><span>${escapeHTML(x.r.name)}</span><b>${Math.round(x.mid)}″</b><small>${x.range ? rangeText(x.range) : ""}</small></a></li>`)
+      .map((x) => `<li><a href="#mountain/${region}/${slug(x.r.name)}"><span>${escapeHTML(x.r.name)}</span><b>${Math.round(x.mid)}″</b><small>${x.range ? rangeText(x.range) : ""}</small></a></li>`)
       .join("")}</ol>`;
 }
 
-function snowTabs() {
-  return `<nav class="seg snow-tabs" aria-label="Snow report sections">${Object.entries(TABS)
-    .map(([k, n]) => `<a href="#${k}" class="${k === tab ? "active" : ""}" ${k === tab ? 'aria-current="page"' : ""}>${escapeHTML(n)}</a>`)
-    .join("")}</nav>`;
+function forecastHead(view) {
+  const seg = (items, cls, label) => `<nav class="seg snowfc-region ${cls}" aria-label="${label}">${items.map(([href, n, on]) => `<a href="${href}" class="${on ? "active" : ""}"${on ? ' aria-current="true"' : ""}>${n}</a>`).join("")}</nav>`;
+  return `<div class="snowfc-head"><h3>${view === "map" ? "Next 15 days" : "Next 10 days"}</h3><div class="snowfc-tools">${seg(
+    [
+      [`#${view}/utah`, "Utah", forecastRegion === "utah"],
+      [`#${view}/ne`, "New England", forecastRegion === "ne"],
+    ],
+    "",
+    "Region",
+  )}</div></div>`;
+}
+/* The mountain switcher: a search for any ski area or town, then every mountain grouped by region. */
+function mountainPicker() {
+  const chip = (m, region, x) => {
+    const id = slug(m.name),
+      on = region === mtnRegion && id === mtnSlug;
+    return `<span class="chip-wrap"><a class="chip-link" href="#mountain/${region}/${id}"${on ? ' aria-current="true"' : ""}>${escapeHTML(m.name)}</a>${x ? `<button type="button" class="chip-x" data-forget="${escapeHTML(m.name)}" aria-label="Remove ${escapeHTML(m.name)}">✕</button>` : ""}</span>`;
+  };
+  const group = (title, list) => (list.length ? `<section><h4>${title}</h4><div class="chips">${list.map(([m, r, x]) => chip(m, r, x)).join("")}</div></section>` : "");
+  const yours = [...snowSearched().map((m) => [m, "world", true]), ...savedSkiAreas().map((m) => [m, m.section, false])];
+  return `<form class="place-search-form" id="mtn-search" role="search"><label class="sr-only" for="mtn-q">Search a ski area or location</label><input id="mtn-q" type="search" autocomplete="off" enterkeyhint="search" placeholder="Search any ski area, town or ZIP" /><button type="submit">Search</button></form><div class="place-search-results" id="mtn-results" aria-live="polite"></div><div class="place-pick-groups">${group(
+    "Utah",
+    mountainList("utah").map((m) => [m, "utah"]),
+  )}${group(
+    "New England",
+    mountainList("ne").map((m) => [m, "ne"]),
+  )}${group("Your searches", yours)}</div>`;
+}
+function wireMountainPicker(pick) {
+  const form = pick.querySelector("#mtn-search"),
+    input = pick.querySelector("#mtn-q"),
+    out = pick.querySelector("#mtn-results");
+  let seq = 0,
+    timer = 0,
+    shown = [];
+  const go = (x) => {
+    saveSnowSearch(x);
+    location.hash = `#mountain/world/${slug(x.name)}`;
+  };
+  const draw = (list, note) => {
+    shown = list;
+    out.innerHTML = `${list.length ? `<ul>${list.map((x, i) => `<li><button type="button" data-hit="${i}"><b>${escapeHTML(x.name)}</b><small>${escapeHTML(x.detail || "")}</small></button></li>`).join("")}</ul>` : ""}${note || ""}`;
+    out.querySelectorAll("[data-hit]").forEach((b) => (b.onclick = () => go(shown[+b.dataset.hit])));
+  };
+  const run = async (submit) => {
+    const q = input.value.trim(),
+      id = ++seq;
+    if (q.length < 2) return draw([], "");
+    // The dashboard's own mountains first, then ski areas anywhere, then towns and ZIP codes.
+    const mine = [...mountainList("utah").map((m) => [m, "utah"]), ...mountainList("ne").map((m) => [m, "ne"])].filter(([m]) => m.name.toLowerCase().includes(q.toLowerCase()));
+    out.innerHTML = `${mine.length ? `<div class="chips mtn-mine">${mine.map(([m, r]) => `<a class="chip-link" href="#mountain/${r}/${slug(m.name)}">${escapeHTML(m.name)}</a>`).join("")}</div>` : ""}<div class="state">Searching ski areas and places…</div>`;
+    const [ski, towns] = await Promise.all([/^\d/.test(q) ? [] : searchSki(q, { max: 6 }).catch(() => []), geocode(q, { world: true }).catch(() => [])]);
+    if (id !== seq) return;
+    const near = (a, b) => Math.abs(a.lat - b[0]) < 0.06 && Math.abs(a.lon - b[1]) < 0.08;
+    const list = [...ski.filter((sk) => !mine.some(([m]) => m.p.some((q2) => near(sk, q2)))), ...towns.slice(0, 5).map((t) => ({ ...t, place: t.detail }))];
+    if (submit && list.length === 1 && !mine.length) return go(list[0]);
+    draw(list, list.length || mine.length ? "" : `<div class="state">No match for “${escapeHTML(q)}”. Try a ski area name, a town (“Bend, OR”) or a US ZIP.</div>`);
+    if (mine.length) out.insertAdjacentHTML("afterbegin", `<div class="chips mtn-mine">${mine.map(([m, r]) => `<a class="chip-link" href="#mountain/${r}/${slug(m.name)}">${escapeHTML(m.name)}</a>`).join("")}</div>`);
+  };
+  input.oninput = () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => run(false), 350);
+  };
+  form.onsubmit = (e) => {
+    e.preventDefault();
+    clearTimeout(timer);
+    run(true);
+  };
+  pick.querySelectorAll("[data-forget]").forEach(
+    (b) =>
+      (b.onclick = () => {
+        forgetSnowSearch(b.dataset.forget);
+        if (mtnRegion === "world" && slug(b.dataset.forget) === mtnSlug) location.hash = "#mountain";
+        else b.closest(".chip-wrap").remove();
+      }),
+  );
 }
 function render() {
-  const head = `<div class="toolbar"><div><h2>Snow Report</h2><p class="sub">Wasatch resorts · NWS forecasts, global models and measured snowpack</p></div><div class="detail-actions"><a class="xlink" href="https://utahavalanchecenter.org/" target="_blank" rel="noopener">Avalanche forecast ↗</a></div></div><div id="alert-banner"></div>`;
-  if (tab === "forecast") {
-    content.innerHTML =
-      head.replace("Wasatch resorts · NWS forecasts, global models and measured snowpack", "Daily snowfall for the next 10 days at each resort") +
-      `<article class="card afd-card snowfc-card"><div class="snowfc-head"><h3>Snow forecast</h3><nav class="seg snowfc-region" aria-label="Region">${[
-        ["utah", "Utah"],
-        ["ne", "New England"],
-      ]
-        .map(([k, n]) => `<a href="#forecast/${k}" class="${k === forecastRegion ? "active" : ""}" ${k === forecastRegion ? 'aria-current="true"' : ""}>${n}</a>`)
-        .join("")}</nav></div><div id="snow-forecast"><div class="state">Loading 10-day snow forecasts…</div></div></article>`;
-    if (forecastRegion === "ne") content.querySelector(".detail-actions")?.remove();
-    loadSnowForecast(forecastRegion);
-  } else if (tab === "map") {
-    content.innerHTML =
-      head.replace("Wasatch resorts · NWS forecasts, global models and measured snowpack", "Snow expected at each mountain over the next 15 days") +
-      `<article class="card afd-card snowfc-card"><div class="snowfc-head"><h3>Powder map · next 15 days</h3><nav class="seg snowfc-region" aria-label="Region">${[
-        ["utah", "Utah"],
-        ["ne", "New England"],
-      ]
-        .map(([k, n]) => `<a href="#map/${k}" class="${k === forecastRegion ? "active" : ""}" ${k === forecastRegion ? 'aria-current="true"' : ""}>${n}</a>`)
-        .join("")}</nav></div><div id="powder-map" class="powder-map"><div class="state">Loading 15-day snow totals…</div></div><div id="powder-list" class="powder-list"></div><p class="source">Total new snow expected over the next 15 days: the NWS forecast for its first week, then the average of the GFS and ECMWF models (GEM through day 10). Days 11–15 are rough guidance. Tap a mountain for its day-by-day forecast.</p></article>`;
-    if (forecastRegion === "ne") content.querySelector(".detail-actions")?.remove();
-    loadPowderMap(forecastRegion);
-  } else if (tab === "range") {
-    content.innerHTML =
-      head.replace("Wasatch resorts · NWS forecasts, global models and measured snowpack", "How much snow every model run shows, and where rain turns to snow") + `<div id="range-root"></div>`;
-    loadRangeView();
-  } else if (tab === "resorts") {
-    content.innerHTML =
-      head +
-      `<article class="card afd-card" id="resort-snow"><div class="state">Loading NWS snow grids for all resorts…</div></article>`;
-    loadResortSnow();
-  } else if (tab === "models") {
-    content.innerHTML =
-      head +
-      `<article class="card afd-card" id="snow-models"><div class="state">Loading long-range snowfall models…</div></article>`;
-    loadSnowModels();
-  } else if (tab === "snowpack") {
-    content.innerHTML =
-      head +
-      `<article class="card afd-card"><h3>Measured snowpack · SNOTEL</h3><p class="afd-intro">Automated snow depth and snow-water measurements near the resorts.</p><div id="snowpack">${snowpackHTML(snotel)}</div></article>`;
+  const area = forecastRegion === "ne" ? "New England" : "Utah";
+  WW.setActive(tab === "mountain" ? "mountain" : tab === "snowpack" ? "snowpack" : tab === "map" ? "snowmap" : "snowreport", "snow");
+  if (tab === "mountain") {
+    const m = findMountain(mtnRegion, mtnSlug);
+    const kind = m.snowSearched ? [m.ski ? "Ski area" : "Your search", m.place].filter(Boolean).join(" · ") : `${mtnRegion === "ne" ? "New England" : "Utah"} · Ski area`;
+    content.innerHTML = `<div class="fc-head"><div class="fc-title"><button type="button" class="place-switch" id="mtn-switch" aria-expanded="false" aria-controls="mtn-pick" title="Change mountain or search"><span class="fc-name">${escapeHTML(m.name)}</span><span class="ps-caret" aria-hidden="true">▾</span></button><p class="fc-sub"><span class="fc-kind">${escapeHTML(kind)}</span><span class="fc-note"> — snow by day and night, every model run, and the snow level</span></p></div></div><div class="place-search" id="mtn-pick" hidden>${mountainPicker()}</div><div id="alert-banner"></div><div id="place-snow"><div class="state">Loading the snow forecast…</div></div>`;
+    const btn = content.querySelector("#mtn-switch"),
+      pick = content.querySelector("#mtn-pick");
+    btn.onclick = () => {
+      pick.hidden = !pick.hidden;
+      btn.setAttribute("aria-expanded", String(!pick.hidden));
+      if (!pick.hidden) pick.querySelector("#mtn-q")?.focus();
+    };
+    wireMountainPicker(pick);
+    pick.addEventListener("click", (e) => e.target.closest("a") && (pick.hidden = true));
+    WW.setMountain({ section: mtnRegion, slug: mtnSlug, name: m.name, cam: CAMS[m.name] || "" });
+    loadPlaceSnow(m, mtnRegion, { weather: m.snowSearched ? null : siteBase(), snow: m.snowSearched ? null : "" });
+  } else if (tab === "forecast" || tab === "map") {
+    const head = `<div class="toolbar"><div><h2>${tab === "map" ? `Snow map · ${area}` : `All ${area} mountains`}</h2><p class="sub">${tab === "map" ? "Snow expected at each summit over the next 15 days" : "Every mountain side by side · tap one for its Snow forecast"}</p></div><div class="detail-actions">${forecastRegion === "ne" ? "" : '<a class="xlink" href="https://utahavalanchecenter.org/" target="_blank" rel="noopener">Avalanche forecast ↗</a>'}</div></div><div id="alert-banner"></div>`;
+    if (tab === "forecast") {
+      content.innerHTML = head + `<article class="card afd-card snowfc-card">${forecastHead("forecast")}<div id="snow-forecast"><div class="state">Loading 10-day snow forecasts…</div></div></article>`;
+      loadSnowForecast(forecastRegion);
+    } else {
+      content.innerHTML =
+        head +
+        `<article class="card afd-card snowfc-card">${forecastHead("map")}<div id="powder-map" class="powder-map"><div class="state">Loading 15-day snow totals…</div></div><div id="powder-list" class="powder-list"></div><p class="source">Total new snow at each summit over the next 15 days: the NWS forecast for its first week, then the median of the GEFS and ECMWF ensembles. Days 11–15 are rough guidance. Tap a mountain for its Snow forecast, which uses these same numbers.</p></article>`;
+      loadPowderMap(forecastRegion);
+    }
+  } else {
+    content.innerHTML = `<div class="toolbar"><div><h2>Snowpack</h2><p class="sub">Measured snow depth and snow water near the Utah resorts</p></div></div><div id="alert-banner"></div><article class="card afd-card"><h3>Measured snowpack · SNOTEL</h3><p class="afd-intro">Automated snow depth and snow-water measurements near the resorts.</p><div id="snowpack">${snowpackHTML(snotel)}</div></article>`;
     loadSnotel().then((d) => {
       const el = document.querySelector("#snowpack");
       if (el) el.innerHTML = snowpackHTML(d);
     });
-  } else {
-    content.innerHTML =
-      head +
-      `<article class="card afd-card">${resortPills(hourlyResort, "data-hr")}<div id="hourly-view"><div class="state">Loading hourly forecast…</div></div></article>`;
-    content.querySelectorAll("[data-hr]").forEach(
-      (b) =>
-        (b.onclick = () => {
-          hourlyResort = +b.dataset.hr;
-          render();
-        }),
-    );
-    loadHourlyView();
   }
-  content.querySelector(".toolbar")?.insertAdjacentHTML("afterend", snowTabs());
   loadMountainAlerts();
-  const h = tab + (tab === "hourly" ? "/" + slug(RESORTS[hourlyResort].name) : tab === "range" ? (rangeResort ? "/" + rangeResort : "") : tab === "forecast" || tab === "map" ? "/" + forecastRegion + (tab === "forecast" && focusResort ? "/" + focusResort : "") : "");
+  const h = tab === "mountain" ? `mountain/${mtnRegion}/${mtnSlug}` : tab + (tab === "forecast" || tab === "map" ? "/" + forecastRegion + (tab === "forecast" && focusResort ? "/" + focusResort : "") : "");
   if (location.hash.slice(1) !== h) history.replaceState(null, "", "#" + h);
 }
 function readHash() {
-  const [t, a] = location.hash.slice(1).split("/");
-  if (TABS[t]) tab = t;
-  if ((t === "forecast" || t === "map") && (a === "utah" || a === "ne")) forecastRegion = a;
-  if (t === "range") rangeResort = rangeKeyFromHash(location.hash.slice(1).split("/").slice(1));
-  focusResort = t === "forecast" ? location.hash.slice(1).split("/")[2] || "" : "";
-  if (t === "hourly" && a) {
-    const i = RESORTS.findIndex((r) => slug(r.name) === a);
-    if (i >= 0) hourlyResort = i;
+  const parts = location.hash.slice(1).split("/"),
+    [t, a, b] = parts;
+  // Retired: #range/<slug> (now a mountain's Snow forecast); #resorts, #models, #hourly fold into All mountains.
+  if (t === "range" && a && a !== "at") {
+    const reg = ne.some((x) => slug(x.name) === a) ? "ne" : "utah";
+    location.replace(`#mountain/${reg}/${a}`);
+    return;
   }
+  if (t === "mountain" || !t || t === "range") {
+    tab = "mountain";
+    const m = WW.mountain();
+    mtnRegion = a === "utah" || a === "ne" || a === "world" ? a : m.section;
+    if (b && findMountain(mtnRegion, b)) mtnSlug = b;
+    else if (findMountain(mtnRegion, m.slug) && (!a || a === m.section)) mtnSlug = m.slug;
+    else {
+      if (mtnRegion === "world") mtnRegion = WW.region();
+      mtnSlug = slug(mountainList(mtnRegion)[0].name);
+    }
+    if (mtnRegion !== "world") forecastRegion = mtnRegion;
+    return;
+  }
+  tab = t === "map" ? "map" : t === "snowpack" ? "snowpack" : "forecast";
+  if ((t === "forecast" || t === "map" || t === "snowpack") && (a === "utah" || a === "ne")) forecastRegion = a;
+  focusResort = t === "forecast" ? parts[2] || "" : "";
 }
 window.addEventListener("hashchange", () => {
   readHash();
   render();
 });
-WW.init({ base: "../", active: "snow" });
+WW.init({ base: "../", group: "snow", active: "mountain" });
 function stamp() {
   const el = document.querySelector("#today");
   if (el)
@@ -557,7 +635,7 @@ setInterval(() => {
     alertCache.clear();
     hourlyCache.clear();
     snowModelCache.clear();
-    rangeCache.clear();
+    SnowCore.clear();
     lastLoad = Date.now();
     loadSnotel();
     render();

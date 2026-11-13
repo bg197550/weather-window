@@ -530,7 +530,7 @@ function stormCard(x, section, idx) {
       ? `<tr class="flag"><th>NWS</th><td data-label="Liquid">${fmtAmt(x.nws.liquid.inches, false)}</td><td data-label="Snow">${x.nws.snow ? fmtAmt(x.nws.snow.inches, true) : "–"}</td><td data-label="${x.current ? "Ends" : "Starts"}">official</td></tr>`
       : ""
   }</tbody></table></div>`;
-  return `<article class="card afd-card ins-storm"><div class="ins-head"><h3>${title}</h3><span class="ins-conf ins-conf-${(x.conf || "na").toLowerCase()}">${x.conf ? x.conf + " confidence" : "Confidence n/a"}</span></div><p class="ins-timing">${escapeHTML(timing)}</p><div class="ins-stats"><div><span>NWS forecast</span><strong>${nwsPart}</strong><small>${unit.toLowerCase()} · official</small></div><div><span>Model range</span><strong>${range}</strong><small>10th–90th percentile of ${x.members.length} ensemble runs</small></div><div><span>Middle outcome</span><strong>${fmtAmt(x.p50, x.snowy)}</strong><small>ensemble median${x.snowy ? ` · ${fmtAmt(x.liqRange[1], false)} liquid` : ""}</small></div></div>${likely ? `<p class="ins-likely"><b>Most likely:</b> ${escapeHTML(likely)}</p>` : ""}<div class="ins-bars" aria-label="Share of ensemble runs by total">${bars}</div><details class="ins-more"><summary>Technical details</summary><ul class="ins-notes">${notes.map((n) => `<li>${n}</li>`).join("")}</ul>${table}</details></article>`;
+  return `<article class="card afd-card ins-storm"><div class="ins-head"><h3>${title}</h3><span class="ins-conf ins-conf-${(x.conf || "na").toLowerCase()}">${x.conf ? x.conf + " confidence" : "Confidence n/a"}</span></div><p class="ins-timing">${escapeHTML(timing)}</p><div class="ins-stats"><div><span>NWS forecast</span><strong>${nwsPart}</strong><small>${unit.toLowerCase()} · official</small></div><div><span>${x.shared ? "Likely range" : "Model range"}</span><strong>${range}</strong><small>10th–90th percentile of ${x.shared ? "the ensemble runs, scaled to NWS" : `${x.members.length} ensemble runs`}</small></div><div><span>Middle outcome</span><strong>${fmtAmt(x.p50, x.snowy)}</strong><small>${x.shared ? "same as Snow forecast" : "ensemble median"}${x.snowy ? ` · ${fmtAmt(x.liqRange[1], false)} liquid` : ""}</small></div></div>${likely ? `<p class="ins-likely"><b>Most likely:</b> ${escapeHTML(likely)}</p>` : ""}<div class="ins-bars" aria-label="Share of ensemble runs by total">${bars}</div><details class="ins-more"><summary>Technical details</summary><ul class="ins-notes">${notes.map((n) => `<li>${n}</li>`).join("")}</ul>${table}</details></article>`;
 }
 
 /* ---------- pattern ---------- */
@@ -1142,7 +1142,22 @@ const dayRange = (x, section) => {
   return a === b ? a : `${a}–${b}`;
 };
 
-function cycleCard(storms, data, section, elevFt, placeName) {
+/* Running 10-day total from the shared outlook (assets/snowcore.js): forecast line and likely range per day. */
+function bandFromOutlook(o) {
+  const t0 = Date.parse(o.built);
+  const steps = Array.from({ length: 11 }, (_, d) => t0 + d * 24 * H);
+  const at = (d) => {
+    let i = 0;
+    for (let j = 0; j < o.h.length; j++) if (o.h[j] <= d * 24 + 0.5) i = j;
+    return i;
+  };
+  const p = (d, q) => {
+    const v = o.members.map((m) => m.cum[at(d)]).filter(Number.isFinite).sort((a, b) => a - b);
+    return d === 0 ? 0 : quantile(v, q);
+  };
+  return { steps, p10: steps.map((_, d) => Math.min(p(d, 0.1) ?? 0, o.mid[at(d)] ?? 0)), p50: steps.map((_, d) => (d === 0 ? 0 : o.mid[at(d)])), p90: steps.map((_, d) => Math.max(p(d, 0.9) ?? 0, o.mid[at(d)] ?? 0)), n: o.members.length, shared: true };
+}
+function cycleCard(storms, data, section, elevFt, placeName, o) {
   const list = storms
     .map((x, i) => {
       const lvl = x.nws?.level
@@ -1151,18 +1166,27 @@ function cycleCard(storms, data, section, elevFt, placeName) {
           ? `Snow level about ${(Math.round(snowLevelAt(null, 0, x.t700mean) / 100) * 100).toLocaleString()} ft (models)`
           : "";
       const q = snowQuality(x.t700mean);
-      const r = cycleRange(data, elevFt, ...stormWindow(x));
+      const r = o ? SnowCore.windowSnow(o, ...stormWindow(x)) : cycleRange(data, elevFt, ...stormWindow(x));
       const amt = !r ? "–" : r.lo != null ? `${fmtAmt(r.mid, true)} <small class="rng">(${fmtAmt(r.lo, true)}–${fmtAmt(r.hi, true)})</small>` : fmtAmt(r.mid, true);
       return `<li><b>Storm ${i + 1}</b><span>${escapeHTML(x.current ? `Now → ${partOfDay(x.end, section)}` : `${cap(partOfDay(x.start, section))} → ${partOfDay(x.end, section)}`)}</span><span class="amt">${amt} here</span><span class="ins-conf ins-conf-${(x.conf || "na").toLowerCase()}">${x.conf ? x.conf + " confidence" : "Confidence n/a"}</span><small>${[lvl, q?.label].filter(Boolean).map(escapeHTML).join(" · ")}</small></li>`;
     })
     .join("");
-  const band = cycleBand(data, elevFt);
+  const band = o ? bandFromOutlook(o) : cycleBand(data, elevFt);
   const last = band ? band.steps.map((_, d) => d).filter((d) => Number.isFinite(band.p50[d])).pop() : null;
+  if (o && last != null) {
+    band.p10[last] = Math.min(o.totals[10].lo, o.totals[10].mid);
+    band.p50[last] = o.totals[10].mid;
+    band.p90[last] = Math.max(o.totals[10].hi, o.totals[10].mid);
+  }
   const totals =
     band && last != null
-      ? `<h4>10-day total${placeName ? ` · ${escapeHTML(placeName)}` : ""}</h4><div class="ins-stats"><div><span>Low end</span><strong>${fmtAmt(band.p10[last], true)}</strong><small>ensemble spread, 10th percentile</small></div><div><span>Middle</span><strong>${fmtAmt(band.p50[last], true)}</strong><small>model average · matches the table</small></div><div><span>High end</span><strong>${fmtAmt(band.p90[last], true)}</strong><small>ensemble spread, 90th percentile</small></div></div>${bandChart(band, storms, section)}`
+      ? `<h4>10-day total${placeName ? ` · ${escapeHTML(placeName)}` : ""}</h4><div class="ins-stats"><div><span>Low end</span><strong>${fmtAmt(band.p10[last], true)}</strong><small>ensemble spread, 10th percentile</small></div><div><span>Middle</span><strong>${fmtAmt(band.p50[last], true)}</strong><small>${o ? "same as Snow forecast" : "model average"}</small></div><div><span>High end</span><strong>${fmtAmt(band.p90[last], true)}</strong><small>ensemble spread, 90th percentile</small></div></div>${bandChart(band, storms, section)}`
       : "";
-  return `<article class="card afd-card ins-cycle"><div class="ins-head"><h3>Wasatch storm cycle · next 10 days</h3><span class="ins-conf">${storms.length} storm${storms.length === 1 ? "" : "s"}</span></div><ol class="ins-cycle-list">${list}</ol>${totals}<h4>By mountain</h4><div id="ins-cycle-table"><div class="state">Loading resort totals…</div></div><p class="source">All amounts on this card use one method: the GFS, ECMWF, GEM and ICON average, with snow level and snow ratio from each model's 700 mb temperature, so “here” matches this resort's row in the table. Ranges come from the GEFS, ECMWF ENS and GEM ENS spread, rescaled to that average because the coarser ensembles run dry over the Wasatch. The storm cards below use the ensembles directly and the NWS snow level, so they can read lower.</p></article>`;
+  return `<article class="card afd-card ins-cycle"><div class="ins-head"><h3>Wasatch storm cycle · next 10 days</h3><span class="ins-conf">${storms.length} storm${storms.length === 1 ? "" : "s"}</span></div><ol class="ins-cycle-list">${list}</ol>${totals}<p class="ins-cycle-links"><a class="xlink" href="${o?.ski ? `snow/#mountain/${section}/${o.slug}` : `#${section}/${o ? o.slug : WW.place().slug}/snow`}">Snow forecast: day by day, every model run, snow level ›</a> <a class="xlink" href="snow/#forecast/${section}">Compare all mountains ›</a></p><p class="source">${
+    o
+      ? `Amounts are for ${o.ski ? `the summit (${o.summit.toLocaleString()} ft)` : "ground level"} and match the Snow section (Snow forecast and All mountains): the NWS forecast for its first ~7 days, then the GEFS and ECMWF ensemble median; ranges are the ensemble runs scaled to NWS.`
+      : "Amounts use the GFS, ECMWF, GEM and ICON average with snow level and ratio from each model's 700 mb temperature (the shared snow forecast was unavailable)."
+  }</p></article>`;
 }
 
 async function fillCycleTable(el, key, storms, section, pt) {
@@ -1213,7 +1237,11 @@ async function loadInsights(pt, section) {
   const el = document.querySelector("#ins");
   if (!el) return;
   el.innerHTML = '<article class="card afd-card"><div class="state">Loading storm totals, model ensembles and the NWS discussion…</div></article>';
-  const data = await insFetch(pt.p);
+  // The shared snow outlook (same numbers as the Snow tab) for the place's summit, or a town's ground level.
+  const owner = [...utah, ...ne].find((x) => x.p.some((q) => q[0] === pt.p[0] && q[1] === pt.p[1]));
+  const basis = owner && (owner.p.length === 1 || owner.p[owner.p.length - 1] === owner.p.find((q) => q[0] === pt.p[0] && q[1] === pt.p[1]));
+  const outlookP = basis && typeof SnowCore !== "undefined" ? Promise.race([SnowCore.forPlace(owner, section).catch(() => null), new Promise((r) => setTimeout(() => r(null), 12000))]) : Promise.resolve(null);
+  const [data, o] = await Promise.all([insFetch(pt.p), outlookP]);
   if (!el.isConnected || el.dataset.key !== pt.p.slice(0, 2).join(",")) return;
   let html = "",
     cycle = null;
@@ -1227,10 +1255,16 @@ async function loadInsights(pt, section) {
     const storms = findStorms(data.det)
       .map((s) => analyzeStorm(s, data, section, elevFt))
       .filter((x) => (x.liqRange[1] ?? 0) >= 0.03 || x.models.filter((m) => m.liquid >= 0.05).length >= 2);
+    if (o)
+      for (const x of storms) {
+        const w = SnowCore.windowSnow(o, ...stormWindow(x));
+        if (!x.snowy && w.mid < 1) continue;
+        Object.assign(x, { snowy: true, p10: w.lo, p50: w.mid, p90: w.hi, snowRange: [w.lo, w.mid, w.hi], shared: true });
+      }
     const pattern = patternCard(data, section, storms);
     if (insKind === "utah" && storms.length) {
       const which = place && !place.searched ? `${place.name}${place.p.length > 1 ? ` ${pt.p[2]?.split(" · ")[0]?.toLowerCase() || ""}` : ""}` : "";
-      html += cycleCard(storms, data, section, elevOf(pt.p[2]) ?? elevFt, which.trim());
+      html += cycleCard(storms, data, section, elevOf(pt.p[2]) ?? elevFt, which.trim(), o);
       cycle = storms;
     }
     html += summaryCard(storms, data, section);
@@ -1243,7 +1277,6 @@ async function loadInsights(pt, section) {
   }
   html += afdCard(data.afd, section);
   el.innerHTML = html;
-  if (cycle) fillCycleTable(el, el.dataset.key, cycle, section, pt);
   el.querySelectorAll("[data-view]").forEach(
     (b) =>
       (b.onclick = () => {

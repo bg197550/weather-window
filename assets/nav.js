@@ -1,29 +1,56 @@
-/* One navigation for every Weather Window page (Weather, Webcams, Snow report).
-   Desktop: Forecast · Insights · Cams · Snow report · Maps & outlooks ▾ under the app bar.
-   Phones: a fixed bottom bar with Forecast · Insights · Cams · Radar · More (Precip models, Long range).
-   The Snow report and Surf are reached from the app bar at the top.
-   Forecast, Insights and Cams follow the current place, which every page shares through localStorage. */
+/* One navigation for every Weather Window page, in two sections that match the app bar's Weather · Surf · Snow.
+   Weather (any town or mountain): Forecast · Insights · Radar · Maps ▾ (storm map, precip models, long range).
+   Snow (one mountain at a time): Snow forecast · Cams · All mountains · Snowpack.
+   Phones get the same items in a bottom bar (Weather's maps sit under More).
+   The current place and the current mountain are shared by every page through localStorage; picking a mountain
+   in either section carries over to the other. */
 window.WW = (function () {
   const REGION_KEY = "ww:region";
   const PLACE_KEY = "ww:current";
+  const MOUNTAIN_KEY = "ww:mountain";
   const REGIONS = { utah: "Utah", ne: "New England" };
   const DEFAULTS = {
     utah: { section: "utah", slug: "snyderville", name: "Snyderville", cam: "" },
     ne: { section: "ne", slug: "boston", name: "Boston", cam: "" },
   };
-  const SECTIONS = [
-    { key: "forecast", label: "Forecast", icon: "☀", href: (b, c) => `${b}#${c.section}/${c.slug}/forecast` },
-    { key: "insights", label: "Insights", icon: "◆", href: (b, c) => `${b}#${c.section}/${c.slug}/insights` },
-    { key: "cams", label: "Cams", icon: "▣", href: (b, c) => `${b}webcams/#${c.cam || c.section}` },
-    { key: "snow", label: "Snow report", icon: "❄", href: (b, c) => `${b}snow/#forecast/${c.section}` },
-    { key: "radar", label: "Radar", icon: "◎", href: (b, c) => `${b}#radar/${c.section === "ne" ? "sne" : "wasatch"}`, maps: true },
-    { key: "precip", label: "Precip models", icon: "☂", href: (b, c) => `${b}#precip/${c.section}`, maps: true },
-    { key: "long", label: "Long range", icon: "≋", href: (b) => `${b}#long`, maps: true },
-    { key: "stormwest", label: "Storm map · Utah/West", icon: "◍", href: (b) => `${b}weather-map-west.html`, maps: true },
-    { key: "stormne", label: "Storm map · Northeast", icon: "◍", href: (b) => `${b}weather-map-northeast.html`, maps: true },
-  ];
-  const BAR = ["forecast", "insights", "cams", "radar"];
+  /* Dashboard ski areas (slug → name, region, cams id). Towns open their nearest one in the Snow section. */
+  const MOUNTAINS = {
+    "park-city-mountain": ["Park City Mountain", "utah", "park-city"],
+    "deer-valley": ["Deer Valley", "utah", "deer-valley"],
+    "canyons-resort": ["Canyons Resort", "utah", "canyons-resort"],
+    alta: ["Alta", "utah", "alta"],
+    snowbird: ["Snowbird", "utah", "snowbird"],
+    solitude: ["Solitude", "utah", "solitude"],
+    brighton: ["Brighton", "utah", "brighton"],
+    snowbasin: ["Snowbasin", "utah", "snowbasin"],
+    "stratton-mountain": ["Stratton Mountain", "ne", "stratton"],
+    killington: ["Killington", "ne", "killington"],
+    stowe: ["Stowe", "ne", "stowe"],
+    gunstock: ["Gunstock", "ne", "gunstock"],
+  };
+  const NEAR = { snyderville: "canyons-resort", "park-city": "park-city-mountain", utah: "alta", ne: "killington" };
+  /* Searched places anywhere (section "world") use the current region for region-wide pages. */
+  const regionOf = (m, c) => (REGIONS[m.section] ? m.section : c.section);
+  const mountainFrom = (id) => (MOUNTAINS[id] ? { section: MOUNTAINS[id][1], slug: id, name: MOUNTAINS[id][0], cam: MOUNTAINS[id][2], mtn: true } : null);
+  const SECTIONS = {
+    weather: [
+      { key: "forecast", label: "Forecast", icon: "☀", href: (b, c) => `${b}#${c.section}/${c.slug}/forecast` },
+      { key: "insights", label: "Insights", icon: "◆", href: (b, c) => `${b}#${c.section}/${c.slug}/insights` },
+      { key: "radar", label: "Radar", icon: "◎", href: (b, c) => `${b}#radar/${c.section === "ne" ? "sne" : "wasatch"}` },
+      { key: "storm", label: "Storm map", icon: "◍", href: (b, c) => `${b}${c.section === "ne" ? "weather-map-northeast.html" : "weather-map-west.html"}`, menu: true },
+      { key: "precip", label: "Precip models", icon: "☂", href: (b, c) => `${b}#precip/${c.section}`, menu: true },
+      { key: "long", label: "Long range", icon: "≋", href: (b) => `${b}#long`, menu: true },
+    ],
+    snow: [
+      { key: "mountain", label: "Snow forecast", short: "Forecast", icon: "❄", href: (b, c, m) => `${b}snow/#mountain/${m.section}/${m.slug}` },
+      { key: "cams", label: "Cams", icon: "▣", href: (b, c, m) => `${b}webcams/#${m.cam || regionOf(m, c)}` },
+      { key: "snowreport", label: "All mountains", short: "Mountains", icon: "▤", href: (b, c, m) => `${b}snow/#forecast/${regionOf(m, c)}` },
+      { key: "snowmap", label: "Snow map", short: "Map", icon: "◈", href: (b, c, m) => `${b}snow/#map/${regionOf(m, c)}` },
+      { key: "snowpack", label: "Snowpack", icon: "≈", href: (b, c, m) => `${b}snow/#snowpack/${regionOf(m, c)}` },
+    ],
+  };
   let base = "",
+    group = "weather",
     active = "forecast";
 
   function get(k) {
@@ -41,7 +68,7 @@ window.WW = (function () {
   const esc = (s) =>
     String(s).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
 
-  /* The place the shared links point at: the last one shown on any page. */
+  /* The place the Weather links point at: the last one shown on any page. */
   function place() {
     try {
       const c = JSON.parse(get(PLACE_KEY) || "null");
@@ -49,13 +76,40 @@ window.WW = (function () {
     } catch {}
     return DEFAULTS[get(REGION_KEY) === "ne" ? "ne" : "utah"];
   }
+  /* The mountain the Snow links point at: the current place if it is a ski area, else the last mountain shown,
+     else the one nearest the current town, else the region's main mountain. */
+  function mountain() {
+    const c = place();
+    let saved = null;
+    try {
+      saved = JSON.parse(get(MOUNTAIN_KEY) || "null");
+    } catch {}
+    // A place searched in the Snow section wins while it is the most recent choice.
+    if (saved?.section === "world" && saved.slug && (saved.t || 0) > (c.t || 0)) return saved;
+    if (c.mtn || MOUNTAINS[c.slug]) return mountainFrom(c.slug) || c;
+    try {
+      const m = saved;
+      if (m && m.slug && (m.section === c.section || m.section === "world")) return m;
+    } catch {}
+    return mountainFrom(NEAR[c.slug]) || mountainFrom(NEAR[c.section]);
+  }
   function setPlace(c) {
     if (!c || !REGIONS[c.section] || !c.slug) return;
-    const next = { section: c.section, slug: c.slug, name: c.name || c.slug, cam: c.cam || "" },
+    const mtn = !!(c.mtn || MOUNTAINS[c.slug]);
+    const next = { section: c.section, slug: c.slug, name: c.name || c.slug, cam: c.cam || MOUNTAINS[c.slug]?.[2] || "", t: Date.now(), ...(mtn ? { mtn: true } : {}) },
       cur = place();
     put(PLACE_KEY, JSON.stringify(next));
     put(REGION_KEY, next.section);
+    if (mtn) put(MOUNTAIN_KEY, JSON.stringify(next));
     if (cur.section !== next.section || cur.slug !== next.slug || cur.cam !== next.cam || cur.name !== next.name) paint();
+  }
+  /* Snow section: show a mountain. A dashboard region's mountain also becomes the current place, so Weather
+     follows; a place searched in the Snow section (anywhere) is only remembered as the current mountain. */
+  function setMountain(m) {
+    if (REGIONS[m.section]) return setPlace({ ...m, mtn: true });
+    const cur = mountain();
+    put(MOUNTAIN_KEY, JSON.stringify({ section: m.section, slug: m.slug, name: m.name || m.slug, cam: "", mtn: true, t: Date.now() }));
+    if (cur.slug !== m.slug) paint();
   }
   function region() {
     return place().section;
@@ -64,28 +118,31 @@ window.WW = (function () {
   function setRegion(r) {
     if (REGIONS[r]) put(REGION_KEY, r);
   }
-  function setActive(key) {
-    if (key === active) return;
+  function setActive(key, g) {
+    if (key === active && (!g || g === group)) return;
     active = key;
+    if (g) group = g;
     paint();
   }
-  function link(s, c, cls) {
+  function link(s, c, m, cls) {
     const tab = s.key === "forecast" ? ` data-tab="${c.section}"` : "";
-    return `<a class="${cls}" href="${s.href(base, c)}" data-ww="${s.key}"${tab}${s.key === active ? ' aria-current="page"' : ""}><span class="ww-ico" aria-hidden="true">${s.icon}</span><span class="ww-lbl">${s.label}</span></a>`;
+    return `<a class="${cls}" href="${s.href(base, c, m)}" data-ww="${s.key}"${tab}${s.key === active ? ' aria-current="page"' : ""}><span class="ww-ico" aria-hidden="true">${s.icon}</span><span class="ww-lbl">${s.short ? `<span class="ww-lg">${esc(s.label)}</span><span class="ww-sm">${esc(s.short)}</span>` : esc(s.label)}</span></a>`;
   }
   function paint() {
-    const c = place();
+    const c = place(),
+      m = mountain(),
+      items = SECTIONS[group];
+    const main = items.filter((s) => !s.menu),
+      menu = items.filter((s) => s.menu);
     const top = document.querySelector(".suite-nav-inner");
     if (top) {
-      const mapsOn = SECTIONS.some((s) => s.maps && s.key === active);
-      top.setAttribute("aria-label", "Weather Window sections");
-      top.innerHTML = `<div class="ww-links">${SECTIONS.filter((s) => !s.maps)
-        .map((s) => link(s, c, "suite-tab ww-top"))
-        .join(
-          "",
-        )}<div class="ww-menu"><button type="button" class="suite-tab ww-top ww-menu-btn" aria-expanded="false" aria-haspopup="true"${mapsOn ? ' aria-current="page"' : ""}><span class="ww-ico" aria-hidden="true">◎</span><span class="ww-lbl">Maps &amp; outlooks</span><span class="ww-caret" aria-hidden="true">▾</span></button><div class="ww-menu-list" hidden>${SECTIONS.filter((s) => s.maps)
-        .map((s) => link(s, c, "ww-menu-link"))
-        .join("")}</div></div></div><span class="ww-place">📍 ${esc(c.name)}</span>`;
+      const menuOn = menu.some((s) => s.key === active);
+      top.setAttribute("aria-label", group === "snow" ? "Snow sections" : "Weather sections");
+      top.innerHTML = `<div class="ww-links">${main.map((s) => link(s, c, m, "suite-tab ww-top")).join("")}${
+        menu.length
+          ? `<div class="ww-menu"><button type="button" class="suite-tab ww-top ww-menu-btn" aria-expanded="false" aria-haspopup="true"${menuOn ? ' aria-current="page"' : ""}><span class="ww-ico" aria-hidden="true">◍</span><span class="ww-lbl">Maps</span><span class="ww-caret" aria-hidden="true">▾</span></button><div class="ww-menu-list" hidden>${menu.map((s) => link(s, c, m, "ww-menu-link")).join("")}</div></div>`
+          : ""
+      }</div><span class="ww-place">${group === "snow" ? "⛷" : "📍"} ${esc(group === "snow" ? m.name : c.name)}</span>`;
     }
     let bar = document.querySelector(".ww-tabbar");
     if (!bar) {
@@ -94,8 +151,10 @@ window.WW = (function () {
       bar.setAttribute("aria-label", "Weather Window sections");
       document.body.appendChild(bar);
     }
-    const inMore = SECTIONS.some((s) => s.maps && !BAR.includes(s.key) && s.key === active);
-    bar.innerHTML = `${BAR.map((k) => link(SECTIONS.find((s) => s.key === k), c, "ww-tab")).join("")}<button type="button" class="ww-tab ww-more-btn" aria-expanded="false" aria-controls="ww-sheet"${inMore ? ' aria-current="page"' : ""}><span class="ww-ico" aria-hidden="true">⋯</span><span class="ww-lbl">More</span></button>`;
+    const menuOn = menu.some((s) => s.key === active);
+    bar.innerHTML = `${main.map((s) => link(s, c, m, "ww-tab")).join("")}${
+      menu.length ? `<button type="button" class="ww-tab ww-more-btn" aria-expanded="false" aria-controls="ww-sheet"${menuOn ? ' aria-current="page"' : ""}><span class="ww-ico" aria-hidden="true">⋯</span><span class="ww-lbl">Maps</span></button>` : ""
+    }`;
     let sheet = document.querySelector("#ww-sheet");
     if (!sheet) {
       sheet = document.createElement("div");
@@ -104,9 +163,7 @@ window.WW = (function () {
       sheet.hidden = true;
       document.body.appendChild(sheet);
     }
-    sheet.innerHTML = `<div class="ww-sheet-panel" role="dialog" aria-label="More sections"><div class="ww-sheet-head"><b>More</b><button type="button" class="ww-sheet-close" aria-label="Close">✕</button></div><div class="ww-sheet-links">${SECTIONS.filter((s) => s.maps && !BAR.includes(s.key))
-      .map((s) => link(s, c, "ww-sheet-link"))
-      .join("")}</div></div>`;
+    sheet.innerHTML = `<div class="ww-sheet-panel" role="dialog" aria-label="Maps"><div class="ww-sheet-head"><b>Maps</b><button type="button" class="ww-sheet-close" aria-label="Close">✕</button></div><div class="ww-sheet-links">${menu.map((s) => link(s, c, m, "ww-sheet-link")).join("")}</div></div>`;
     wire();
   }
   function openSheet(open) {
@@ -179,7 +236,8 @@ window.WW = (function () {
   }
   function init(opts) {
     base = opts.base || "";
-    active = opts.active || "forecast";
+    group = opts.group === "snow" ? "snow" : "weather";
+    active = opts.active || (group === "snow" ? "mountain" : "forecast");
     document.documentElement.classList.add("ww-has-tabbar");
     paint();
     localizeSuite();
@@ -200,5 +258,5 @@ window.WW = (function () {
       navigator.serviceWorker.register(base + "sw.js").catch(() => {});
     }
   }
-  return { init, region, setRegion, setActive, setPlace, place, REGIONS };
+  return { init, region, setRegion, setActive, setPlace, place, mountain, setMountain, MOUNTAINS, REGIONS };
 })();
