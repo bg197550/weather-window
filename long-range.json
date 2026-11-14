@@ -1,0 +1,214 @@
+{
+  "generatedAt": "2026-11-14T13:36:55.084Z",
+  "checkedAt": "2026-11-14T13:36:55.084Z",
+  "sources": {
+    "medium": "https://www.cpc.ncep.noaa.gov/products/predictions/610day/fxus06.html",
+    "extended": "https://www.cpc.ncep.noaa.gov/products/predictions/WK34/"
+  },
+  "periods": [
+    {
+      "name": "Days 6–10",
+      "start": 5,
+      "end": 10,
+      "source": "https://www.cpc.ncep.noaa.gov/products/predictions/610day/fxus06.html",
+      "utah": {
+        "temperature": "Over most of the West, below normal temperatures are favored with mid-level low pressure moving across the region during the 6-10 day period.",
+        "precipitation": "Above normal precipitation is favored from California through much of the Rockies and into the Plains and Mississippi Valley associated with mid-level low pressure progressing across the southern tier and cyclogenesis in the lee of the Rockies."
+      },
+      "ne": {
+        "temperature": "The highest probabilities for above normal temperatures, greater than 80%, are over the Great Lakes region.",
+        "precipitation": "Below normal precipitation is favored over the northeastern CONUS ahead of any precipitation from the eastward moving system."
+      }
+    },
+    {
+      "name": "Days 8–14",
+      "start": 7,
+      "end": 14,
+      "source": "https://www.cpc.ncep.noaa.gov/products/predictions/610day/fxus06.html",
+      "utah": {
+        "temperature": "Near to below normal temperatures are favored over parts of the Great Basin, Four Corners, and Southern Plains behind the southern stream troughing feature.",
+        "precipitation": "Below normal precipitation is favored for the Pacific Northwest, the northern Rockies, and the northern Great Basin."
+      },
+      "ne": {
+        "temperature": "The highest probabilities are over the Great Lakes, Northeast, and Mid-Atlantic with probabilities for above normal temperatures exceeding 60%.",
+        "precipitation": "Near to above normal precipitation is favored for the northeastern CONUS consistent with most of the tools and elevated uncertainty regarding the path of any storm system leading into Thanksgiving."
+      }
+    },
+    {
+      "name": "Weeks 3–4",
+      "start": 14,
+      "end": 28,
+      "source": "https://www.cpc.ncep.noaa.gov/products/predictions/WK34/",
+      "utah": {
+        "temperature": "The statistical guidance also forecasts below average temperatures across the Southwest and Central Rockies.",
+        "precipitation": null
+      },
+      "ne": {
+        "temperature": null,
+        "precipitation": "Dynamical and statistical guidance broadly agree on elevated chances for above average precipitation across the Southern Tier and up the Eastern Seaboard."
+      }
+    }
+  ],
+  "guidance": {
+    "utah": [
+      {
+        "period": "Days 6–10",
+        "models": [
+          {
+            "name": "GEFS",
+            "values": {
+              "temp": 28.7,
+              "precip": 0.82
+            }
+          },
+          {
+            "name": "ECMWF ENS",
+            "values": {
+              "temp": 23.3,
+              "precip": 0.84
+            }
+          },
+          {
+            "name": "GEM ENS",
+            "values": {
+              "temp": 25.7,
+              "precip": 1.14
+            }
+          }
+        ]
+      },
+      {
+        "period": "Days 8–14",
+        "models": [
+          {
+            "name": "GEFS",
+            "values": {
+              "temp": 28.3,
+              "precip": 0.95
+            }
+          },
+          {
+            "name": "ECMWF ENS",
+            "values": {
+              "temp": 24.4,
+              "precip": 0.53
+            }
+          },
+          {
+            "name": "GEM ENS",
+            "values": {
+              "temp": 24.9,
+              "precip": 0.88
+            }
+          }
+        ]
+      },
+      {
+        "period": "Weeks 3–4",
+        "models": [
+          {
+            "name": "GEFS",
+            "values": {
+              "temp": 25.8,
+              "precip": 1.97
+            }
+          },
+          {
+            "name": "ECMWF ENS",
+            "values": null
+          },
+          {
+            "name": "GEM ENS",
+            "values": {
+              "temp": 26.2,
+              "precip": 2.69
+            }
+          }
+        ]
+      }
+    ],
+    "ne": [
+      {
+        "period": "Days 6–10",
+        "models": [
+          {
+            "name": "GEFS",
+            "values": {
+              "temp": 48.7,
+              "precip": 0.05
+            }
+          },
+          {
+            "name": "ECMWF ENS",
+            "values": {
+              "temp": 47.5,
+              "precip": 0.1
+            }
+          },
+          {
+            "name": "GEM ENS",
+            "values": {
+              "temp": 48.3,
+              "precip": 0.11
+            }
+          }
+        ]
+      },
+      {
+        "period": "Days 8–14",
+        "models": [
+          {
+            "name": "GEFS",
+            "values": {
+              "temp": 44.8,
+              "precip": 0.57
+            }
+          },
+          {
+            "name": "ECMWF ENS",
+            "values": {
+              "temp": 46.2,
+              "precip": 1.13
+            }
+          },
+          {
+            "name": "GEM ENS",
+            "values": {
+              "temp": 47.8,
+              "precip": 1.2
+            }
+          }
+        ]
+      },
+      {
+        "period": "Weeks 3–4",
+        "models": [
+          {
+            "name": "GEFS",
+            "values": {
+              "temp": 38.6,
+              "precip": 2.42
+            }
+          },
+          {
+            "name": "ECMWF ENS",
+            "values": null
+          },
+          {
+            "name": "GEM ENS",
+            "values": {
+              "temp": 38.8,
+              "precip": 3.62
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "modelNote": null,
+  "warnings": [],
+  "places": {
+    "utah": "Park City, UT",
+    "ne": "Boston, MA"
+  }
+}
