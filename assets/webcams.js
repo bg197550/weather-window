@@ -6,16 +6,23 @@ const RESORTS = [
     source: "https://www.deervalley.com/explore-the-mountain/webcams",
     cams: [
       {
+        // Stream replaced Nov 2026 (the old one, QozKoFs-hL0, shows "unavailable").
         name: "Snow Park Lodge",
-        embed: "https://www.youtube-nocookie.com/embed/QozKoFs-hL0?autoplay=1&mute=1&playsinline=1&rel=0",
-        publisherEmbed:
-          "https://camstreamer.com/embed/M5ToybhwNTDP6Y5Yt6lIr9hylOONXTv892poZIyH?autoplay=1&mute=1",
+        embed: "https://www.youtube-nocookie.com/embed/E7Hh7Q6qIKk?autoplay=1&mute=1&playsinline=1&rel=0",
+      },
+      {
+        name: "Snow Stake",
+        embed: "https://www.youtube-nocookie.com/embed/_-jBmcnsK6s?autoplay=1&mute=1&playsinline=1&rel=0",
       },
       {
         name: "Silver Lake Lodge",
         embed: "https://www.youtube-nocookie.com/embed/uE_ent5rC3Y?autoplay=1&mute=1&playsinline=1&rel=0",
         publisherEmbed:
           "https://camstreamer.com/embed/oCzfMDDSJHRGJXfQug4D8FhLpuU7GwaphZjuO00Z?autoplay=1&mute=1",
+      },
+      {
+        name: "Top of Silver Strike Express",
+        embed: "https://www.youtube-nocookie.com/embed/VGq3JzqSy4E?autoplay=1&mute=1&playsinline=1&rel=0",
       },
       {
         name: "Empire Express",
