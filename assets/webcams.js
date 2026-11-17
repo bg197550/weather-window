@@ -6,18 +6,20 @@ const RESORTS = [
     source: "https://www.deervalley.com/explore-the-mountain/webcams",
     // CamStreamer links belong to each camera and survive Deer Valley restarting its YouTube streams
     // (the YouTube links changed in Nov 2026 and went "unavailable").
-    // Highest first, as on Deer Valley's page. The two snow stakes and Hoodoo only publish YouTube links.
+    // Highest first, as on Deer Valley's page. Empire and Revelator play through CamStreamer (Deer Valley embeds
+    // those two itself). The rest are YouTube live streams that won't play on other sites, so they show YouTube's
+    // live still (refreshed every few minutes) with a link to watch on YouTube.
     cams: [
       { name: "Empire Express", embed: "https://camstreamer.com/embed/5JJMkCuxzOl52j8pMT9Fc6wNrJkeVLlPl75l2nPD?autoplay=1&mute=1" },
       { name: "Revelator Express", embed: "https://camstreamer.com/embed/cgVMhgI2Dht1tLyFW28p4r4uoCgka4wGNgL3npJ0?autoplay=1&mute=1" },
-      { name: "Sterling Express", embed: "https://camstreamer.com/embed/85gYTybAhS5pjj2NpJ6n93R4VQwgn6aLdHWhpFDx?autoplay=1&mute=1" },
-      { name: "Sultan Express", embed: "https://camstreamer.com/embed/WHHs0IGromJCpEcQUtsBvCiYCOQfueb4CM5nq6XC?autoplay=1&mute=1" },
-      { name: "Ontario Snow Stake", embed: "https://www.youtube-nocookie.com/embed/4vi7EiWba7E?autoplay=1&mute=1&playsinline=1&rel=0" },
-      { name: "Park Peak Snow Stake", embed: "https://www.youtube-nocookie.com/embed/k8NiVrlQACQ?autoplay=1&mute=1&playsinline=1&rel=0" },
-      { name: "Silver Lake Lodge", embed: "https://camstreamer.com/embed/oCzfMDDSJHRGJXfQug4D8FhLpuU7GwaphZjuO00Z?autoplay=1&mute=1" },
-      { name: "Galena Express", embed: "https://camstreamer.com/embed/lgOzg0AxWR6BOLOBlZnaN7hhB6RnEOUaaWErbdxH?autoplay=1&mute=1" },
-      { name: "Snow Park Lodge", embed: "https://camstreamer.com/embed/M5ToybhwNTDP6Y5Yt6lIr9hylOONXTv892poZIyH?autoplay=1&mute=1" },
-      { name: "Hoodoo Express", embed: "https://www.youtube-nocookie.com/embed/RaX_MhXETq4?autoplay=1&mute=1&playsinline=1&rel=0" },
+      { name: "Sterling Express", snapshot: "https://i.ytimg.com/vi/iNdfTLilLlU/hqdefault_live.jpg", watch: "https://www.youtube.com/watch?v=iNdfTLilLlU" },
+      { name: "Sultan Express", snapshot: "https://i.ytimg.com/vi/sAjdqw-lzgI/hqdefault_live.jpg", watch: "https://www.youtube.com/watch?v=sAjdqw-lzgI" },
+      { name: "Ontario Snow Stake", snapshot: "https://i.ytimg.com/vi/4vi7EiWba7E/hqdefault_live.jpg", watch: "https://www.youtube.com/watch?v=4vi7EiWba7E" },
+      { name: "Park Peak Snow Stake", snapshot: "https://i.ytimg.com/vi/k8NiVrlQACQ/hqdefault_live.jpg", watch: "https://www.youtube.com/watch?v=k8NiVrlQACQ" },
+      { name: "Silver Lake Lodge", snapshot: "https://i.ytimg.com/vi/uE_ent5rC3Y/hqdefault_live.jpg", watch: "https://www.youtube.com/watch?v=uE_ent5rC3Y" },
+      { name: "Galena Express", snapshot: "https://i.ytimg.com/vi/0shWeR7Fvpg/hqdefault_live.jpg", watch: "https://www.youtube.com/watch?v=0shWeR7Fvpg" },
+      { name: "Snow Park Lodge", snapshot: "https://i.ytimg.com/vi/QozKoFs-hL0/hqdefault_live.jpg", watch: "https://www.youtube.com/watch?v=QozKoFs-hL0" },
+      { name: "Hoodoo Express", snapshot: "https://i.ytimg.com/vi/RaX_MhXETq4/hqdefault_live.jpg", watch: "https://www.youtube.com/watch?v=RaX_MhXETq4" },
     ],
     region: "utah",
     forecast: "deer-valley",
@@ -623,10 +625,13 @@ function camera(r, c) {
     return `<div class="cam"><div class="cam-failure"><strong>${safe(c.name)} only plays on ${safe(r.name)}'s website</strong><a href="${safe(r.source)}" target="_blank" rel="noopener">Watch it on ${safe(r.name)}'s webcam page ↗</a></div></div>`;
   if (c.offline)
     return `<div class="cam"><div class="cam-failure"><strong>${safe(c.name)} is currently offline</strong><a href="${safe(r.source)}" target="_blank" rel="noopener">Check resort camera updates ↗</a></div></div>`;
-  return `<div class="cam">${c.hls ? `<video data-hls="${safe(c.hls)}" data-fallback="${safe(c.snapshot)}" poster="${safe(c.snapshot)}" muted autoplay playsinline controls aria-label="${safe(r.name + " · " + c.name + " webcam")}"></video>` : c.snapshot ? `<img data-snapshot="${safe(c.snapshot)}" src="${safe(snapshotURL(c.snapshot))}" alt="${safe(r.name + " · " + c.name + " webcam")}" loading="lazy" referrerpolicy="no-referrer">` : `<iframe ${c.embed.includes("{W}") ? "data-sized" : "src"}="${safe(c.embed)}"${c.wetmet ? ' class="crop" scrolling="no"' : ""} title="${safe(r.name + " · " + c.name + " webcam")}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen loading="${cameraLoading(c)}" referrerpolicy="strict-origin-when-cross-origin"></iframe>`}<span class="badge" data-state="loading" role="status"${c.snapshot && !c.hls ? "" : " hidden"}>${safe(cameraStatus(c))}</span><div class="cam-failure" hidden><strong>Camera feed unavailable</strong><a href="${safe(r.source)}" target="_blank" rel="noopener">Open resort webcams ↗</a></div></div>`;
+  return `<div class="cam">${c.hls ? `<video data-hls="${safe(c.hls)}" data-fallback="${safe(c.snapshot)}" poster="${safe(c.snapshot)}" muted autoplay playsinline controls aria-label="${safe(r.name + " · " + c.name + " webcam")}"></video>` : c.snapshot ? `${c.watch ? `<a class="cam-watch" href="${safe(c.watch)}" target="_blank" rel="noopener" aria-label="Watch ${safe(c.name)} live on YouTube">` : ""}<img data-snapshot="${safe(c.snapshot)}" src="${safe(snapshotURL(c.snapshot))}" alt="${safe(r.name + " · " + c.name + " webcam")}" loading="lazy" referrerpolicy="no-referrer">${c.watch ? `<span class="cam-play" aria-hidden="true">▶ Live</span></a>` : ""}` : `<iframe ${c.embed.includes("{W}") ? "data-sized" : "src"}="${safe(c.embed)}"${c.wetmet ? ' class="crop" scrolling="no"' : ""} title="${safe(r.name + " · " + c.name + " webcam")}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen loading="${cameraLoading(c)}" referrerpolicy="strict-origin-when-cross-origin"></iframe>`}<span class="badge" data-state="loading" role="status"${c.snapshot && !c.hls ? "" : " hidden"}>${safe(cameraStatus(c))}</span><div class="cam-failure" hidden><strong>Camera feed unavailable</strong><a href="${safe(r.source)}" target="_blank" rel="noopener">Open resort webcams ↗</a></div></div>`;
 }
 function footer(r, c) {
-  return `<div class="cam-footer"><span>${safe(c.name)}</span><a href="${safe(r.source)}" target="_blank" rel="noopener">Resort feed ↗</a></div>`;
+  const link = c.watch
+    ? `<a class="watch-live" href="${safe(c.watch)}" target="_blank" rel="noopener">▶ Watch live ↗</a>`
+    : `<a href="${safe(r.source)}" target="_blank" rel="noopener">Resort feed ↗</a>`;
+  return `<div class="cam-footer"><span>${safe(c.name)}</span>${link}</div>`;
 }
 const REGIONS = {
   utah: {
