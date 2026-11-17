@@ -6,12 +6,11 @@ const RESORTS = [
     source: "https://www.deervalley.com/explore-the-mountain/webcams",
     // CamStreamer links belong to each camera and survive Deer Valley restarting its YouTube streams
     // (the YouTube links changed in Nov 2026 and went "unavailable").
-    // Highest first, as on Deer Valley's page. Empire and Revelator play through CamStreamer (Deer Valley embeds
-    // those two itself). The rest are YouTube live streams that won't play on other sites, so they show YouTube's
-    // live still (refreshed every few minutes) with a link to watch on YouTube.
+    // Highest first, as on Deer Valley's page. All are YouTube live streams that won't play on other sites, so each
+    // shows YouTube's live still (refreshed every few minutes) with a link to watch on YouTube.
     cams: [
-      { name: "Empire Express", embed: "https://camstreamer.com/embed/5JJMkCuxzOl52j8pMT9Fc6wNrJkeVLlPl75l2nPD?autoplay=1&mute=1" },
-      { name: "Revelator Express", embed: "https://camstreamer.com/embed/cgVMhgI2Dht1tLyFW28p4r4uoCgka4wGNgL3npJ0?autoplay=1&mute=1" },
+      { name: "Empire Express", snapshot: "https://i.ytimg.com/vi/r8qiPv9XCOM/hqdefault_live.jpg", watch: "https://www.youtube.com/watch?v=r8qiPv9XCOM" },
+      { name: "Revelator Express", snapshot: "https://i.ytimg.com/vi/XZjubaPbamE/hqdefault_live.jpg", watch: "https://www.youtube.com/watch?v=XZjubaPbamE" },
       { name: "Sterling Express", snapshot: "https://i.ytimg.com/vi/iNdfTLilLlU/hqdefault_live.jpg", watch: "https://www.youtube.com/watch?v=iNdfTLilLlU" },
       { name: "Sultan Express", snapshot: "https://i.ytimg.com/vi/sAjdqw-lzgI/hqdefault_live.jpg", watch: "https://www.youtube.com/watch?v=sAjdqw-lzgI" },
       { name: "Ontario Snow Stake", snapshot: "https://i.ytimg.com/vi/4vi7EiWba7E/hqdefault_live.jpg", watch: "https://www.youtube.com/watch?v=4vi7EiWba7E" },
