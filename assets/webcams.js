@@ -6,19 +6,18 @@ const RESORTS = [
     source: "https://www.deervalley.com/explore-the-mountain/webcams",
     // CamStreamer links belong to each camera and survive Deer Valley restarting its YouTube streams
     // (the YouTube links changed in Nov 2026 and went "unavailable").
-    // Highest first, as on Deer Valley's page. All are YouTube live streams that won't play on other sites, so each
-    // shows YouTube's live still (refreshed every few minutes) with a link to watch on YouTube.
+    // Highest first, as on Deer Valley's page. YouTube live streams, embedded; the footer links to each on YouTube.
     cams: [
-      { name: "Empire Express", snapshot: "https://i.ytimg.com/vi/r8qiPv9XCOM/hqdefault_live.jpg", watch: "https://www.youtube.com/watch?v=r8qiPv9XCOM" },
-      { name: "Revelator Express", snapshot: "https://i.ytimg.com/vi/XZjubaPbamE/hqdefault_live.jpg", watch: "https://www.youtube.com/watch?v=XZjubaPbamE" },
-      { name: "Sterling Express", snapshot: "https://i.ytimg.com/vi/iNdfTLilLlU/hqdefault_live.jpg", watch: "https://www.youtube.com/watch?v=iNdfTLilLlU" },
-      { name: "Sultan Express", snapshot: "https://i.ytimg.com/vi/sAjdqw-lzgI/hqdefault_live.jpg", watch: "https://www.youtube.com/watch?v=sAjdqw-lzgI" },
-      { name: "Ontario Snow Stake", snapshot: "https://i.ytimg.com/vi/4vi7EiWba7E/hqdefault_live.jpg", watch: "https://www.youtube.com/watch?v=4vi7EiWba7E" },
-      { name: "Park Peak Snow Stake", snapshot: "https://i.ytimg.com/vi/k8NiVrlQACQ/hqdefault_live.jpg", watch: "https://www.youtube.com/watch?v=k8NiVrlQACQ" },
-      { name: "Silver Lake Lodge", snapshot: "https://i.ytimg.com/vi/uE_ent5rC3Y/hqdefault_live.jpg", watch: "https://www.youtube.com/watch?v=uE_ent5rC3Y" },
-      { name: "Galena Express", snapshot: "https://i.ytimg.com/vi/0shWeR7Fvpg/hqdefault_live.jpg", watch: "https://www.youtube.com/watch?v=0shWeR7Fvpg" },
-      { name: "Snow Park Lodge", snapshot: "https://i.ytimg.com/vi/QozKoFs-hL0/hqdefault_live.jpg", watch: "https://www.youtube.com/watch?v=QozKoFs-hL0" },
-      { name: "Hoodoo Express", snapshot: "https://i.ytimg.com/vi/RaX_MhXETq4/hqdefault_live.jpg", watch: "https://www.youtube.com/watch?v=RaX_MhXETq4" },
+      { name: "Empire Express", embed: "https://www.youtube.com/embed/r8qiPv9XCOM?autoplay=1&mute=1&playsinline=1&rel=0", watch: "https://www.youtube.com/watch?v=r8qiPv9XCOM" },
+      { name: "Revelator Express", embed: "https://www.youtube.com/embed/XZjubaPbamE?autoplay=1&mute=1&playsinline=1&rel=0", watch: "https://www.youtube.com/watch?v=XZjubaPbamE" },
+      { name: "Sterling Express", embed: "https://www.youtube.com/embed/iNdfTLilLlU?autoplay=1&mute=1&playsinline=1&rel=0", watch: "https://www.youtube.com/watch?v=iNdfTLilLlU" },
+      { name: "Sultan Express", embed: "https://www.youtube.com/embed/sAjdqw-lzgI?autoplay=1&mute=1&playsinline=1&rel=0", watch: "https://www.youtube.com/watch?v=sAjdqw-lzgI" },
+      { name: "Ontario Snow Stake", embed: "https://www.youtube.com/embed/4vi7EiWba7E?autoplay=1&mute=1&playsinline=1&rel=0", watch: "https://www.youtube.com/watch?v=4vi7EiWba7E" },
+      { name: "Park Peak Snow Stake", embed: "https://www.youtube.com/embed/k8NiVrlQACQ?autoplay=1&mute=1&playsinline=1&rel=0", watch: "https://www.youtube.com/watch?v=k8NiVrlQACQ" },
+      { name: "Silver Lake Lodge", embed: "https://www.youtube.com/embed/uE_ent5rC3Y?autoplay=1&mute=1&playsinline=1&rel=0", watch: "https://www.youtube.com/watch?v=uE_ent5rC3Y" },
+      { name: "Galena Express", embed: "https://www.youtube.com/embed/0shWeR7Fvpg?autoplay=1&mute=1&playsinline=1&rel=0", watch: "https://www.youtube.com/watch?v=0shWeR7Fvpg" },
+      { name: "Snow Park Lodge", embed: "https://www.youtube.com/embed/QozKoFs-hL0?autoplay=1&mute=1&playsinline=1&rel=0", watch: "https://www.youtube.com/watch?v=QozKoFs-hL0" },
+      { name: "Hoodoo Express", embed: "https://www.youtube.com/embed/RaX_MhXETq4?autoplay=1&mute=1&playsinline=1&rel=0", watch: "https://www.youtube.com/watch?v=RaX_MhXETq4" },
     ],
     region: "utah",
     forecast: "deer-valley",
