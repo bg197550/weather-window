@@ -348,3 +348,10 @@ button:focus-visible {
 .place-picker-panel .chips a { display: inline-flex; align-items: center; min-height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid #355464; background: #102c3b; color: #eaf6f8; font-weight: 600; font-size: 14px; text-decoration: none; }
 .place-picker-panel .chips a[aria-current="true"] { background: #d4f4ee; color: #082832; border-color: #d4f4ee; }
 @media (max-width: 760px) { .place-switch h1 { font-size: 26px; } .place-picker-panel .chips a { font-size: 15px; } }
+/* YouTube-only cameras: the live still opens the stream on YouTube. */
+.cam-watch { display: block; position: relative; height: 100%; color: inherit; }
+.cam-play { position: absolute; left: 10px; bottom: 10px; background: #000c; color: #fff; font-weight: 700; font-size: 14px; padding: 5px 10px; border-radius: 6px; }
+.cam-footer .watch-live { font-weight: 700; }
+.yt-facade { display: block; width: 100%; height: 100%; padding: 0; border: 0; background: #061722; position: relative; cursor: pointer; }
+.yt-facade img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.yt-facade:hover .cam-play, .yt-facade:focus-visible .cam-play { background: #c4302b; }
