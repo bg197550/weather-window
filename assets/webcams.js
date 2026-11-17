@@ -106,11 +106,6 @@ const RESORTS = [
         hls: "https://b15.hdrelay.com/camera/5780754f-8da1-4223-ab8a-6755d84cbc10/relay/playlist.m3u8",
       },
       {
-        name: "Little Cloud",
-        snapshot: "https://b15.hdrelay.com/camera/db2a69c5-66e9-4c48-a713-919eaf191fc1/snapshot",
-        hls: "https://b15.hdrelay.com/camera/db2a69c5-66e9-4c48-a713-919eaf191fc1/relay/playlist.m3u8",
-      },
-      {
         name: "Tram Bullpen",
         snapshot: "https://b15.hdrelay.com/camera/61b2490be101c00b9c48374f/snapshot",
         hls: "https://b15.hdrelay.com/camera/61b2490be101c00b9c48374f/relay/playlist.m3u8",
@@ -122,6 +117,7 @@ const RESORTS = [
       {
         name: "Powder Paradise",
         snapshot: "https://backend.roundshot.com/cams/48fc223c0ed88474ecc2f884bf39de63/medium",
+        offline: true, // Nov 2026: the image server drops the connection
       },
       {
         name: "Hidden Peak 360",
@@ -156,7 +152,6 @@ const RESORTS = [
       {
         name: "Moonbeam Parking Lot",
         embed: "https://www.youtube-nocookie.com/embed/gfHReYIuydU?autoplay=1&mute=1&playsinline=1&rel=0",
-        offline: true,
       },
       {
         name: "Moonbeam Express Lift Line",
@@ -173,7 +168,6 @@ const RESORTS = [
       {
         name: "Summit Express Lift Line",
         embed: "https://www.youtube-nocookie.com/embed/rUXoOLxKKX4?autoplay=1&mute=1&playsinline=1&rel=0",
-        offline: true,
       },
       {
         name: "Powderhorn II Lift Line",
@@ -208,6 +202,14 @@ const RESORTS = [
       {
         name: "Explorer Lift",
         embed: "https://www.youtube-nocookie.com/embed/vMwQRjlfqtA?autoplay=1&mute=1&playsinline=1&rel=0",
+      },
+      {
+        name: "Milly Express",
+        embed: "https://www.youtube-nocookie.com/embed/7FqDxizb_hs?autoplay=1&mute=1&playsinline=1&rel=0",
+      },
+      {
+        name: "Majestic Lift",
+        embed: "https://www.youtube-nocookie.com/embed/XLzKPufaAts?autoplay=1&mute=1&playsinline=1&rel=0",
       },
     ],
     region: "utah",
@@ -260,6 +262,8 @@ const RESORTS = [
         relay: "61e1c348e73e870b5583f203",
         hls: "https://b15.hdrelay.com/camera/61e1c2e0faf0bf0b5629ac59/relay/playlist.m3u8",
       },
+      { name: "Mt. Ogden", snapshot: "https://www.skiutah.com/files/blob/webcam/1590681040" },
+      { name: "John Paul Lodge", snapshot: "https://www.skiutah.com/files/blob/webcam/140020919" },
     ],
     region: "utah",
     forecast: "snowbasin",
@@ -278,10 +282,10 @@ const RESORTS = [
         name: "Sundance Base",
         snapshot: "https://app.prismcam.com/public/helpers/realtime_preview.php?c=75&s=720",
       },
+      { name: "Ray's Lift Base", snapshot: "https://www.skiutah.com/files/blob/webcam/1175860327" },
       {
         name: "Bearclaw Summit",
         snapshot: "https://app.prismcam.com/public/helpers/realtime_preview.php?c=74&s=720",
-        offline: true,
       },
     ],
     region: "utah",
