@@ -4,56 +4,16 @@ const RESORTS = [
     name: "Deer Valley",
     area: "Park City",
     source: "https://www.deervalley.com/explore-the-mountain/webcams",
+    // CamStreamer links belong to each camera and survive Deer Valley restarting its YouTube streams
+    // (the YouTube links changed in Nov 2026 and went "unavailable").
     cams: [
-      {
-        // Stream replaced Nov 2026 (the old one, QozKoFs-hL0, shows "unavailable").
-        name: "Snow Park Lodge",
-        embed: "https://www.youtube-nocookie.com/embed/E7Hh7Q6qIKk?autoplay=1&mute=1&playsinline=1&rel=0",
-      },
-      {
-        name: "Snow Stake",
-        embed: "https://www.youtube-nocookie.com/embed/_-jBmcnsK6s?autoplay=1&mute=1&playsinline=1&rel=0",
-      },
-      {
-        name: "Silver Lake Lodge",
-        embed: "https://www.youtube-nocookie.com/embed/uE_ent5rC3Y?autoplay=1&mute=1&playsinline=1&rel=0",
-        publisherEmbed:
-          "https://camstreamer.com/embed/oCzfMDDSJHRGJXfQug4D8FhLpuU7GwaphZjuO00Z?autoplay=1&mute=1",
-      },
-      {
-        name: "Top of Silver Strike Express",
-        embed: "https://www.youtube-nocookie.com/embed/VGq3JzqSy4E?autoplay=1&mute=1&playsinline=1&rel=0",
-      },
-      {
-        name: "Empire Express",
-        embed: "https://www.youtube-nocookie.com/embed/r8qiPv9XCOM?autoplay=1&mute=1&playsinline=1&rel=0",
-        publisherEmbed:
-          "https://camstreamer.com/embed/5JJMkCuxzOl52j8pMT9Fc6wNrJkeVLlPl75l2nPD?autoplay=1&mute=1",
-      },
-      {
-        name: "Sterling Express",
-        embed: "https://www.youtube-nocookie.com/embed/iNdfTLilLlU?autoplay=1&mute=1&playsinline=1&rel=0",
-        publisherEmbed:
-          "https://camstreamer.com/embed/85gYTybAhS5pjj2NpJ6n93R4VQwgn6aLdHWhpFDx?autoplay=1&mute=1",
-      },
-      {
-        name: "Galena Express",
-        embed: "https://www.youtube-nocookie.com/embed/0shWeR7Fvpg?autoplay=1&mute=1&playsinline=1&rel=0",
-        publisherEmbed:
-          "https://camstreamer.com/embed/lgOzg0AxWR6BOLOBlZnaN7hhB6RnEOUaaWErbdxH?autoplay=1&mute=1",
-      },
-      {
-        name: "Revelator Express",
-        embed: "https://www.youtube-nocookie.com/embed/XZjubaPbamE?autoplay=1&mute=1&playsinline=1&rel=0",
-        publisherEmbed:
-          "https://camstreamer.com/embed/cgVMhgI2Dht1tLyFW28p4r4uoCgka4wGNgL3npJ0?autoplay=1&mute=1",
-      },
-      {
-        name: "Sultan Express",
-        embed: "https://www.youtube-nocookie.com/embed/sAjdqw-lzgI?autoplay=1&mute=1&playsinline=1&rel=0",
-        publisherEmbed:
-          "https://camstreamer.com/embed/WHHs0IGromJCpEcQUtsBvCiYCOQfueb4CM5nq6XC?autoplay=1&mute=1",
-      },
+      { name: "Snow Park Lodge", embed: "https://camstreamer.com/embed/M5ToybhwNTDP6Y5Yt6lIr9hylOONXTv892poZIyH?autoplay=1&mute=1" },
+      { name: "Silver Lake Lodge", embed: "https://camstreamer.com/embed/oCzfMDDSJHRGJXfQug4D8FhLpuU7GwaphZjuO00Z?autoplay=1&mute=1" },
+      { name: "Empire Express", embed: "https://camstreamer.com/embed/5JJMkCuxzOl52j8pMT9Fc6wNrJkeVLlPl75l2nPD?autoplay=1&mute=1" },
+      { name: "Sterling Express", embed: "https://camstreamer.com/embed/85gYTybAhS5pjj2NpJ6n93R4VQwgn6aLdHWhpFDx?autoplay=1&mute=1" },
+      { name: "Galena Express", embed: "https://camstreamer.com/embed/lgOzg0AxWR6BOLOBlZnaN7hhB6RnEOUaaWErbdxH?autoplay=1&mute=1" },
+      { name: "Revelator Express", embed: "https://camstreamer.com/embed/cgVMhgI2Dht1tLyFW28p4r4uoCgka4wGNgL3npJ0?autoplay=1&mute=1" },
+      { name: "Sultan Express", embed: "https://camstreamer.com/embed/WHHs0IGromJCpEcQUtsBvCiYCOQfueb4CM5nq6XC?autoplay=1&mute=1" },
     ],
     region: "utah",
     forecast: "deer-valley",
