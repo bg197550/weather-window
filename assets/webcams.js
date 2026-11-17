@@ -577,6 +577,18 @@ const RESORTS = [
   },
 ];
 const content = document.querySelector("#content");
+// Tap a YouTube still to load its player in place.
+content.addEventListener("click", (e) => {
+  const b = e.target.closest(".yt-facade");
+  if (!b) return;
+  const f = document.createElement("iframe");
+  f.src = b.dataset.embed;
+  f.title = b.getAttribute("aria-label").replace(/^Play /, "");
+  f.allow = "autoplay; encrypted-media; picture-in-picture; fullscreen";
+  f.allowFullscreen = true;
+  f.referrerPolicy = "strict-origin-when-cross-origin";
+  b.replaceWith(f);
+});
 let active = "utah",
   players = [],
   observer = null;
@@ -618,11 +630,19 @@ function groupedResorts(list) {
 function cameraLoading(c) {
   return c.embed?.startsWith("https://player.brownrice.com/embed/") ? "eager" : "lazy";
 }
+/* YouTube players are heavy: show the stream's live still and load the player when it is tapped. */
+const ytId = (u) => (String(u || "").match(/youtube(?:-nocookie)?\.com\/embed\/([\w-]{11})/) || [])[1] || "";
+function ytFacade(r, c, id) {
+  const src = c.embed.replace(/autoplay=0/, "autoplay=1");
+  return `<button type="button" class="yt-facade" data-embed="${safe(src)}" aria-label="Play ${safe(r.name + " · " + c.name)} live"><img src="https://i.ytimg.com/vi/${id}/hqdefault_live.jpg?t=${Math.floor(Date.now() / 300000)}" alt="${safe(r.name + " · " + c.name + " webcam")}" loading="lazy" referrerpolicy="no-referrer"><span class="cam-play" aria-hidden="true">▶ Play live</span></button>`;
+}
 function camera(r, c) {
   if (c.external)
     return `<div class="cam"><div class="cam-failure"><strong>${safe(c.name)} only plays on ${safe(r.name)}'s website</strong><a href="${safe(r.source)}" target="_blank" rel="noopener">Watch it on ${safe(r.name)}'s webcam page ↗</a></div></div>`;
   if (c.offline)
     return `<div class="cam"><div class="cam-failure"><strong>${safe(c.name)} is currently offline</strong><a href="${safe(r.source)}" target="_blank" rel="noopener">Check resort camera updates ↗</a></div></div>`;
+  const yt = !c.hls && !c.snapshot && ytId(c.embed);
+  if (yt) return `<div class="cam">${ytFacade(r, c, yt)}<span class="badge" data-state="loading" role="status" hidden></span><div class="cam-failure" hidden><strong>Camera feed unavailable</strong><a href="${safe(r.source)}" target="_blank" rel="noopener">Open resort webcams ↗</a></div></div>`;
   return `<div class="cam">${c.hls ? `<video data-hls="${safe(c.hls)}" data-fallback="${safe(c.snapshot)}" poster="${safe(c.snapshot)}" muted autoplay playsinline controls aria-label="${safe(r.name + " · " + c.name + " webcam")}"></video>` : c.snapshot ? `${c.watch ? `<a class="cam-watch" href="${safe(c.watch)}" target="_blank" rel="noopener" aria-label="Watch ${safe(c.name)} live on YouTube">` : ""}<img data-snapshot="${safe(c.snapshot)}" src="${safe(snapshotURL(c.snapshot))}" alt="${safe(r.name + " · " + c.name + " webcam")}" loading="lazy" referrerpolicy="no-referrer">${c.watch ? `<span class="cam-play" aria-hidden="true">▶ Live</span></a>` : ""}` : `<iframe ${c.embed.includes("{W}") ? "data-sized" : "src"}="${safe(c.embed)}"${c.wetmet ? ' class="crop" scrolling="no"' : ""} title="${safe(r.name + " · " + c.name + " webcam")}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen loading="${cameraLoading(c)}" referrerpolicy="strict-origin-when-cross-origin"></iframe>`}<span class="badge" data-state="loading" role="status"${c.snapshot && !c.hls ? "" : " hidden"}>${safe(cameraStatus(c))}</span><div class="cam-failure" hidden><strong>Camera feed unavailable</strong><a href="${safe(r.source)}" target="_blank" rel="noopener">Open resort webcams ↗</a></div></div>`;
 }
 function footer(r, c) {
