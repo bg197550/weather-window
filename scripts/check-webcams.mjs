@@ -93,15 +93,17 @@ async function run(resort, name, kind, url) {
 }
 for (const r of RESORTS)
   for (const c of r.cams) {
-    if (c.offline || c.external) {
-      lines.push(`${"SKIP".padEnd(8)} ${r.id.padEnd(16)} ${c.name.padEnd(34)} marked ${c.offline ? "offline" : "external"} on the dashboard`);
+    if (c.external) {
+      lines.push(`${"SKIP".padEnd(8)} ${r.id.padEnd(16)} ${c.name.padEnd(34)} marked external on the dashboard`);
       continue;
     }
+    // Cameras marked offline are checked too, to see whether they have come back.
+    const label = c.offline ? `${c.name} [marked offline]` : c.name;
     const id = ytId(c.embed);
-    if (id) await run(r.id, c.name, "yt", id);
-    else if (c.hls) await run(r.id, c.name, "hls", c.hls);
-    else if (c.snapshot) await run(r.id, c.name, "img", c.snapshot);
-    else await run(r.id, c.name, "page", c.embed.replace("{W}", "1280").replace("{H}", "720"));
+    if (id) await run(r.id, label, "yt", id);
+    else if (c.hls) await run(r.id, label, "hls", c.hls);
+    else if (c.snapshot) await run(r.id, label, "img", c.snapshot);
+    else await run(r.id, label, "page", c.embed.replace("{W}", "1280").replace("{H}", "720"));
   }
 lines.push("", "Candidates not on the dashboard yet:");
 for (const [resort, name, spec] of CANDIDATES) {
