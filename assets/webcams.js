@@ -6,14 +6,18 @@ const RESORTS = [
     source: "https://www.deervalley.com/explore-the-mountain/webcams",
     // CamStreamer links belong to each camera and survive Deer Valley restarting its YouTube streams
     // (the YouTube links changed in Nov 2026 and went "unavailable").
+    // Highest first, as on Deer Valley's page. The two snow stakes and Hoodoo only publish YouTube links.
     cams: [
-      { name: "Snow Park Lodge", embed: "https://camstreamer.com/embed/M5ToybhwNTDP6Y5Yt6lIr9hylOONXTv892poZIyH?autoplay=1&mute=1" },
-      { name: "Silver Lake Lodge", embed: "https://camstreamer.com/embed/oCzfMDDSJHRGJXfQug4D8FhLpuU7GwaphZjuO00Z?autoplay=1&mute=1" },
       { name: "Empire Express", embed: "https://camstreamer.com/embed/5JJMkCuxzOl52j8pMT9Fc6wNrJkeVLlPl75l2nPD?autoplay=1&mute=1" },
-      { name: "Sterling Express", embed: "https://camstreamer.com/embed/85gYTybAhS5pjj2NpJ6n93R4VQwgn6aLdHWhpFDx?autoplay=1&mute=1" },
-      { name: "Galena Express", embed: "https://camstreamer.com/embed/lgOzg0AxWR6BOLOBlZnaN7hhB6RnEOUaaWErbdxH?autoplay=1&mute=1" },
       { name: "Revelator Express", embed: "https://camstreamer.com/embed/cgVMhgI2Dht1tLyFW28p4r4uoCgka4wGNgL3npJ0?autoplay=1&mute=1" },
+      { name: "Sterling Express", embed: "https://camstreamer.com/embed/85gYTybAhS5pjj2NpJ6n93R4VQwgn6aLdHWhpFDx?autoplay=1&mute=1" },
       { name: "Sultan Express", embed: "https://camstreamer.com/embed/WHHs0IGromJCpEcQUtsBvCiYCOQfueb4CM5nq6XC?autoplay=1&mute=1" },
+      { name: "Ontario Snow Stake", embed: "https://www.youtube-nocookie.com/embed/4vi7EiWba7E?autoplay=1&mute=1&playsinline=1&rel=0" },
+      { name: "Park Peak Snow Stake", embed: "https://www.youtube-nocookie.com/embed/k8NiVrlQACQ?autoplay=1&mute=1&playsinline=1&rel=0" },
+      { name: "Silver Lake Lodge", embed: "https://camstreamer.com/embed/oCzfMDDSJHRGJXfQug4D8FhLpuU7GwaphZjuO00Z?autoplay=1&mute=1" },
+      { name: "Galena Express", embed: "https://camstreamer.com/embed/lgOzg0AxWR6BOLOBlZnaN7hhB6RnEOUaaWErbdxH?autoplay=1&mute=1" },
+      { name: "Snow Park Lodge", embed: "https://camstreamer.com/embed/M5ToybhwNTDP6Y5Yt6lIr9hylOONXTv892poZIyH?autoplay=1&mute=1" },
+      { name: "Hoodoo Express", embed: "https://www.youtube-nocookie.com/embed/RaX_MhXETq4?autoplay=1&mute=1&playsinline=1&rel=0" },
     ],
     region: "utah",
     forecast: "deer-valley",
