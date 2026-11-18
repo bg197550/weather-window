@@ -36,3 +36,17 @@ test("no storms: says so", () => {
   assert.match(st.summary, /No significant storms/);
   assert.equal(st.short.length, 0);
 });
+test("notes a meaningful change from about a day earlier, and stays quiet about small ones", () => {
+  const o = outlook();
+  const t0 = Date.parse(o.built);
+  // Half days for this run: the first storm (hours 5–23) falls in Tuesday's day and night halves.
+  o.segments = [
+    { date: "2026-11-17", half: "day", a: 0, b: 12, mid: 6 },
+    { date: "2026-11-17", half: "night", a: 12, b: 24, mid: 5 },
+  ];
+  const prevBuilt = new Date(t0 - 22 * 3600000).toISOString();
+  const big = Story.build(o, { section: "utah", now: t0 + 1800000, history: [{ built: prevBuilt, segs: [["2026-11-17", "day", 2], ["2026-11-17", "night", 2]] }] });
+  assert.match(big.short[0].text, /That's up from about 4″ in yesterday morning's forecast/);
+  const small = Story.build(o, { section: "utah", now: t0 + 1800000, history: [{ built: prevBuilt, segs: [["2026-11-17", "day", 6], ["2026-11-17", "night", 4]] }] });
+  assert.doesNotMatch(small.short[0].text, /from about/);
+});
