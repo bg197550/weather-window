@@ -1234,37 +1234,6 @@ async function fillCycleTable(el, key, storms, section, pt) {
 }
 
 /* The forecast story (summary, each storm, extended) from the shared snow outlook; "" when it isn't available. */
-// "Ask Claude" box under the forecast story: sends the question plus the story to claude.ai in a new tab
-// (prefilled via claude.ai/new?q=). Free, uses the viewer's own Claude account, no API key on this site.
-function askContext(o, st) {
-  const when = new Date().toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" });
-  const basis = o.ski ? `the summit (${o.summit.toLocaleString()} ft)` : "ground level";
-  const parts = [
-    `Below is the current snow/weather forecast for ${o.name} from my Weather Window site, as of ${when}. Totals are for ${basis}; first ~7 days from the NWS grid forecast, then GEFS + ECMWF ensembles.`,
-    `SUMMARY: ${st.summary}`,
-    ...st.short.map((x) => `${x.title.toUpperCase()}: ${x.text}`),
-    st.extended ? `EXTENDED: ${st.extended}` : "",
-    st.afdQuote ? `NWS FORECASTERS: "${st.afdQuote}"` : "",
-  ].filter(Boolean);
-  let ctx = parts.join("\n\n");
-  if (ctx.length > 3800) ctx = ctx.slice(0, 3800).replace(/\s\S*$/, "") + "…";
-  return ctx;
-}
-function askBox(o, st) {
-  return `<form class="ins-ask" data-ctx="${escapeHTML(askContext(o, st))}"><label for="ins-ask-q">Questions about this forecast?</label><div class="ins-ask-row"><input id="ins-ask-q" name="q" type="text" maxlength="400" placeholder="e.g. Is Saturday or Sunday the better ski day?" autocomplete="off"><button type="submit">Ask Claude ›</button></div><p class="ins-ask-note">Opens Claude in a new tab with this forecast attached.</p></form>`;
-}
-if (typeof document !== "undefined" && !window.__wwAsk) {
-  window.__wwAsk = true;
-  document.addEventListener("submit", (ev) => {
-    const f = ev.target.closest && ev.target.closest(".ins-ask");
-    if (!f) return;
-    ev.preventDefault();
-    const q = (f.q.value || "").trim();
-    if (!q) { f.q.focus(); return; }
-    const prompt = `${f.dataset.ctx}\n\nUsing that forecast (and general mountain-weather knowledge), answer my question. Be concise and say how confident the forecast is.\n\nMY QUESTION: ${q}`;
-    window.open(`https://claude.ai/new?q=${encodeURIComponent(prompt)}`, "_blank", "noopener");
-  });
-}
 function storyCard(o, kinds, data, section, sum) {
   if (!o || typeof ForecastStory === "undefined") return "";
   try {
@@ -1278,7 +1247,7 @@ function storyCard(o, kinds, data, section, sum) {
       link: `<button type="button" class="linkish" data-view="afd">NWS discussion ›</button>`,
     }).replace(
       "</article>",
-      `${learn ? `<p class="ins-learn"><b>Good to know:</b> ${escapeHTML(learn)}</p>` : ""}${askBox(o, st)}<p class="source">Written from the same snow forecast as the Snow section, for ${o.ski ? `the summit (${o.summit.toLocaleString()} ft)` : "ground level"}: NWS for its first ~7 days, then the GEFS and ECMWF ensembles.</p></article>`,
+      `${learn ? `<p class="ins-learn"><b>Good to know:</b> ${escapeHTML(learn)}</p>` : ""}<p class="source">Written from the same snow forecast as the Snow section, for ${o.ski ? `the summit (${o.summit.toLocaleString()} ft)` : "ground level"}: NWS for its first ~7 days, then the GEFS and ECMWF ensembles.</p></article>`,
     );
   } catch (e) {
     console.warn("Forecast story", e);
