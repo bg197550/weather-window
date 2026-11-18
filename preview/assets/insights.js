@@ -895,7 +895,7 @@ function stormStory(x, data, section) {
     }
   }
   const line = `<b>What kind:</b> ${cap(kind)}${from ? `, ${from}` : ""}.${moisture ? ` Moisture: ${moisture}.` : ""}`;
-  return { line, learn };
+  return { line, learn, kind, from };
 }
 
 function shortStorm(x, data, section, idx) {
@@ -1233,6 +1233,27 @@ async function fillCycleTable(el, key, storms, section, pt) {
     .join("")}</tbody></table></div><p class="ins-legend">Each cell: mid mountain / peak, model average. Sorted by 10-day peak total.</p>`;
 }
 
+/* The forecast story (summary, each storm, extended) from the shared snow outlook; "" when it isn't available. */
+function storyCard(o, kinds, data, section, sum) {
+  if (!o || typeof ForecastStory === "undefined") return "";
+  try {
+    const n = afdNotes(data.afd);
+    const k = n?.keys?.[0] || "";
+    const st = ForecastStory.build(o, { section, sum, kinds, afdQuote: k.length > 200 ? k.slice(0, 195).replace(/\s\S*$/, "") + "…" : k });
+    const learn = kinds[0]?.learn;
+    return ForecastStory.html(st, {
+      esc: escapeHTML,
+      title: `Forecast story · ${o.name}`,
+      link: `<button type="button" class="linkish" data-view="afd">NWS discussion ›</button>`,
+    }).replace(
+      "</article>",
+      `${learn ? `<p class="ins-learn"><b>Good to know:</b> ${escapeHTML(learn)}</p>` : ""}<p class="source">Written from the same snow forecast as the Snow section, for ${o.ski ? `the summit (${o.summit.toLocaleString()} ft)` : "ground level"}: NWS for its first ~7 days, then the GEFS and ECMWF ensembles.</p></article>`,
+    );
+  } catch (e) {
+    console.warn("Forecast story", e);
+    return "";
+  }
+}
 async function loadInsights(pt, section) {
   const el = document.querySelector("#ins");
   if (!el) return;
@@ -1241,7 +1262,8 @@ async function loadInsights(pt, section) {
   const owner = [...utah, ...ne].find((x) => x.p.some((q) => q[0] === pt.p[0] && q[1] === pt.p[1]));
   const basis = owner && (owner.p.length === 1 || owner.p[owner.p.length - 1] === owner.p.find((q) => q[0] === pt.p[0] && q[1] === pt.p[1]));
   const outlookP = basis && typeof SnowCore !== "undefined" ? Promise.race([SnowCore.forPlace(owner, section).catch(() => null), new Promise((r) => setTimeout(() => r(null), 12000))]) : Promise.resolve(null);
-  const [data, o] = await Promise.all([insFetch(pt.p), outlookP]);
+  const sumP = basis && typeof SnowCore !== "undefined" ? SnowCore.summary().catch(() => null) : Promise.resolve(null);
+  const [data, o, sum] = await Promise.all([insFetch(pt.p), outlookP, sumP]);
   if (!el.isConnected || el.dataset.key !== pt.p.slice(0, 2).join(",")) return;
   let html = "",
     cycle = null;
@@ -1262,17 +1284,21 @@ async function loadInsights(pt, section) {
         Object.assign(x, { snowy: true, p10: w.lo, p50: w.mid, p90: w.hi, snowRange: [w.lo, w.mid, w.hi], shared: true });
       }
     const pattern = patternCard(data, section, storms);
+    const story = storyCard(o, storms.map((x) => ({ start: x.start, end: x.end, ...stormStory(x, data, section) })), data, section, sum);
+    html += story;
     if (insKind === "utah" && storms.length) {
       const which = place && !place.searched ? `${place.name}${place.p.length > 1 ? ` ${pt.p[2]?.split(" · ")[0]?.toLowerCase() || ""}` : ""}` : "";
       html += cycleCard(storms, data, section, elevOf(pt.p[2]) ?? elevFt, which.trim(), o);
       cycle = storms;
     }
-    html += summaryCard(storms, data, section);
+    if (!story) html += summaryCard(storms, data, section);
     html += storms.length
       ? storms.map((s, i) => stormCard(s, section, i)).join("")
       : `<article class="card afd-card ins-storm"><h3>No storm in sight</h3><p>None of the GFS, ECMWF, GEM or ICON models show a meaningful precipitation event (0.05″ liquid or more) in the next 10 days.</p></article>`;
     html += pattern;
   } else {
+    // Insights' own model data failed (often Open-Meteo's free limit); the story only needs the shared snow outlook.
+    html += storyCard(o, [], data, section, sum);
     html += '<article class="card afd-card"><h3>Model guidance</h3><div class="error">Model data is temporarily unavailable.</div></article>';
   }
   html += afdCard(data.afd, section);
