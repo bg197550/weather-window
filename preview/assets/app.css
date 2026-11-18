@@ -2636,3 +2636,10 @@ p {
 .ins-story h4 { margin: 0 0 6px; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: #9fb1bc; }
 .ins-story p { margin: 0 0 10px; line-height: 1.6; }
 .ins-story .ins-quote { color: #cfe2e8; border-left: 3px solid #3c6475; padding-left: 10px; }
+.ins-ask { margin: 14px 0 10px; padding: 12px; border: 1px solid #355464; border-radius: 10px; background: #0d2633; }
+.ins-ask label { display: block; font-weight: 700; margin-bottom: 8px; }
+.ins-ask-row { display: flex; gap: 8px; }
+.ins-ask input { flex: 1; min-width: 0; min-height: 42px; padding: 0 12px; border-radius: 8px; border: 1px solid #4a6b7a; background: #08202b; color: #eaf6f8; font: inherit; font-size: 16px; }
+.ins-ask button { min-height: 42px; padding: 0 14px; border-radius: 8px; border: 0; background: #d4f4ee; color: #082832; font-weight: 700; font: inherit; font-weight: 700; cursor: pointer; white-space: nowrap; }
+.ins-ask-note { margin: 6px 0 0 !important; font-size: 12px; color: #9fb1bc; }
+@media (max-width: 420px) { .ins-ask-row { flex-direction: column; } }

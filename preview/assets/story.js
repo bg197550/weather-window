@@ -70,7 +70,16 @@ const ForecastStory = (() => {
       const h = local(ms).hour;
       return h < 5 ? "early on" : h < 11 ? "in the morning" : h < 14 ? "around midday" : h < 17 ? "in the afternoon" : h < 21 ? "in the evening" : "overnight";
     };
-    return { at, when, whenAfter, dayName, dateName, local };
+    /* "yesterday morning's forecast", "last night's forecast", "this morning's forecast" */
+    const runLabel = (ms) => {
+      const { date, hour } = local(ms);
+      const dd = dayDiff(date);
+      const part = hour < 12 ? "morning" : hour < 17 ? "afternoon" : "evening";
+      if (dd === 0) return `this ${part}'s forecast`;
+      if (dd === -1) return part === "evening" ? "last night's forecast" : `yesterday ${part}'s forecast`;
+      return `${local(ms).weekday}'s forecast`;
+    };
+    return { at, when, whenAfter, dayName, dateName, local, runLabel };
   }
 
   /* Storms from the outlook's 6-hour blocks: wet blocks in a row, allowing one dry block (a lull) inside a storm. */
@@ -148,9 +157,40 @@ const ForecastStory = (() => {
     return parts.length >= 2 ? `Across the range: ${parts.join(", ")}.` : "";
   }
 
-  /* The story. kinds: Insights' storm descriptions [{start, end, kind, from}] (optional). */
-  function build(o, { section = "utah", now = Date.now(), sum = null, kinds = [], afdQuote = "" } = {}) {
+  /* An earlier run to compare with: the one closest to a day older than this outlook (at least 9 hours older). */
+  function pickPrev(history, builtMs) {
+    const age = (x) => builtMs - Date.parse(x.built);
+    const ok = (history || []).filter((x) => age(x) >= 9 * H && age(x) <= 40 * H && x.segs?.length);
+    return ok.sort((a, b) => Math.abs(age(a) - 24 * H) - Math.abs(age(b) - 24 * H))[0] || null;
+  }
+  /* Snow in a window from half-day segments: the same half days in this run and in the earlier one. */
+  function segWindow(o, prev, c, fromMs, toMs) {
+    const t0 = Math.floor(Date.parse(o.built) / H) * H;
+    const keys = o.segments.filter((s) => t0 + s.b * H > fromMs && t0 + s.a * H < toMs).map((s) => `${s.date}${s.half}`);
+    if (!keys.length) return null;
+    const now = o.segments.filter((s) => keys.includes(`${s.date}${s.half}`)).reduce((t, s) => t + (s.mid || 0), 0);
+    const old = prev.segs.filter(([d, h]) => keys.includes(`${d}${h}`));
+    // The earlier run must cover every half day (a partial first half day in this run is fine).
+    if (old.length < keys.length - 1) return null;
+    return { now, old: old.reduce((t, [, , m]) => t + (m || 0), 0) };
+  }
+  /* "That's up from about 12″ in yesterday morning's forecast." when the change is meaningful (2″ and 25%). */
+  function changeNote(o, prev, c, fromMs, toMs, short) {
+    if (!prev) return "";
+    const w = segWindow(o, prev, c, fromMs, toMs);
+    if (!w) return "";
+    const d = w.now - w.old;
+    if (Math.abs(d) < 2 || Math.abs(d) < 0.25 * Math.max(w.old, w.now)) return "";
+    const label = c.runLabel(Date.parse(prev.built));
+    const dir = d > 0 ? "up" : "down";
+    return short ? `${dir} from about ${inch(w.old)} in ${label}` : `That's ${dir} from about ${inch(w.old)} in ${label}${Math.abs(d) >= 6 ? ` — a big ${d > 0 ? "increase" : "drop"}` : ""}.`;
+  }
+
+  /* The story. kinds: Insights' storm descriptions [{start, end, kind, from}] (optional);
+     history: earlier runs for this mountain from the region summary, to note meaningful changes. */
+  function build(o, { section = "utah", now = Date.now(), sum = null, kinds = [], afdQuote = "", history = null } = {}) {
     const c = clock(o, now);
+    const prev = pickPrev(history || sum?.history?.[o.slug], Date.parse(o.built));
     const where = o.ski ? `at the summit (${o.summit.toLocaleString()} ft)` : "here";
     const storms = findStorms(o, 8 * 24).slice(0, 3);
     const elev = o.elev,
@@ -189,7 +229,13 @@ const ForecastStory = (() => {
       }
       const last = S[S.length - 1];
       const tot = snowBetween(o, S[0].ongoing ? 0 : S[0].a, last.b);
-      if (S.length > 1 && tot.hi >= 1) sum1.push(`Through ${c.dayName(last.toMs)}: ${range(tot.lo, tot.hi)} ${where}.`);
+      if (S.length > 1 && tot.hi >= 1) {
+        const ch = changeNote(o, prev, c, S[0].fromMs, last.toMs, true);
+        sum1.push(`Through ${c.dayName(last.toMs)}: ${range(tot.lo, tot.hi)} ${where}${ch ? `, ${ch}` : ""}.`);
+      } else if (S.length === 1) {
+        const ch = changeNote(o, prev, c, S[0].fromMs, S[0].toMs, true);
+        if (ch) sum1.push(`Expect ${range(S[0].snow.lo, S[0].snow.hi)} ${where}, ${ch}.`);
+      }
     }
 
     // Short term: each storm.
@@ -221,6 +267,8 @@ const ForecastStory = (() => {
       if (s.r0 != null && s.r0 <= 10 && s.snow.mid >= 1) ws += ` The early snow is wet and dense (around ${s.r0}:1), which holds totals down${s.rLow > s.r0 + 3 ? `; colder air later lifts ratios to about ${s.rLow}:1` : ""}.`;
       else if (s.r0 != null && s.r0 >= 14 && s.snow.mid >= 1) ws += ` Cold air means light, fluffy snow (about ${s.r0}:1).`;
       p.push(ws);
+      const ch = changeNote(o, prev, c, s.fromMs, s.toMs, false);
+      if (ch) p.push(ch);
       const g = groupLine(sum, section, s.fromMs, s.toMs);
       if (g) p.push(g);
       const title = `${s.i === 0 ? (s.ongoing ? "Current storm" : "Next storm") : `Storm ${s.i + 1}`} · ${c.dayName(s.fromMs)}${c.dayName(s.fromMs) === c.dayName(s.toMs) ? "" : ` → ${c.dayName(s.toMs)}`}`;
