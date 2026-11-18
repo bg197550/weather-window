@@ -2631,3 +2631,8 @@ p {
 .place-pick-groups .chip-wrap { display: inline-flex; gap: 2px; }
 .mtn-mine { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
 .mtn-mine .chip-link { display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid #355464; background: #102c3b; color: #eaf6f8; font-weight: 600; font-size: 14px; text-decoration: none; }
+/* Forecast story (assets/story.js) */
+.ins-story section { margin-top: 12px; }
+.ins-story h4 { margin: 0 0 6px; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: #9fb1bc; }
+.ins-story p { margin: 0 0 10px; line-height: 1.6; }
+.ins-story .ins-quote { color: #cfe2e8; border-left: 3px solid #3c6475; padding-left: 10px; }

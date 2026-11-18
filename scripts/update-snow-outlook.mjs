@@ -28,7 +28,7 @@ const NAMES = {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const prev = prevPath && existsSync(prevPath) ? JSON.parse(readFileSync(prevPath, "utf8")) : { places: {} };
 mkdirSync(`${out}/outlook`, { recursive: true });
-const summary = { updated: new Date().toISOString(), places: { ...prev.places }, cells: { ...(prev.cells || {}) } };
+const summary = { updated: new Date().toISOString(), places: { ...prev.places }, cells: { ...(prev.cells || {}) }, history: { ...(prev.history || {}) } };
 // Summit NWS squares first: GitHub reaches NWS reliably, and browsers use these when they build an outlook themselves.
 for (const [slug, [name, section]] of Object.entries(NAMES)) {
   try {
@@ -59,6 +59,12 @@ function save(slug, o) {
   const t = SnowCore.thin(o);
   writeFileSync(`${out}/outlook/${slug}.json`, JSON.stringify(t));
   const { members, dets, levels, mid, times, h, temp, ...meta } = t;
+  // Keep the last three days of runs (half-day snow only) so the forecast story can say how the forecast changed.
+  const old = prev.places?.[slug];
+  if (old?.segments && old.built !== meta.built) {
+    const hist = [{ built: old.built, segs: old.segments.map((x) => [x.date, x.half, x.mid]) }, ...(summary.history[slug] || [])];
+    summary.history[slug] = hist.filter((x, i, a) => Date.now() - Date.parse(x.built) < 72 * 3600000 && a.findIndex((y) => y.built === x.built) === i).slice(0, 16);
+  }
   summary.places[slug] = meta;
   ok++;
   console.log(`${slug}: 10-day ${o.totals[10].mid}″ (${o.totals[10].lo}–${o.totals[10].hi}), NWS ${o.nws ? `${o.nws.cell} at ${o.nws.elev} ft, scale ${o.nws.scale}` : "none"}`);
