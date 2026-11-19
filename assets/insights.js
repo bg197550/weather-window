@@ -502,9 +502,9 @@ function stormCard(x, section, idx, inner = false) {
   const notes = [];
   if (x.snowy && q)
     notes.push(
-      `<b>Snow quality:</b> ${q.label}, ${q.ratio}. 700 mb temperature averages ${Math.round(q.c)}°C during the storm.`,
+      x.f?.quality ? `<b>Snow quality:</b> ${x.f.quality}, about ${x.f.ratio} (inches of snow per inch of water).` : `<b>Snow quality:</b> ${q.label}, ${q.ratio}. 700 mb temperature averages ${Math.round(q.c)}°C during the storm.`,
     );
-  if (x.nws?.level && insKind !== "ne")
+  if (!x.f && x.nws?.level && insKind !== "ne")
     notes.push(
       `<b>Snow level (NWS):</b> ${Math.round(x.nws.level.max / 100) * 100 === Math.round(x.nws.level.min / 100) * 100 ? Math.round(x.nws.level.min / 100) * 100 + " ft" : `${(Math.round(x.nws.level.max / 100) * 100).toLocaleString()} ft falling to ${(Math.round(x.nws.level.min / 100) * 100).toLocaleString()} ft`}${x.elevFt ? ` (this point ≈ ${Math.round(x.elevFt).toLocaleString()} ft)` : ""}.`,
     );
@@ -535,7 +535,7 @@ function stormCard(x, section, idx, inner = false) {
       ? `<tr class="flag"><th>NWS</th><td data-label="Liquid">${fmtAmt(x.nws.liquid.inches, false)}</td><td data-label="Snow">${x.nws.snow ? fmtAmt(x.nws.snow.inches, true) : "–"}</td><td data-label="${x.current ? "Ends" : "Starts"}">official</td></tr>`
       : ""
   }</tbody></table></div>`;
-  const body = `<div class="ins-stats"><div><span>NWS forecast</span><strong>${nwsPart}</strong><small>${unit.toLowerCase()} · official</small></div><div><span>${x.shared ? "Likely range" : "Model range"}</span><strong>${range}</strong><small>10th–90th percentile of ${x.shared ? "the ensemble runs, scaled to NWS" : `${x.members.length} ensemble runs`}</small></div><div><span>Middle outcome</span><strong>${fmtAmt(x.p50, x.snowy)}</strong><small>${x.shared ? "same as Snow forecast" : "ensemble median"}${x.snowy ? ` · ${fmtAmt(x.liqRange[1], false)} liquid` : ""}</small></div></div>${likely ? `<p class="ins-likely"><b>Most likely:</b> ${escapeHTML(likely)}</p>` : ""}<div class="ins-bars" aria-label="Share of ensemble runs by total">${bars}</div><details class="ins-more"><summary>Technical details</summary><ul class="ins-notes">${notes.map((n) => `<li>${n}</li>`).join("")}</ul>${table}</details>`;
+  const body = `<div class="ins-stats"><div><span>NWS forecast</span><strong>${nwsPart}</strong><small>${unit.toLowerCase()} · official</small></div><div><span>${x.shared ? "Likely range" : "Model range"}</span><strong>${range}</strong><small>10th–90th percentile of ${x.shared ? "the ensemble runs, scaled to NWS" : `${x.members.length} ensemble runs`}</small></div><div><span>Middle outcome</span><strong>${fmtAmt(x.p50, x.snowy)}</strong><small>${x.shared ? "same as Snow forecast" : "ensemble median"}${x.snowy ? ` · ${fmtAmt(x.f ? x.f.liq : x.liqRange[1], false)} water` : ""}</small></div></div>${likely ? `<p class="ins-likely"><b>Most likely:</b> ${escapeHTML(likely)}</p>` : ""}<div class="ins-bars" aria-label="Share of ensemble runs by total">${bars}</div><details class="ins-more"><summary>Technical details</summary><ul class="ins-notes">${notes.map((n) => `<li>${n}</li>`).join("")}</ul>${table}</details>`;
   if (inner) return body;
   return `<article class="card afd-card ins-storm"><div class="ins-head"><h3>${title}</h3><span class="ins-conf ins-conf-${(x.conf || "na").toLowerCase()}">${x.conf ? x.conf + " confidence" : "Confidence n/a"}</span></div><p class="ins-timing">${escapeHTML(timing)}</p>${body}</article>`;
 }
@@ -1091,7 +1091,10 @@ function bandFromOutlook(o) {
 function cycleCard(storms, data, section, elevFt, placeName, o) {
   const list = storms
     .map((x, i) => {
-      const lvl = x.nws?.level
+      const sl = (v) => (Math.round(v / 100) * 100).toLocaleString(); // same rounding as the story
+      const lvl = x.f && Number.isFinite(x.f.l0)
+        ? `Snow level ${sl(x.f.l0)}${Number.isFinite(x.f.lMin) && Math.abs(x.f.l0 - x.f.lMin) >= 300 ? ` → ${sl(x.f.lMin)}` : ""} ft`
+        : x.nws?.level
         ? `Snow level ${(Math.round(x.nws.level.max / 100) * 100).toLocaleString()}${Math.round(x.nws.level.max / 100) !== Math.round(x.nws.level.min / 100) ? ` → ${(Math.round(x.nws.level.min / 100) * 100).toLocaleString()}` : ""} ft (NWS)`
         : x.t700mean != null
           ? `Snow level about ${(Math.round(snowLevelAt(null, 0, x.t700mean) / 100) * 100).toLocaleString()} ft (models)`
@@ -1099,7 +1102,7 @@ function cycleCard(storms, data, section, elevFt, placeName, o) {
       const q = snowQuality(x.t700mean);
       const r = o ? SnowCore.windowSnow(o, ...stormWindow(x)) : cycleRange(data, elevFt, ...stormWindow(x));
       const amt = !r ? "–" : r.lo != null ? `${fmtAmt(r.mid, true)} <small class="rng">(${fmtAmt(r.lo, true)}–${fmtAmt(r.hi, true)})</small>` : fmtAmt(r.mid, true);
-      return `<li><details${i === 0 ? " open" : ""}><summary><b>Storm ${i + 1}</b><span>${escapeHTML(x.current ? `Now → ${partOfDay(x.end, section)}` : `${cap(partOfDay(x.start, section))} → ${partOfDay(x.end, section)}`)}</span><span class="amt">${amt} here</span><span class="ins-conf ins-conf-${(x.conf || "na").toLowerCase()}">${x.conf ? x.conf + " confidence" : "Confidence n/a"}</span><small>${[lvl, q && x.snowy !== false ? `${q.label} (${q.short})` : ""].filter(Boolean).map(escapeHTML).join(" · ")}</small><span class="ins-open" aria-hidden="true"></span></summary><div class="ins-storm-body">${stormCard(x, section, i, true)}</div></details></li>`;
+      return `<li><details${i === 0 ? " open" : ""}><summary><b>Storm ${i + 1}</b><span>${escapeHTML(x.current ? `Now → ${partOfDay(x.end, section)}` : `${cap(partOfDay(x.start, section))} → ${partOfDay(x.end, section)}`)}</span><span class="amt">${amt} here</span><span class="ins-conf ins-conf-${(x.conf || "na").toLowerCase()}">${x.conf ? x.conf + " confidence" : "Confidence n/a"}</span><small>${[lvl, x.f?.quality && x.snowy !== false ? `${x.f.quality} (${x.f.ratio})` : q && x.snowy !== false ? `${q.label} (${q.short})` : ""].filter(Boolean).map(escapeHTML).join(" · ")}</small><span class="ins-open" aria-hidden="true"></span></summary><div class="ins-storm-body">${stormCard(x, section, i, true)}</div></details></li>`;
     })
     .join("");
   const band = o ? bandFromOutlook(o) : cycleBand(data, elevFt);
@@ -1259,7 +1262,7 @@ function storyCard(o, kinds, data, section, sum, pt) {
       link: `<button type="button" class="linkish" data-view="afd">NWS discussion ›</button>`,
     }).replace(
       "</article>",
-      `${learn ? `<p class="ins-learn"><b>Good to know:</b> ${escapeHTML(learn)}</p>` : ""}${section === "utah" ? avyLine(o.lat != null ? o : { lat: pt?.p?.[0], lon: pt?.p?.[1] }) : ""}<p class="source">Written from the same snow forecast as the Snow section, for ${o.ski ? `the summit (${o.summit.toLocaleString()} ft)` : "ground level"}: NWS for its first ~7 days, then the GEFS and ECMWF ensembles.</p></article>`,
+      `${learn ? `<p class="ins-learn"><b>Good to know:</b> ${escapeHTML(learn)}</p>` : ""}${section === "utah" ? avyLine(o.lat != null ? o : { lat: pt?.p?.[0], lon: pt?.p?.[1] }) : ""}</article>`,
     );
   } catch (e) {
     console.warn("Forecast story", e);
@@ -1296,6 +1299,10 @@ async function loadInsights(pt, section) {
     if (o)
       for (const x of storms) {
         const w = SnowCore.windowSnow(o, ...stormWindow(x));
+        // The story and this list read one set of storm facts (amounts, snow level, quality, water).
+        const f = typeof ForecastStory !== "undefined" ? ForecastStory.facts(o, ...stormWindow(x)) : null;
+        if (f) Object.assign(w, { lo: f.snow.lo, mid: f.snow.mid, hi: f.snow.hi });
+        x.f = f;
         if (!x.snowy && w.mid < 1) continue;
         Object.assign(x, { snowy: true, p10: w.lo, p50: w.mid, p90: w.hi, snowRange: [w.lo, w.mid, w.hi], shared: true });
         // Bucket shares from the same runs, centered on the middle outcome, so "most likely" agrees with the range.
@@ -1306,7 +1313,7 @@ async function loadInsights(pt, section) {
         }
       }
     updatePatternSignals(data, section);
-    const story = storyCard(o, storms.map((x) => ({ start: x.start, end: x.end, ...stormStory(x, data, section) })), data, section, sum, pt);
+    const story = storyCard(o, storms.map((x) => ({ start: x.start, end: x.end, win: o ? stormWindow(x) : null, current: x.current, ...stormStory(x, data, section) })), data, section, sum, pt);
     html += story;
     if (storms.length) {
       const which = place && !place.searched ? `${place.name}${place.p.length > 1 ? ` ${pt.p[2]?.split(" · ")[0]?.toLowerCase() || ""}` : ""}` : "";
