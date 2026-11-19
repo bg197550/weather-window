@@ -17,8 +17,7 @@ const insCache = new Map();
 let insKind = "utah",
   insHigh = true,
   insEvents = [],
-  insTrend = null,
-  insTemps = null;
+  insTrend = null;
 const H = 3600000;
 
 function insFetch(p) {
@@ -426,6 +425,11 @@ function likelyText(x) {
     return `${first.label} or ${second.label} (${Math.round(first.pct)}% / ${Math.round(second.pct)}% of ensemble members)`;
   return `${first.label} (${Math.round(first.pct)}% of ensemble members)`;
 }
+function sharedDist(vals) {
+  return SNOW_BINS.map(([lo, hi, label]) => ({ label, lo, hi, pct: (100 * vals.filter((v) => v >= lo && v < hi).length) / vals.length })).filter(
+    (x, i, arr) => x.pct >= 1 || (i > 0 && i < arr.length - 1 && arr.slice(0, i).some((y) => y.pct) && arr.slice(i + 1).some((y) => y.pct)),
+  );
+}
 function fmtAmt(v, snowy) {
   if (v == null) return "–";
   return snowy ? (v < 1 ? v.toFixed(1) : Math.round(v)) + "″" : v.toFixed(2) + "″";
@@ -433,10 +437,11 @@ function fmtAmt(v, snowy) {
 function snowQuality(t700F) {
   if (t700F == null) return null;
   const c = fToC(t700F);
-  if (c > -4) return { label: "Wet, dense snow", ratio: "about 8–10:1", c };
-  if (c > -9) return { label: "Average density", ratio: "about 10–13:1", c };
-  if (c > -16) return { label: "Light, dry snow", ratio: "about 14–18:1", c };
-  return { label: "Very cold, small flakes", ratio: "about 12–15:1", c };
+  // Plain-words snow quality from the 700 mb temperature, with the usual snow-to-water ratio.
+  if (c > -4) return { label: "Heavy, wet snow", ratio: "about 8–10″ of snow per 1″ of water", short: "8–10:1", c };
+  if (c > -9) return { label: "Medium-weight snow", ratio: "about 10–13″ of snow per 1″ of water", short: "10–13:1", c };
+  if (c > -16) return { label: "Light, dry snow", ratio: "about 14–18″ of snow per 1″ of water", short: "14–18:1", c };
+  return { label: "Cold, fine snow", ratio: "about 12–15″ of snow per 1″ of water", short: "12–15:1", c };
 }
 function flowNote(x) {
   if (x.dir700 == null) return null;
@@ -470,7 +475,7 @@ function ptypeNote(x) {
   return `850 mb temperatures around ${Math.round(c)}°C: too warm aloft for snow; expect rain.`;
 }
 
-function stormCard(x, section, idx) {
+function stormCard(x, section, idx, inner = false) {
   const now = Date.now();
   const current = x.current;
   const title = idx === 0 ? (current ? "Current storm · still to come" : "Next storm") : `Storm ${idx + 1}`;
@@ -497,7 +502,7 @@ function stormCard(x, section, idx) {
   const notes = [];
   if (x.snowy && q)
     notes.push(
-      `<b>Snow quality:</b> ${q.label}. 700 mb temperature averages ${Math.round(q.c)}°C during the storm, which suggests snow-to-liquid ratios ${q.ratio}.`,
+      `<b>Snow quality:</b> ${q.label}, ${q.ratio}. 700 mb temperature averages ${Math.round(q.c)}°C during the storm.`,
     );
   if (x.nws?.level && insKind !== "ne")
     notes.push(
@@ -530,7 +535,9 @@ function stormCard(x, section, idx) {
       ? `<tr class="flag"><th>NWS</th><td data-label="Liquid">${fmtAmt(x.nws.liquid.inches, false)}</td><td data-label="Snow">${x.nws.snow ? fmtAmt(x.nws.snow.inches, true) : "–"}</td><td data-label="${x.current ? "Ends" : "Starts"}">official</td></tr>`
       : ""
   }</tbody></table></div>`;
-  return `<article class="card afd-card ins-storm"><div class="ins-head"><h3>${title}</h3><span class="ins-conf ins-conf-${(x.conf || "na").toLowerCase()}">${x.conf ? x.conf + " confidence" : "Confidence n/a"}</span></div><p class="ins-timing">${escapeHTML(timing)}</p><div class="ins-stats"><div><span>NWS forecast</span><strong>${nwsPart}</strong><small>${unit.toLowerCase()} · official</small></div><div><span>${x.shared ? "Likely range" : "Model range"}</span><strong>${range}</strong><small>10th–90th percentile of ${x.shared ? "the ensemble runs, scaled to NWS" : `${x.members.length} ensemble runs`}</small></div><div><span>Middle outcome</span><strong>${fmtAmt(x.p50, x.snowy)}</strong><small>${x.shared ? "same as Snow forecast" : "ensemble median"}${x.snowy ? ` · ${fmtAmt(x.liqRange[1], false)} liquid` : ""}</small></div></div>${likely ? `<p class="ins-likely"><b>Most likely:</b> ${escapeHTML(likely)}</p>` : ""}<div class="ins-bars" aria-label="Share of ensemble runs by total">${bars}</div><details class="ins-more"><summary>Technical details</summary><ul class="ins-notes">${notes.map((n) => `<li>${n}</li>`).join("")}</ul>${table}</details></article>`;
+  const body = `<div class="ins-stats"><div><span>NWS forecast</span><strong>${nwsPart}</strong><small>${unit.toLowerCase()} · official</small></div><div><span>${x.shared ? "Likely range" : "Model range"}</span><strong>${range}</strong><small>10th–90th percentile of ${x.shared ? "the ensemble runs, scaled to NWS" : `${x.members.length} ensemble runs`}</small></div><div><span>Middle outcome</span><strong>${fmtAmt(x.p50, x.snowy)}</strong><small>${x.shared ? "same as Snow forecast" : "ensemble median"}${x.snowy ? ` · ${fmtAmt(x.liqRange[1], false)} liquid` : ""}</small></div></div>${likely ? `<p class="ins-likely"><b>Most likely:</b> ${escapeHTML(likely)}</p>` : ""}<div class="ins-bars" aria-label="Share of ensemble runs by total">${bars}</div><details class="ins-more"><summary>Technical details</summary><ul class="ins-notes">${notes.map((n) => `<li>${n}</li>`).join("")}</ul>${table}</details>`;
+  if (inner) return body;
+  return `<article class="card afd-card ins-storm"><div class="ins-head"><h3>${title}</h3><span class="ins-conf ins-conf-${(x.conf || "na").toLowerCase()}">${x.conf ? x.conf + " confidence" : "Confidence n/a"}</span></div><p class="ins-timing">${escapeHTML(timing)}</p>${body}</article>`;
 }
 
 /* ---------- pattern ---------- */
@@ -579,31 +586,27 @@ function fronts(times, temp, dir, section, now) {
   return [...sharp, ...slow].sort((a, b) => a.t - b.t);
 }
 
-function patternCard(data, section, storms) {
+function updatePatternSignals(data, section) {
   const det = data.det,
     t = det.hourly.time.map(insT),
     now = Date.now();
   const ftToM = det.hourly_units?.[`geopotential_height_500hPa_${INS_MODELS[0][1]}`] === "ft" || meanSeries(det, "geopotential_height_500hPa").some((v) => v > 8000);
   const z = meanSeries(det, "geopotential_height_500hPa").map((v) => (v != null && ftToM ? v / 3.28084 : v)),
-    p = meanSeries(det, "pressure_msl"),
-    tUp = meanSeries(det, insHigh ? "temperature_700hPa" : "temperature_850hPa"),
-    t2 = meanSeries(det, "temperature_2m");
+    tUp = meanSeries(det, insHigh ? "temperature_700hPa" : "temperature_850hPa");
   const dirUp = det.hourly.time.map((_, i) => circMean(series(det, "wind_direction_700hPa").map((s) => s.values[i])));
   const fut = t.map((x, i) => (x >= now - 3 * H ? i : -1)).filter((i) => i >= 0);
   const ft = fut.map((i) => t[i]),
-    fz = fut.map((i) => z[i]),
-    fp = fut.map((i) => p[i]);
-  const items = [];
+    fz = fut.map((i) => z[i]);
   insEvents = [];
 
   // Upper air: troughs and ridges at 500 mb.
   const troughs = extrema(ft, fz, 50, 30, "min"),
     ridges = extrema(ft, fz, 50, 30, "max");
   const zs = series(det, "geopotential_height_500hPa").map((q) => ({ ...q, values: q.values.map((v) => (v != null && ftToM ? v / 3.28084 : v)) }));
-  const upper = [...troughs.map((x) => ({ ...x, kind: "trough" })), ...ridges.map((x) => ({ ...x, kind: "ridge" }))]
+  [...troughs.map((x) => ({ ...x, kind: "trough" })), ...ridges.map((x) => ({ ...x, kind: "ridge" }))]
     .sort((a, b) => a.t - b.t)
     .slice(0, 4)
-    .map((x) => {
+    .forEach((x) => {
       const gi = fut[x.i];
       const times = zs
         .map((s) => {
@@ -616,56 +619,21 @@ function patternCard(data, section, storms) {
       const spread = times.length > 1 ? (Math.max(...times.map((q) => q.t)) - Math.min(...times.map((q) => q.t))) / H : 0;
       const fastest = [...times].sort((a, b) => a.t - b.t)[0];
       insEvents.push({ t: x.t, kind: x.kind, spread, fastest: fastest?.name });
-      return `${x.kind === "trough" ? "Trough axis" : "Ridge axis"} overhead ${partOfDay(x.t, section)} (500 mb height ${Math.round(x.v / 10)} dam).${
-        spread >= 12 ? ` Models differ by ~${Math.round(spread)} h on timing; ${fastest.name} is fastest.` : " Models agree on timing."
-      }`;
     });
   if (fz.length > 100) {
     const early = mean(fz.slice(0, 48)),
       late = mean(fz.slice(120, 192));
     const trend = late - early;
     insTrend = trend <= -60 ? "colder" : trend >= 60 ? "warmer" : "steady";
-    const head =
-      trend <= -60
-        ? `Heights fall about ${Math.round(-trend / 10)} dam from the next two days to days 5–8: the pattern trends colder and more active.`
-        : trend >= 60
-          ? `Heights rise about ${Math.round(trend / 10)} dam from the next two days to days 5–8: ridging, warmer and drier.`
-          : "No large change in mean 500 mb heights over the next week: a fairly steady pattern.";
-    items.push(["Upper levels", [head, ...upper]]);
-  } else if (upper.length) items.push(["Upper levels", upper]);
-
-  // Surface: highs and lows from sea-level pressure.
-  const lows = extrema(ft, fp, 4, 18, "min"),
-    highs = extrema(ft, fp, 4, 18, "max");
-  const sfc = [...lows.map((x) => ({ ...x, k: "low" })), ...highs.map((x) => ({ ...x, k: "high" }))]
-    .sort((a, b) => a.t - b.t)
-    .slice(0, 5)
-    .map((x) =>
-      x.k === "low"
-        ? `Low pressure / surface trough passes ${partOfDay(x.t, section)} (≈${Math.round(x.v)} mb at the minimum).`
-        : `High pressure builds ${partOfDay(x.t, section)} (≈${Math.round(x.v)} mb).`,
-    );
-  if (insHigh && sfc.length)
-    sfc.push("Sea-level pressure over Utah is reduced from high terrain, so use it for timing and trend more than exact values.");
-  if (sfc.length) items.push(["Surface highs and lows", sfc]);
+  } else insTrend = null;
 
   // Fronts from temperature change aloft (no daily cycle at 700/850 mb).
-  const fr = fronts(t, tUp, dirUp, section, now)
+  fronts(t, tUp, dirUp, section, now)
     .filter((f) => f.t < now + 8 * 24 * H)
     .slice(0, 4)
-    .map((f) => {
+    .forEach((f) => {
       insEvents.push({ t: f.t, kind: f.kind === "cold" ? "cold" : "warm", dF: Math.round(Math.abs(f.dC) * 1.8), gradual: f.gradual });
-      const lvl = insHigh ? "700 mb" : "850 mb";
-      const shift = f.before != null && f.after != null && compass(f.before) !== compass(f.after) ? `, winds aloft shift ${compass(f.before)} → ${compass(f.after)}` : "";
-      if (f.gradual)
-        return f.kind === "cold"
-          ? `Colder air filters in ${partOfDay(f.t, section)}: ${lvl} temperature falls about ${Math.round(-f.dC)}°C over 24 hours, a gradual post-frontal cooldown rather than a sharp front.`
-          : `Warming aloft ${partOfDay(f.t, section)}: ${lvl} temperature rises about ${Math.round(f.dC)}°C over 24 hours.`;
-      return f.kind === "cold"
-        ? `Cold front ${partOfDay(f.t, section)}: ${lvl} temperature drops about ${Math.round(-f.dC)}°C in 12 hours${shift}.`
-        : `Warm advection ${partOfDay(f.t, section)}: ${lvl} temperature rises about ${Math.round(f.dC)}°C in 12 hours${shift}.`;
     });
-  if (fr.length) items.push(["Fronts", fr]);
 
   // Best snow pattern windows.
   if (insKind === "utah") {
@@ -686,45 +654,8 @@ function patternCard(data, section, storms) {
       }
       const best = runs.sort((a, b) => b[1] - b[0] - (a[1] - a[0]))[0];
       insEvents.push({ t: best[0], kind: "powder", end: best[1] + H });
-      items.push([
-        "Best snow pattern",
-        [
-          `Cold northwest flow with precipitation ${partOfDay(best[0], section)} to ${partOfDay(best[1] + H, section)}: the post-frontal setup that typically produces the Wasatch's best and lightest snow.`,
-        ],
-      ]);
-    } else if (storms.some((s) => s.snowy))
-      items.push(["Best snow pattern", ["No cold northwest-flow window with precipitation in the next 10 days; snow comes mainly with the frontal band."]]);
+    }
   }
-
-  // Temperature trend.
-  const days = [];
-  const zone = regionZone(section);
-  t.forEach((x, i) => {
-    if (x < now - 3 * H || !Number.isFinite(t2[i])) return;
-    const key = new Date(x).toLocaleDateString("en-CA", { timeZone: zone });
-    let d = days.find((q) => q.key === key);
-    if (!d) days.push((d = { key, t: x, hi: -999, lo: 999 }));
-    d.hi = Math.max(d.hi, t2[i]);
-    d.lo = Math.min(d.lo, t2[i]);
-  });
-  const full = days.slice(1, 9);
-  if (full.length >= 4) {
-    const coldest = full.reduce((a, b) => (b.hi < a.hi ? b : a)),
-      warmest = full.reduce((a, b) => (b.hi > a.hi ? b : a));
-    const ambiguous = coldest.key !== warmest.key && new Date(coldest.t).getUTCDay() === new Date(warmest.t).getUTCDay();
-    const name = (d) => new Date(d.t).toLocaleDateString("en-US", ambiguous ? { weekday: "short", month: "short", day: "numeric", timeZone: zone } : { weekday: "short", timeZone: zone });
-    insTemps = { coldest, warmest, name };
-    items.push([
-      "Temperatures",
-      [
-        `Model highs range from ${Math.round(coldest.hi)}° (${name(coldest)}) to ${Math.round(warmest.hi)}° (${name(warmest)}) over the next week; ${warmest.t > coldest.t ? "warming after the cold point" : "cooling into the colder stretch"}.`,
-      ],
-    ]);
-  }
-  if (!items.length) return "";
-  return `<details class="card afd-card ins-pattern ins-tech"><summary><h3>Pattern details</h3><span class="muted">troughs, ridges, fronts, pressure</span></summary>${items
-    .map(([h, list]) => `<section><h4>${escapeHTML(h)}</h4><ul>${list.map((s) => `<li>${escapeHTML(s)}</li>`).join("")}</ul></section>`)
-    .join("")}<p class="source">Mean of GFS, ECMWF, GEM and ICON at this point via <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo ↗</a>. Troughs and ridges come from 500 mb heights, fronts from 12-hour temperature change at ${insHigh ? "700" : "850"} mb.</p></details>`;
 }
 
 /* Forecaster sentences about confidence and the models, for the plain-English summary. */
@@ -1168,7 +1099,7 @@ function cycleCard(storms, data, section, elevFt, placeName, o) {
       const q = snowQuality(x.t700mean);
       const r = o ? SnowCore.windowSnow(o, ...stormWindow(x)) : cycleRange(data, elevFt, ...stormWindow(x));
       const amt = !r ? "–" : r.lo != null ? `${fmtAmt(r.mid, true)} <small class="rng">(${fmtAmt(r.lo, true)}–${fmtAmt(r.hi, true)})</small>` : fmtAmt(r.mid, true);
-      return `<li><b>Storm ${i + 1}</b><span>${escapeHTML(x.current ? `Now → ${partOfDay(x.end, section)}` : `${cap(partOfDay(x.start, section))} → ${partOfDay(x.end, section)}`)}</span><span class="amt">${amt} here</span><span class="ins-conf ins-conf-${(x.conf || "na").toLowerCase()}">${x.conf ? x.conf + " confidence" : "Confidence n/a"}</span><small>${[lvl, q?.label].filter(Boolean).map(escapeHTML).join(" · ")}</small></li>`;
+      return `<li><details${i === 0 ? " open" : ""}><summary><b>Storm ${i + 1}</b><span>${escapeHTML(x.current ? `Now → ${partOfDay(x.end, section)}` : `${cap(partOfDay(x.start, section))} → ${partOfDay(x.end, section)}`)}</span><span class="amt">${amt} here</span><span class="ins-conf ins-conf-${(x.conf || "na").toLowerCase()}">${x.conf ? x.conf + " confidence" : "Confidence n/a"}</span><small>${[lvl, q && x.snowy !== false ? `${q.label} (${q.short})` : ""].filter(Boolean).map(escapeHTML).join(" · ")}</small><span class="ins-open" aria-hidden="true"></span></summary><div class="ins-storm-body">${stormCard(x, section, i, true)}</div></details></li>`;
     })
     .join("");
   const band = o ? bandFromOutlook(o) : cycleBand(data, elevFt);
@@ -1182,7 +1113,7 @@ function cycleCard(storms, data, section, elevFt, placeName, o) {
     band && last != null
       ? `<h4>10-day total${placeName ? ` · ${escapeHTML(placeName)}` : ""}</h4><div class="ins-stats"><div><span>Low end</span><strong>${fmtAmt(band.p10[last], true)}</strong><small>ensemble spread, 10th percentile</small></div><div><span>Middle</span><strong>${fmtAmt(band.p50[last], true)}</strong><small>${o ? "same as Snow forecast" : "model average"}</small></div><div><span>High end</span><strong>${fmtAmt(band.p90[last], true)}</strong><small>ensemble spread, 90th percentile</small></div></div>${bandChart(band, storms, section)}`
       : "";
-  return `<article class="card afd-card ins-cycle"><div class="ins-head"><h3>Wasatch storm cycle · next 10 days</h3><span class="ins-conf">${storms.length} storm${storms.length === 1 ? "" : "s"}</span></div><ol class="ins-cycle-list">${list}</ol>${totals}<p class="ins-cycle-links"><a class="xlink" href="${o?.ski ? `snow/#mountain/${section}/${o.slug}` : `#${section}/${o ? o.slug : WW.place().slug}/snow`}">Snow forecast: day by day, every model run, snow level ›</a> <a class="xlink" href="snow/#forecast/${section}">Compare all mountains ›</a></p><p class="source">${
+  return `<article class="card afd-card ins-cycle"><div class="ins-head"><h3>${insKind === "utah" ? "Wasatch storm cycle" : "Storms"} · next 10 days</h3><span class="ins-conf">${storms.length} storm${storms.length === 1 ? "" : "s"}</span></div><ol class="ins-cycle-list">${list}</ol>${totals}<p class="ins-cycle-links"><a class="xlink" href="${o?.ski ? `snow/#mountain/${section}/${o.slug}` : `#${section}/${o ? o.slug : WW.place().slug}/snow`}">Snow forecast: day by day, every model run, snow level ›</a> <a class="xlink" href="snow/#forecast/${section}">Compare all mountains ›</a></p><p class="source">${
     o
       ? `Amounts are for ${o.ski ? `the summit (${o.summit.toLocaleString()} ft)` : "ground level"} and match the Snow section (Snow forecast and All mountains): the NWS forecast for its first ~7 days, then the GEFS and ECMWF ensemble median; ranges are the ensemble runs scaled to NWS.`
       : "Amounts use the GFS, ECMWF, GEM and ICON average with snow level and ratio from each model's 700 mb temperature (the shared snow forecast was unavailable)."
@@ -1273,13 +1204,53 @@ async function loadPrevForecast() {
     insPrevFc = fc;
   } catch {}
 }
-function storyCard(o, kinds, data, section, sum) {
+// Backcountry avalanche danger from the Utah Avalanche Center via avalanche.org's free public map layer.
+let insAvy = null,
+  insScore = null;
+function loadScore() {
+  return fetch("https://raw.githubusercontent.com/bg197550/weather-window/data/scorecard.json", { cache: "no-cache" })
+    .then((r) => (r.ok ? r.json() : null))
+    .then((j) => (insScore = j))
+    .catch(() => null);
+}
+function loadAvy() {
+  return fetch("https://api.avalanche.org/v2/public/products/map-layer/UAC")
+    .then((r) => (r.ok ? r.json() : null))
+    .then((j) => (insAvy = j))
+    .catch(() => null);
+}
+function inRing(lon, lat, ring) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i], [xj, yj] = ring[j];
+    if (yi > lat !== yj > lat && lon < ((xj - xi) * (lat - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+function avyZone(fc, lat, lon) {
+  for (const f of fc?.features || []) {
+    const g = f.geometry;
+    const polys = g?.type === "Polygon" ? [g.coordinates] : g?.type === "MultiPolygon" ? g.coordinates : [];
+    if (polys.some((p) => p[0] && inRing(lon, lat, p[0]))) return f.properties;
+  }
+  return null;
+}
+const AVY_WORD = { 1: "Low", 2: "Moderate", 3: "Considerable", 4: "High", 5: "Extreme" };
+function avyLine(o) {
+  const z = o && o.lat != null && avyZone(insAvy, o.lat, o.lon);
+  if (!z || z.off_season) return "";
+  const lvl = z.danger_level;
+  const what = AVY_WORD[lvl] ? `<b>${AVY_WORD[lvl]}</b> (${lvl} of 5)` : "no danger rating issued today";
+  const warn = z.warning?.product ? " <b>Avalanche warning in effect.</b>" : "";
+  const adv = AVY_WORD[lvl] && z.travel_advice ? ` ${escapeHTML(z.travel_advice)}` : "";
+  return `<p class="ins-avy"><b>Backcountry avalanche danger · ${escapeHTML(z.name)} (UAC):</b> ${what}.${warn}${adv} <a class="xlink" href="${escapeHTML(z.link || "https://utahavalanchecenter.org/")}" target="_blank" rel="noopener">Full forecast ›</a></p>`;
+}
+function storyCard(o, kinds, data, section, sum, pt) {
   if (!o || typeof ForecastStory === "undefined") return "";
   try {
-    const n = afdNotes(data.afd);
-    const k = n?.keys?.[0] || "";
-    const st = ForecastStory.build(o, { section, sum, kinds, afdQuote: k.length > 200 ? k.slice(0, 195).replace(/\s\S*$/, "") + "…" : k });
+    const st = ForecastStory.build(o, { section, sum, kinds, afdQuote: "" }); // NWS key messages have their own card below
     const rc = section === "utah" && insSnotel && ForecastStory.recap ? ForecastStory.recap(insSnotel, { slug: o.slug, tz: o.tz }) : null;
+    if (section === "utah" && insScore) st.score = ForecastStory.scorecard(insScore);
     if (rc) st.recap = [rc.text, ForecastStory.verify(rc, insPrevFc, data.afd?.afd?.productText), rc.note].filter(Boolean).join(" ");
     const learn = kinds[0]?.learn;
     return ForecastStory.html(st, {
@@ -1288,7 +1259,7 @@ function storyCard(o, kinds, data, section, sum) {
       link: `<button type="button" class="linkish" data-view="afd">NWS discussion ›</button>`,
     }).replace(
       "</article>",
-      `${learn ? `<p class="ins-learn"><b>Good to know:</b> ${escapeHTML(learn)}</p>` : ""}<p class="source">Written from the same snow forecast as the Snow section, for ${o.ski ? `the summit (${o.summit.toLocaleString()} ft)` : "ground level"}: NWS for its first ~7 days, then the GEFS and ECMWF ensembles.</p></article>`,
+      `${learn ? `<p class="ins-learn"><b>Good to know:</b> ${escapeHTML(learn)}</p>` : ""}${section === "utah" ? avyLine(o.lat != null ? o : { lat: pt?.p?.[0], lon: pt?.p?.[1] }) : ""}<p class="source">Written from the same snow forecast as the Snow section, for ${o.ski ? `the summit (${o.summit.toLocaleString()} ft)` : "ground level"}: NWS for its first ~7 days, then the GEFS and ECMWF ensembles.</p></article>`,
     );
   } catch (e) {
     console.warn("Forecast story", e);
@@ -1304,7 +1275,10 @@ async function loadInsights(pt, section) {
   const basis = owner && (owner.p.length === 1 || owner.p[owner.p.length - 1] === owner.p.find((q) => q[0] === pt.p[0] && q[1] === pt.p[1]));
   const outlookP = basis && typeof SnowCore !== "undefined" ? Promise.race([SnowCore.forPlace(owner, section).catch(() => null), new Promise((r) => setTimeout(() => r(null), 12000))]) : Promise.resolve(null);
   const sumP = basis && typeof SnowCore !== "undefined" ? SnowCore.summary().catch(() => null) : Promise.resolve(null);
-  const snoP = section === "utah" ? Promise.race([(insSnotel ? Promise.resolve() : loadSnotelRecap()).then(loadPrevForecast), new Promise((r) => setTimeout(r, 8000))]) : Promise.resolve();
+  const snoP =
+    section === "utah"
+      ? Promise.race([Promise.all([(insSnotel ? Promise.resolve() : loadSnotelRecap()).then(loadPrevForecast), insAvy ? null : loadAvy(), insScore ? null : loadScore()]), new Promise((r) => setTimeout(r, 8000))])
+      : Promise.resolve();
   const [data, o, sum] = await Promise.all([insFetch(pt.p), outlookP, sumP, snoP]);
   if (!el.isConnected || el.dataset.key !== pt.p.slice(0, 2).join(",")) return;
   let html = "",
@@ -1324,23 +1298,28 @@ async function loadInsights(pt, section) {
         const w = SnowCore.windowSnow(o, ...stormWindow(x));
         if (!x.snowy && w.mid < 1) continue;
         Object.assign(x, { snowy: true, p10: w.lo, p50: w.mid, p90: w.hi, snowRange: [w.lo, w.mid, w.hi], shared: true });
+        // Bucket shares from the same runs, centered on the middle outcome, so "most likely" agrees with the range.
+        if (w.values?.length >= 5) {
+          const med = w.values[Math.floor(w.values.length / 2)];
+          const k = med > 0.05 ? w.mid / med : 1;
+          x.dist = sharedDist(w.values.map((v) => v * k));
+        }
       }
-    const pattern = patternCard(data, section, storms);
-    const story = storyCard(o, storms.map((x) => ({ start: x.start, end: x.end, ...stormStory(x, data, section) })), data, section, sum);
+    updatePatternSignals(data, section);
+    const story = storyCard(o, storms.map((x) => ({ start: x.start, end: x.end, ...stormStory(x, data, section) })), data, section, sum, pt);
     html += story;
-    if (insKind === "utah" && storms.length) {
+    if (storms.length) {
       const which = place && !place.searched ? `${place.name}${place.p.length > 1 ? ` ${pt.p[2]?.split(" · ")[0]?.toLowerCase() || ""}` : ""}` : "";
       html += cycleCard(storms, data, section, elevOf(pt.p[2]) ?? elevFt, which.trim(), o);
       cycle = storms;
     }
     if (!story) html += summaryCard(storms, data, section);
     html += storms.length
-      ? storms.map((s, i) => stormCard(s, section, i)).join("")
+      ? ""
       : `<article class="card afd-card ins-storm"><h3>No storm in sight</h3><p>None of the GFS, ECMWF, GEM or ICON models show a meaningful precipitation event (0.05″ liquid or more) in the next 10 days.</p></article>`;
-    html += pattern;
   } else {
     // Insights' own model data failed (often Open-Meteo's free limit); the story only needs the shared snow outlook.
-    html += storyCard(o, [], data, section, sum);
+    html += storyCard(o, [], data, section, sum, pt);
     html += '<article class="card afd-card"><h3>Model guidance</h3><div class="error">Model data is temporarily unavailable.</div></article>';
   }
   html += afdCard(data.afd, section);
