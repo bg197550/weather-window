@@ -24,20 +24,7 @@ const RESORTS = [
   },
   {
     id: "park-city",
-    name: "Park City Mountain",
-    area: "Park City",
-    source: "https://www.parkcitymountain.com/the-mountain/mountain-conditions/mountain-cams.aspx",
-    cams: [
-      { name: "Mountain Village", embed: "https://player.brownrice.com/embed/parkcitymtnvillage" },
-      { name: "Top of Crescent", embed: "https://player.brownrice.com/embed/parkcitytopcrescent" },
-      { name: "Crescent Ridge", embed: "https://player.brownrice.com/embed/parkcitycrescentridge" },
-    ],
-    region: "utah",
-    forecast: "park-city",
-  },
-  {
-    id: "canyons-resort",
-    name: "Canyons Resort",
+    name: "Park City",
     area: "Park City",
     source: "https://www.parkcitymountain.com/the-mountain/mountain-conditions/mountain-cams.aspx",
     cams: [
@@ -45,9 +32,12 @@ const RESORTS = [
       { name: "Lookout Cabin", embed: "https://player.brownrice.com/embed/parkcitylookoutcabin" },
       { name: "High Meadow", embed: "https://player.brownrice.com/embed/parkcityhighmeadow" },
       { name: "Top of Orange Bubble Express", embed: "https://player.brownrice.com/embed/parkcitytopobx" },
+      { name: "Mountain Village", embed: "https://player.brownrice.com/embed/parkcitymtnvillage" },
+      { name: "Top of Crescent", embed: "https://player.brownrice.com/embed/parkcitytopcrescent" },
+      { name: "Crescent Ridge", embed: "https://player.brownrice.com/embed/parkcitycrescentridge" },
     ],
     region: "utah",
-    forecast: "canyons-resort",
+    forecast: "park-city",
   },
   {
     id: "alta",
@@ -670,7 +660,10 @@ const REGIONS = {
   },
 };
 /* Forecast slug → the name the Weather page uses for it. */
-const FORECAST_NAMES = { "stratton-mountain": "Stratton Mountain", "canyons-resort": "Canyons Resort", "deer-valley": "Deer Valley", "park-city": "Park City" };
+const FORECAST_NAMES = { "stratton-mountain": "Stratton Mountain", "deer-valley": "Deer Valley", "park-city": "Park City" };
+function webcamResortId(id) {
+  return id === "canyons-resort" ? "park-city" : id;
+}
 function regionOf(id) {
   return REGIONS[id] ? id : RESORTS.find((x) => x.id === id)?.region || "utah";
 }
@@ -710,8 +703,8 @@ function render() {
     R = REGIONS[reg],
     list = RESORTS.filter((x) => x.region === reg);
   document.querySelector("#title").textContent = r ? r.name + " webcams" : R.title;
-  if (r && WW.place().cam === r.id) {
-    // Already following this resort (e.g. Snyderville → Canyons cams): keep the place.
+  if (r && webcamResortId(WW.place().cam) === r.id) {
+    // Already following this resort (e.g. Snyderville → Park City cams): keep the place.
   } else if (r?.forecast) WW.setPlace({ section: r.region, slug: r.forecast, name: FORECAST_NAMES[r.forecast] || r.name, cam: r.id });
   else if (r) {
     const c = WW.place();
@@ -809,6 +802,7 @@ function startVideos() {
 function readHash() {
   let id;
   try { id=decodeURIComponent(location.hash.slice(1)); } catch { id=WW.region(); }
+  id = webcamResortId(id);
   active = REGIONS[id] || RESORTS.some((r) => r.id === id) ? id : id === "new-england" ? "ne" : WW.region();
   WW.setRegion(regionOf(active));
   render();
