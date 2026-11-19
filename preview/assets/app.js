@@ -326,7 +326,7 @@ function forecastView() {
   const back = ["afd", "models", "mountain", "snow"].includes(mode)
     ? `<button type="button" class="back-link" data-view="${mode === "afd" || mode === "models" ? "insights" : "forecast"}">‹ ${mode === "afd" || mode === "models" ? "Insights" : "Forecast"}</button>`
     : "";
-  content.innerHTML = `${back}<div class="fc-head"><div class="fc-title"><button type="button" class="place-switch" id="place-switch" aria-expanded="false" aria-controls="place-search" title="Change place"><span class="fc-name">${escapeHTML(place.name)}</span><span class="ps-caret" aria-hidden="true">▾</span></button><p class="fc-sub"><span class="fc-kind">${escapeHTML(section === "utah" ? "Utah" : "New England")}${kind ? " · " + escapeHTML(kind) : ""}</span><span class="fc-note"> — ${escapeHTML(VIEW_NOTES[mode] || "")}</span></p></div><div class="fc-actions"><button type="button" class="icon-btn nearby" id="locate" title="Closest forecast to me" aria-label="Show the closest forecast to my location">⌖</button><button type="button" class="icon-btn" id="refresh" title="Refresh" aria-label="Refresh forecasts">↻</button></div></div><div class="place-search" id="place-search" hidden></div><div class="place-links">${placeLinks(place, section)}</div>${body}${
+  content.innerHTML = `${back}<div class="fc-head"><div class="fc-title"><button type="button" class="place-switch" id="place-switch" aria-expanded="false" aria-controls="place-search" title="Change place"><span class="fc-name">${escapeHTML(place.name)}</span><span class="ps-caret" aria-hidden="true">▾</span></button>${mode !== "forecast" ? `<p class="fc-sub"><span class="fc-kind">${escapeHTML(section === "utah" ? "Utah" : "New England")}${kind ? " · " + escapeHTML(kind) : ""}</span><span class="fc-note"> — ${escapeHTML(VIEW_NOTES[mode] || "")}</span></p>` : ""}</div><div class="fc-actions"><button type="button" class="icon-btn nearby" id="locate" title="Closest forecast to me" aria-label="Show the closest forecast to my location">⌖</button><button type="button" class="icon-btn" id="refresh" title="Refresh" aria-label="Refresh forecasts">↻</button></div></div><div class="place-search" id="place-search" hidden></div><div class="place-links">${placeLinks(place, section)}</div>${body}${
     (mode === "forecast" || mode === "insights") && more.length
       ? `<nav class="more-views" aria-label="More for ${escapeHTML(place.name)}"><h3>More for ${escapeHTML(place.name)}</h3>${more
           .map(([k, n, href]) =>
@@ -587,7 +587,7 @@ function detailedPeriods(periods, pointIndex, section) {
     const date = regionTime(g.lead.startTime, section, { weekday: "long", month: "short", day: "numeric" });
     return `<section class="forecast-day-group"><h3 class="forecast-date">${escapeHTML(date)}</h3><div class="forecast-day-pair">${g.periods.map(({q, index}) => {
       const pop = q.probabilityOfPrecipitation?.value;
-      return `<section class="discussion-period ${q.isDaytime ? "daytime" : "nighttime"}"><h4><button type="button" class="period-day-toggle discussion-heading" data-period-hourly="${index}" aria-expanded="false" aria-controls="period-hours-${pointIndex}-${index}" title="Show NOAA hourly forecast">${forecastIcon(q, "detail")}<span class="period-title">${escapeHTML(q.name)}<strong>${q.isDaytime ? "High" : "Low"} ${q.temperature ?? "–"}°${escapeHTML(q.temperatureUnit || "F")}</strong></span><span class="period-hour-label">Hourly</span><span class="period-day-chevron" aria-hidden="true">›</span></button></h4><div class="period-metrics"><span>Precip chance <b>${pop == null ? "Unavailable" : pop + "%"}</b></span><span>Wind <b>${escapeHTML([q.windDirection, q.windSpeed].filter(Boolean).join(" ") || "Unavailable")}</b></span></div><p>${escapeHTML(q.detailedForecast || q.shortForecast || "No description available.")}</p><div class="period-hourly-body" id="period-hours-${pointIndex}-${index}" hidden><div class="state">Loading NOAA hourly forecast…</div></div></section>`;
+      return `<section class="discussion-period ${q.isDaytime ? "daytime" : "nighttime"}"><h4><button type="button" class="period-day-toggle discussion-heading" data-period-hourly="${index}" aria-expanded="false" aria-controls="period-hours-${pointIndex}-${index}" title="Show NOAA hourly forecast"><span class="period-title">${escapeHTML(q.name)}<strong>${q.isDaytime ? "High" : "Low"} ${q.temperature ?? "–"}°${escapeHTML(q.temperatureUnit || "F")}</strong></span><span class="period-hour-label">Hourly</span></button></h4><div class="period-metrics"><span>Precip chance <b>${pop == null ? "Unavailable" : pop + "%"}</b></span><span>Wind <b>${escapeHTML([q.windDirection, q.windSpeed].filter(Boolean).join(" ") || "Unavailable")}</b></span></div><p>${escapeHTML(q.detailedForecast || q.shortForecast || "No description available.")}</p><div class="period-hourly-body" id="period-hours-${pointIndex}-${index}" hidden><div class="state">Loading NOAA hourly forecast…</div></div></section>`;
     }).join("")}</div></section>`;
   }).join("") + '</div>';
 }
@@ -681,7 +681,7 @@ async function loadDiscussion(place, section) {
       const periods = data.forecast.periods || [];
       el.innerHTML =
         `<h3>${escapeHTML(pt.label)}</h3>${pointDetail(pt, gridFeet(data))}` +
-        '<div class="forecast-observation"><div class="obs-slot" role="status">Loading current observation…</div><p class="source">Nearby station conditions may differ from the selected forecast point.</p></div>' +
+        '<div class="forecast-observation"><div class="obs-slot" role="status">Loading current observation…</div></div>' +
         detailedPeriods(periods, k, section) +
         issuedLine(data, p, section);
       loadObs(p, el.querySelector(".obs-slot"));
@@ -700,7 +700,7 @@ async function loadDiscussion(place, section) {
       );
     } catch {
       if (el?.isConnected) {
-        el.innerHTML = pointError(pt.label, p) + '<div class="obs-slot" role="status">Loading current observation…</div>';
+        el.innerHTML = pointError(pt.label, p) + '<div class="forecast-observation"><div class="obs-slot" role="status">Loading current observation…</div></div>';
         loadObs(p, el.querySelector(".obs-slot"));
       }
     }
@@ -1240,6 +1240,18 @@ async function latestObs(id, name, elevM) {
     wind: kmhToMph(o.windSpeed?.value),
     gust: kmhToMph(o.windGust?.value),
     dir: o.windDirection?.value,
+    humidity: o.relativeHumidity?.value,
+    dewpoint: cToF(o.dewpoint?.value),
+    heatIndex: cToF(o.heatIndex?.value),
+    windChill: cToF(o.windChill?.value),
+    visibility: o.visibility?.value,
+    barometer: o.barometricPressure?.value,
+    seaLevelPressure: o.seaLevelPressure?.value,
+    precipitation: [
+      ["Precip. (1 hr)", o.precipitationLastHour?.value],
+      ["Precip. (3 hr)", o.precipitationLast3Hours?.value],
+      ["Precip. (6 hr)", o.precipitationLast6Hours?.value],
+    ],
   };
 }
 async function observation(p) {
@@ -1272,7 +1284,24 @@ async function observation(p) {
 function obsLine(o) {
   if (o.stale)
     return `<div class="obs stale"><span class="obs-label">Observed</span> No report in the last 2 hours<div class="muted">Newest: ${escapeHTML(o.station)}, ${ago(o.time)} (NWS feeds are sometimes delayed)</div></div>`;
-  return `<div class="obs"><span class="obs-label">Observed</span> <b>${o.temp}°F</b>${o.text ? " · " + escapeHTML(o.text) : ""}${o.wind != null ? ` · wind ${o.wind === 0 ? "calm" : compass(o.dir) + " " + o.wind + " mph"}${o.gust ? `, gusts ${o.gust}` : ""}` : ""}<div class="muted">${escapeHTML(o.station)} (${escapeHTML(o.id)}${o.elevFt ? `, ${o.elevFt.toLocaleString()} ft` : ""}) · ${ago(o.time)}</div></div>`;
+  const wind = o.wind == null ? null : o.wind === 0 ? "Calm" :
+    [Number.isFinite(o.dir) ? compass(o.dir) : "", o.wind + " mph"].filter(Boolean).join(" ");
+  const metrics = [
+    ["Wind", wind],
+    ["Gusts", Number.isFinite(o.gust) ? o.gust + " mph" : null],
+    ["Humidity", Number.isFinite(o.humidity) ? Math.round(o.humidity) + "%" : null],
+    ["Dew point", Number.isFinite(o.dewpoint) ? o.dewpoint + "°F" : null],
+    ["Feels like", Number.isFinite(o.heatIndex) ? o.heatIndex + "°F" :
+      Number.isFinite(o.windChill) ? o.windChill + "°F" : null],
+    ["Visibility", Number.isFinite(o.visibility) ? (o.visibility / 1609.344).toFixed(1) + " mi" : null],
+    ["Station pressure", Number.isFinite(o.barometer) ? (o.barometer / 3386.389).toFixed(2) + " inHg" : null],
+    ["Sea-level pressure", Number.isFinite(o.seaLevelPressure) ? (o.seaLevelPressure / 3386.389).toFixed(2) + " inHg" : null],
+    ...o.precipitation.map(([label, value]) => [label, Number.isFinite(value) ? (value / 25.4).toFixed(2) + " in" : null]),
+  ].filter(([, value]) => value != null);
+  const details = metrics.length ? `<div class="period-metrics">${metrics.map(([label, value]) =>
+    `<span>${label} <b>${escapeHTML(value)}</b></span>`
+  ).join("")}</div>` : "";
+  return `<div class="obs"><span class="obs-label">Current conditions</span> <b>${o.temp}°F</b>${o.text ? " · " + escapeHTML(o.text) : ""}${details}<div class="muted">${escapeHTML(o.station)} (${escapeHTML(o.id)}${o.elevFt ? `, ${o.elevFt.toLocaleString()} ft` : ""}) · ${ago(o.time)}</div></div>`;
 }
 async function loadObs(p, target) {
   try {
@@ -1314,15 +1343,7 @@ async function loadPeriodHourly(p, period, section, el) {
           hour: "numeric",
           timeZoneName: "short",
         });
-    el.innerHTML = `<p class="hourly-period-caption">${escapeHTML(p[2])} · ${escapeHTML(fmt(period.startTime))}–${escapeHTML(regionTime(period.endTime, section, { hour: "numeric", timeZoneName: "short" }))}</p><div class="period-chart"></div>${rows.length ? `<table class="period-hourly-table"><caption class="sr-only">NOAA hourly forecast for ${escapeHTML(period.name)} at ${escapeHTML(p[2])}</caption><thead><tr><th scope="col">Hour</th><th scope="col">Weather</th><th scope="col">Temp</th><th scope="col">Precip. chance</th><th scope="col">Wind</th></tr></thead><tbody>${rows.map((q) => `<tr><th scope="row">${escapeHTML(regionTime(q.startTime, section, { weekday: "short", hour: "numeric", timeZoneName: "short" }))}</th><td data-label="Weather">${forecastIcon(q, "small")}${escapeHTML(q.shortForecast || "–")}</td><td data-label="Temp">${q.temperature ?? "–"}°${escapeHTML(q.temperatureUnit || "F")}</td><td data-label="Precip. chance">${q.probabilityOfPrecipitation?.value != null ? q.probabilityOfPrecipitation.value + "%" : "–"}</td><td data-label="Wind">${escapeHTML(q.windDirection || "")} ${escapeHTML(q.windSpeed || "–")}</td></tr>`).join("")}</tbody></table>` : '<p class="muted">NOAA has not provided hourly data for this period yet.</p>'}<p class="source">NOAA / National Weather Service · issued ${escapeHTML(regionTime(d.updateTime, section, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }))} · <a href="${link}" target="_blank" rel="noopener">Open NWS point forecast ↗</a></p>`;
-    const chart = el.querySelector(".period-chart");
-    if (rows.length >= 6 && chart) {
-      const draw = () => {
-        if (chart.isConnected) chart.innerHTML = insightsHourlyChart(rows, regionZone(section), rows.length, chartWidth(el));
-      };
-      draw();
-      redrawOnResize(el, draw);
-    }
+    el.innerHTML = `<p class="hourly-period-caption">${escapeHTML(p[2])} · ${escapeHTML(fmt(period.startTime))}–${escapeHTML(regionTime(period.endTime, section, { hour: "numeric", timeZoneName: "short" }))}</p>${rows.length ? `<table class="period-hourly-table"><caption class="sr-only">NOAA hourly forecast for ${escapeHTML(period.name)} at ${escapeHTML(p[2])}</caption><thead><tr><th scope="col">Hour</th><th scope="col">Weather</th><th scope="col">Temp</th><th scope="col">Precip. chance</th><th scope="col">Wind</th></tr></thead><tbody>${rows.map((q) => `<tr><th scope="row">${escapeHTML(regionTime(q.startTime, section, { weekday: "short", hour: "numeric", timeZoneName: "short" }))}</th><td data-label="Weather">${escapeHTML(q.shortForecast || "–")}</td><td data-label="Temp">${q.temperature ?? "–"}°${escapeHTML(q.temperatureUnit || "F")}</td><td data-label="Precip. chance">${q.probabilityOfPrecipitation?.value != null ? q.probabilityOfPrecipitation.value + "%" : "–"}</td><td data-label="Wind">${escapeHTML(q.windDirection || "")} ${escapeHTML(q.windSpeed || "–")}</td></tr>`).join("")}</tbody></table>` : '<p class="muted">NOAA has not provided hourly data for this period yet.</p>'}<p class="source">NOAA / National Weather Service · issued ${escapeHTML(regionTime(d.updateTime, section, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }))} · <a href="${link}" target="_blank" rel="noopener">Open NWS point forecast ↗</a></p>`;
   } catch {
     if (el?.isConnected)
       el.innerHTML = `<p class="error">NOAA hourly data is temporarily unavailable.</p><a href="${link}" target="_blank" rel="noopener">Open NWS point forecast ↗</a>`;

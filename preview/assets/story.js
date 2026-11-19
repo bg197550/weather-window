@@ -70,7 +70,16 @@ const ForecastStory = (() => {
       const h = local(ms).hour;
       return h < 5 ? "early on" : h < 11 ? "in the morning" : h < 14 ? "around midday" : h < 17 ? "in the afternoon" : h < 21 ? "in the evening" : "overnight";
     };
-    return { at, when, whenAfter, dayName, dateName, local };
+    /* "yesterday morning's forecast", "last night's forecast", "this morning's forecast" */
+    const runLabel = (ms) => {
+      const { date, hour } = local(ms);
+      const dd = dayDiff(date);
+      const part = hour < 12 ? "morning" : hour < 17 ? "afternoon" : "evening";
+      if (dd === 0) return `this ${part}'s forecast`;
+      if (dd === -1) return part === "evening" ? "last night's forecast" : `yesterday ${part}'s forecast`;
+      return `${local(ms).weekday}'s forecast`;
+    };
+    return { at, when, whenAfter, dayName, dateName, local, runLabel };
   }
 
   /* Storms from the outlook's 6-hour blocks: wet blocks in a row, allowing one dry block (a lull) inside a storm. */
@@ -148,9 +157,40 @@ const ForecastStory = (() => {
     return parts.length >= 2 ? `Across the range: ${parts.join(", ")}.` : "";
   }
 
-  /* The story. kinds: Insights' storm descriptions [{start, end, kind, from}] (optional). */
-  function build(o, { section = "utah", now = Date.now(), sum = null, kinds = [], afdQuote = "" } = {}) {
+  /* An earlier run to compare with: the one closest to a day older than this outlook (at least 9 hours older). */
+  function pickPrev(history, builtMs) {
+    const age = (x) => builtMs - Date.parse(x.built);
+    const ok = (history || []).filter((x) => age(x) >= 9 * H && age(x) <= 40 * H && x.segs?.length);
+    return ok.sort((a, b) => Math.abs(age(a) - 24 * H) - Math.abs(age(b) - 24 * H))[0] || null;
+  }
+  /* Snow in a window from half-day segments: the same half days in this run and in the earlier one. */
+  function segWindow(o, prev, c, fromMs, toMs) {
+    const t0 = Math.floor(Date.parse(o.built) / H) * H;
+    const keys = o.segments.filter((s) => t0 + s.b * H > fromMs && t0 + s.a * H < toMs).map((s) => `${s.date}${s.half}`);
+    if (!keys.length) return null;
+    const now = o.segments.filter((s) => keys.includes(`${s.date}${s.half}`)).reduce((t, s) => t + (s.mid || 0), 0);
+    const old = prev.segs.filter(([d, h]) => keys.includes(`${d}${h}`));
+    // The earlier run must cover every half day (a partial first half day in this run is fine).
+    if (old.length < keys.length - 1) return null;
+    return { now, old: old.reduce((t, [, , m]) => t + (m || 0), 0) };
+  }
+  /* "That's up from about 12″ in yesterday morning's forecast." when the change is meaningful (2″ and 25%). */
+  function changeNote(o, prev, c, fromMs, toMs, short) {
+    if (!prev) return "";
+    const w = segWindow(o, prev, c, fromMs, toMs);
+    if (!w) return "";
+    const d = w.now - w.old;
+    if (Math.abs(d) < 2 || Math.abs(d) < 0.25 * Math.max(w.old, w.now)) return "";
+    const label = c.runLabel(Date.parse(prev.built));
+    const dir = d > 0 ? "up" : "down";
+    return short ? `${dir} from about ${inch(w.old)} in ${label}` : `That's ${dir} from about ${inch(w.old)} in ${label}${Math.abs(d) >= 6 ? ` — a big ${d > 0 ? "increase" : "drop"}` : ""}.`;
+  }
+
+  /* The story. kinds: Insights' storm descriptions [{start, end, kind, from}] (optional);
+     history: earlier runs for this mountain from the region summary, to note meaningful changes. */
+  function build(o, { section = "utah", now = Date.now(), sum = null, kinds = [], afdQuote = "", history = null } = {}) {
     const c = clock(o, now);
+    const prev = pickPrev(history || sum?.history?.[o.slug], Date.parse(o.built));
     const where = o.ski ? `at the summit (${o.summit.toLocaleString()} ft)` : "here";
     const storms = findStorms(o, 8 * 24).slice(0, 3);
     const elev = o.elev,
@@ -189,7 +229,13 @@ const ForecastStory = (() => {
       }
       const last = S[S.length - 1];
       const tot = snowBetween(o, S[0].ongoing ? 0 : S[0].a, last.b);
-      if (S.length > 1 && tot.hi >= 1) sum1.push(`Through ${c.dayName(last.toMs)}: ${range(tot.lo, tot.hi)} ${where}.`);
+      if (S.length > 1 && tot.hi >= 1) {
+        const ch = changeNote(o, prev, c, S[0].fromMs, last.toMs, true);
+        sum1.push(`Through ${c.dayName(last.toMs)}: ${range(tot.lo, tot.hi)} ${where}${ch ? `, ${ch}` : ""}.`);
+      } else if (S.length === 1) {
+        const ch = changeNote(o, prev, c, S[0].fromMs, S[0].toMs, true);
+        if (ch) sum1.push(`Expect ${range(S[0].snow.lo, S[0].snow.hi)} ${where}, ${ch}.`);
+      }
     }
 
     // Short term: each storm.
@@ -221,6 +267,8 @@ const ForecastStory = (() => {
       if (s.r0 != null && s.r0 <= 10 && s.snow.mid >= 1) ws += ` The early snow is wet and dense (around ${s.r0}:1), which holds totals down${s.rLow > s.r0 + 3 ? `; colder air later lifts ratios to about ${s.rLow}:1` : ""}.`;
       else if (s.r0 != null && s.r0 >= 14 && s.snow.mid >= 1) ws += ` Cold air means light, fluffy snow (about ${s.r0}:1).`;
       p.push(ws);
+      const ch = changeNote(o, prev, c, s.fromMs, s.toMs, false);
+      if (ch) p.push(ch);
       const g = groupLine(sum, section, s.fromMs, s.toMs);
       if (g) p.push(g);
       const title = `${s.i === 0 ? (s.ongoing ? "Current storm" : "Next storm") : `Storm ${s.i + 1}`} · ${c.dayName(s.fromMs)}${c.dayName(s.fromMs) === c.dayName(s.toMs) ? "" : ` → ${c.dayName(s.toMs)}`}`;
@@ -253,12 +301,77 @@ const ForecastStory = (() => {
 
     return { summary: sum1.join(" "), short, extended: ext.join(" "), afdQuote };
   }
+  /* ---- Recent snow: what the last storm actually left, measured at NRCS SNOTEL sites (data/snotel.json). ---- */
+  const SNOTEL_NEAR = {
+    alta: "766:UT:SNTL", snowbird: "766:UT:SNTL", brighton: "366:UT:SNTL", solitude: "628:UT:SNTL",
+    "park-city-mountain": "814:UT:SNTL", "deer-valley": "814:UT:SNTL", "canyons-resort": "814:UT:SNTL",
+    "park-city": "814:UT:SNTL", snyderville: "814:UT:SNTL", snowbasin: "332:UT:SNTL",
+  };
+  /* SNOTEL times are local standard time (MST in Utah). */
+  const snoMs = (t) => Date.parse(t.length <= 10 ? `${t}T00:00:00-07:00` : `${t.replace(" ", "T")}:00-07:00`);
+  function stationGain(st, nowMs) {
+    const pts = [...(st.daily || []).map((x) => ({ ms: snoMs(x.date), depth: x.depth, swe: x.swe })), ...(st.hourly || []).map((x) => ({ ms: snoMs(x.time), depth: x.depth, swe: x.swe }))]
+      .filter((x) => Number.isFinite(x.ms) && x.swe != null && x.ms <= nowMs + H && x.ms >= nowMs - 80 * H)
+      .sort((a, b) => a.ms - b.ms);
+    if (pts.length < 3 || nowMs - pts.at(-1).ms > 12 * H) return null;
+    const last = pts.at(-1);
+    const minSwe = Math.min(...pts.map((x) => x.swe));
+    // The storm's start: the last reading at the low point before the snow water climbed.
+    let b = -1;
+    for (let i = 0; i < pts.length; i++) if (pts[i].swe <= minSwe + 0.05 && pts.slice(i + 1).some((x) => x.swe >= minSwe + 0.2)) b = i;
+    if (b < 0) return null;
+    const base = pts[b], after = pts.slice(b + 1);
+    // Snow pillows drift with the sun, so take the median of the last few readings rather than the very last one.
+    const tail = pts.slice(-6).map((x) => x.swe).sort((x, y) => x - y);
+    const water = tail[Math.floor(tail.length / 2)] - base.swe;
+    if (water < 0.2) return null;
+    const withD = after.filter((x) => x.depth != null);
+    const peak = withD.reduce((m, x) => (!m || x.depth > m.depth ? x : m), null);
+    const snow = base.depth != null && peak ? Math.max(0, peak.depth - base.depth) : null;
+    const startMs = (after.find((x) => x.swe >= base.swe + 0.1) || after[0]).ms;
+    const endMs = peak ? peak.ms : last.ms;
+    // Still snowing: depth up 2″+ over the last 3 hours of readings.
+    const recent = withD.filter((x) => x.ms >= last.ms - 3 * H);
+    const ongoing = recent.length > 1 && recent.at(-1).depth - Math.min(...recent.map((x) => x.depth)) >= 2;
+    return { triplet: st.triplet, name: st.name || st.near, water, snow, startMs, endMs, ongoing };
+  }
+  function recap(snotel, { slug = "", tz = "America/Denver", now = Date.now() } = {}) {
+    if (!snotel?.stations?.length) return null;
+    const gains = snotel.stations.filter((s) => !s.stale).map((s) => stationGain(s, now)).filter(Boolean);
+    if (!gains.length) return null;
+    const c = clock({ tz, built: new Date(now).toISOString() }, now);
+    const today = c.local(now).date;
+    const dd = (ms) => Math.round((Date.parse(c.local(ms).date) - Date.parse(today)) / 86400000);
+    const ongoing = gains.filter((g) => g.ongoing).length >= Math.max(2, Math.ceil(gains.length / 2));
+    const med = (a) => [...a].sort((x, y) => x - y)[Math.floor(a.length / 2)];
+    const st = c.local(med(gains.map((g) => g.startMs))), en = c.local(med(gains.map((g) => g.endMs)));
+    const sdd = dd(med(gains.map((g) => g.startMs)));
+    const label = ongoing
+      ? "Snow is still falling. So far, the storm has added"
+      : sdd === 0
+        ? en.hour < 7 && st.hour < 7 ? "Overnight snow added" : "Today's snow has added"
+        : sdd === -1
+          ? st.hour >= 17 ? "Last night's storm added" : "Yesterday's storm added"
+          : `${st.weekday}'s storm added`;
+    const r1 = (x) => Math.round(x * 10) / 10;
+    const rng = (a, u, f = (x) => x) => (f(Math.min(...a)) === f(Math.max(...a)) ? `${f(a[0])}${u}` : `${f(Math.min(...a))}–${f(Math.max(...a))}${u}`);
+    const withSnow = gains.filter((g) => g.snow != null);
+    const top = [...withSnow].sort((a, b) => b.snow - a.snow)[0];
+    const parts = [];
+    parts.push(
+      `${label} ${withSnow.length ? `${rng(withSnow.map((g) => Math.round(g.snow)), "″")} of snow depth (${rng(gains.map((g) => r1(g.water)), "″", (x) => x.toFixed(1))} of water)` : `${rng(gains.map((g) => r1(g.water)), "″", (x) => x.toFixed(1))} of water`} at ${gains.length > 1 ? `${gains.length} SNOTEL sites` : "a SNOTEL site"} near the resorts${top && withSnow.length > 1 ? `, the most at ${top.name} (+${Math.round(top.snow)}″)` : ""}.`,
+    );
+    const mine = gains.find((g) => g.triplet === SNOTEL_NEAR[slug]);
+    if (mine && mine !== top && mine.snow != null) parts.push(`The closest site, ${mine.name}, picked up ${Math.round(mine.snow)}″ from ${mine.water.toFixed(1)}″ of water.`);
+    parts.push("Sensors measure settled depth, so ski-area new-snow reports usually run higher.");
+    return parts.filter(Boolean).join(" ");
+  }
   function html(story, { esc, title = "Forecast story", link = "" } = {}) {
     const e = esc || ((s) => String(s));
-    return `<article class="card afd-card ins-story"><div class="ins-head"><h3>${e(title)}</h3>${link}</div><section><h4>Summary</h4><p>${e(story.summary)}</p></section>${
+    return `<article class="card afd-card ins-story"><div class="ins-head"><h3>${e(title)}</h3>${link}</div>${story.recap ? `<section><h4>Recent snow</h4><p>${e(story.recap)}</p></section>` : ""}<section><h4>Summary</h4><p>${e(story.summary)}</p></section>${
       story.short.length ? `<section><h4>Short term</h4>${story.short.map((s) => `<p><b>${e(s.title)}.</b> ${e(s.text)}</p>`).join("")}</section>` : ""
     }${story.extended ? `<section><h4>Extended</h4><p>${e(story.extended)}</p></section>` : ""}${story.afdQuote ? `<p class="ins-quote"><b>NWS forecasters:</b> “${e(story.afdQuote)}”</p>` : ""}</article>`;
   }
-  return { build, html, findStorms };
+  return { build, html, findStorms, recap };
 })();
 if (typeof module === "object" && module.exports) module.exports = ForecastStory;
