@@ -1242,13 +1242,45 @@ function loadSnotelRecap() {
     .then((d) => (insSnotel = d))
     .catch(() => null);
 }
+// The model forecast from ~a day before each hour (Open-Meteo previous-runs API) at the SNOTEL sites, summed over
+// each site's storm window, so the recap can say whether the storm beat or missed the forecast.
+let insPrevFc = null;
+async function loadPrevForecast() {
+  if (insPrevFc || !insSnotel || typeof ForecastStory === "undefined") return;
+  const r = ForecastStory.recap(insSnotel, {});
+  if (!r || r.ongoing) return;
+  const sites = r.gains.filter((g) => ForecastStory.SNOTEL_SITES[g.triplet]);
+  if (sites.length < 2) return;
+  const S = sites.map((g) => ForecastStory.SNOTEL_SITES[g.triplet]);
+  const u = `https://previous-runs-api.open-meteo.com/v1/forecast?latitude=${S.map((x) => x[0]).join(",")}&longitude=${S.map((x) => x[1]).join(",")}&elevation=${S.map((x) => x[2]).join(",")}&hourly=precipitation_previous_day1&past_days=4&forecast_days=1&precipitation_unit=inch&timezone=GMT`;
+  try {
+    const res = await fetch(u);
+    if (!res.ok) return;
+    let j = await res.json();
+    if (!Array.isArray(j)) j = [j];
+    const fc = {};
+    sites.forEach((g, i) => {
+      const h = j[i]?.hourly;
+      if (!h?.time) return;
+      let t = 0, n = 0;
+      h.time.forEach((tm, k) => {
+        const ms = Date.parse(tm + "Z");
+        const v = h.precipitation_previous_day1?.[k];
+        if (ms > g.baseMs && ms <= g.endMs + 3 * 3600e3 && v != null) { t += v; n++; }
+      });
+      if (n >= 3) fc[g.triplet] = t;
+    });
+    insPrevFc = fc;
+  } catch {}
+}
 function storyCard(o, kinds, data, section, sum) {
   if (!o || typeof ForecastStory === "undefined") return "";
   try {
     const n = afdNotes(data.afd);
     const k = n?.keys?.[0] || "";
     const st = ForecastStory.build(o, { section, sum, kinds, afdQuote: k.length > 200 ? k.slice(0, 195).replace(/\s\S*$/, "") + "…" : k });
-    if (section === "utah" && insSnotel && ForecastStory.recap) st.recap = ForecastStory.recap(insSnotel, { slug: o.slug, tz: o.tz });
+    const rc = section === "utah" && insSnotel && ForecastStory.recap ? ForecastStory.recap(insSnotel, { slug: o.slug, tz: o.tz }) : null;
+    if (rc) st.recap = [rc.text, ForecastStory.verify(rc, insPrevFc, data.afd?.afd?.productText)].filter(Boolean).join(" ");
     const learn = kinds[0]?.learn;
     return ForecastStory.html(st, {
       esc: escapeHTML,
@@ -1272,7 +1304,7 @@ async function loadInsights(pt, section) {
   const basis = owner && (owner.p.length === 1 || owner.p[owner.p.length - 1] === owner.p.find((q) => q[0] === pt.p[0] && q[1] === pt.p[1]));
   const outlookP = basis && typeof SnowCore !== "undefined" ? Promise.race([SnowCore.forPlace(owner, section).catch(() => null), new Promise((r) => setTimeout(() => r(null), 12000))]) : Promise.resolve(null);
   const sumP = basis && typeof SnowCore !== "undefined" ? SnowCore.summary().catch(() => null) : Promise.resolve(null);
-  const snoP = section === "utah" && !insSnotel ? Promise.race([loadSnotelRecap(), new Promise((r) => setTimeout(r, 6000))]) : Promise.resolve();
+  const snoP = section === "utah" ? Promise.race([(insSnotel ? Promise.resolve() : loadSnotelRecap()).then(loadPrevForecast), new Promise((r) => setTimeout(r, 8000))]) : Promise.resolve();
   const [data, o, sum] = await Promise.all([insFetch(pt.p), outlookP, sumP, snoP]);
   if (!el.isConnected || el.dataset.key !== pt.p.slice(0, 2).join(",")) return;
   let html = "",
