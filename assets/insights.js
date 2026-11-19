@@ -1234,12 +1234,21 @@ async function fillCycleTable(el, key, storms, section, pt) {
 }
 
 /* The forecast story (summary, each storm, extended) from the shared snow outlook; "" when it isn't available. */
+// Measured snow from the last storm (NRCS SNOTEL, refreshed hourly on the data branch) for the story's "Recent snow".
+let insSnotel = null;
+function loadSnotelRecap() {
+  return fetch("https://raw.githubusercontent.com/bg197550/weather-window/data/snotel.json", { cache: "no-cache" })
+    .then((r) => (r.ok ? r.json() : null))
+    .then((d) => (insSnotel = d))
+    .catch(() => null);
+}
 function storyCard(o, kinds, data, section, sum) {
   if (!o || typeof ForecastStory === "undefined") return "";
   try {
     const n = afdNotes(data.afd);
     const k = n?.keys?.[0] || "";
     const st = ForecastStory.build(o, { section, sum, kinds, afdQuote: k.length > 200 ? k.slice(0, 195).replace(/\s\S*$/, "") + "…" : k });
+    if (section === "utah" && insSnotel && ForecastStory.recap) st.recap = ForecastStory.recap(insSnotel, { slug: o.slug, tz: o.tz });
     const learn = kinds[0]?.learn;
     return ForecastStory.html(st, {
       esc: escapeHTML,
@@ -1263,7 +1272,8 @@ async function loadInsights(pt, section) {
   const basis = owner && (owner.p.length === 1 || owner.p[owner.p.length - 1] === owner.p.find((q) => q[0] === pt.p[0] && q[1] === pt.p[1]));
   const outlookP = basis && typeof SnowCore !== "undefined" ? Promise.race([SnowCore.forPlace(owner, section).catch(() => null), new Promise((r) => setTimeout(() => r(null), 12000))]) : Promise.resolve(null);
   const sumP = basis && typeof SnowCore !== "undefined" ? SnowCore.summary().catch(() => null) : Promise.resolve(null);
-  const [data, o, sum] = await Promise.all([insFetch(pt.p), outlookP, sumP]);
+  const snoP = section === "utah" && !insSnotel ? Promise.race([loadSnotelRecap(), new Promise((r) => setTimeout(r, 6000))]) : Promise.resolve();
+  const [data, o, sum] = await Promise.all([insFetch(pt.p), outlookP, sumP, snoP]);
   if (!el.isConnected || el.dataset.key !== pt.p.slice(0, 2).join(",")) return;
   let html = "",
     cycle = null;
