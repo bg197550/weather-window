@@ -2433,7 +2433,14 @@ p {
 /* Wasatch storm cycle */
 .ins-cycle h4 { margin: 18px 0 8px; }
 .ins-cycle-list { list-style: none; padding: 0; margin: 12px 0 4px; display: grid; gap: 8px; }
-.ins-cycle-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; background: #0b2433; border: 1px solid #294858; border-radius: 12px; padding: 10px 12px; }
+.ins-cycle-list li { background: #0b2433; border: 1px solid #294858; border-radius: 12px; }
+.ins-cycle-list summary { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 10px 40px 10px 12px; cursor: pointer; list-style: none; position: relative; min-height: 44px; }
+.ins-cycle-list summary::-webkit-details-marker { display: none; }
+.ins-cycle-list .ins-open { position: absolute; right: 12px; top: 12px; font-size: 13px; color: #70d9de; }
+.ins-cycle-list .ins-open::after { content: "Details ▾"; }
+.ins-cycle-list details[open] .ins-open::after { content: "Hide ▴"; }
+.ins-storm-body { padding: 0 12px 12px; border-top: 1px solid #294858; }
+.ins-storm-body .ins-stats { margin-top: 10px; }
 .ins-cycle-list .amt { font-weight: 600; }
 .ins-cycle-list .amt .rng { display: inline; font-weight: 400; color: #9fb1bc; font-size: 13px; }
 .ins-cycle-list small { flex-basis: 100%; color: #9fb1bc; font-size: 13px; }
@@ -2457,7 +2464,7 @@ p {
   .ins .ins-cycle-table td::before { content: none; }
   .ins .ins-cycle-table td small { display: block; }
   .ins .card p.ins-legend, .ins .card p.ins-legend * { font-size: 13px; line-height: 1.4; }
-  .ins-cycle-list li { gap: 4px 10px; }
+  .ins-cycle-list summary { gap: 4px 10px; padding-right: 12px; padding-top: 34px; }
 }
 .linkish { background: none; border: 0; padding: 0; color: #70d9de; text-decoration: underline; font: inherit; }
 @media (max-width: 700px) {
@@ -2636,3 +2643,4 @@ p {
 .ins-story h4 { margin: 0 0 6px; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: #9fb1bc; }
 .ins-story p { margin: 0 0 10px; line-height: 1.6; }
 .ins-story .ins-quote { color: #cfe2e8; border-left: 3px solid #3c6475; padding-left: 10px; }
+.ins-avy { margin: 12px 0 10px; padding: 10px 12px; border: 1px solid #355464; border-left: 4px solid #d4f4ee; border-radius: 8px; background: #0d2633; line-height: 1.55; }
