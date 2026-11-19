@@ -80,7 +80,7 @@ function drawDays(el, o) {
     .join("")}</div><div class="ps-days" role="list">${shown
     .map(
       (d) =>
-        `<div class="ps-day" role="listitem"><b>${rngLocal(d.date + "T12:00", { weekday: "short" })}</b><small>${rngLocal(d.date + "T12:00", { month: "numeric", day: "numeric" })}</small><b>${RNG_IN((d.day?.mid ?? 0) + (d.night?.mid ?? 0))}</b><div class="ps-bars">${bar(d.day, "day")}${bar(d.night, "night")}</div></div>`,
+        `<div class="ps-day" role="listitem"><b>${rngLocal(d.date + "T12:00", { weekday: "short" })}</b><small>${rngLocal(d.date + "T12:00", { month: "numeric", day: "numeric" })}</small><b style="margin-top:12px">${RNG_IN((d.day?.mid ?? 0) + (d.night?.mid ?? 0))}</b><div class="ps-bars">${bar(d.day, "day")}${bar(d.night, "night")}</div></div>`,
     )
     .join("")}</div><p class="ins-legend rng-legend"><span class="ps-key"></span>NWS forecast <span class="ps-key is-model"></span>Models (after the NWS forecast ends) · D = 6am–6pm, N = 6pm–6am · numbers are the middle outcome; hover or tap a bar for its range</p>`;
 }
