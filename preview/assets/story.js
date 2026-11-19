@@ -363,8 +363,7 @@ const ForecastStory = (() => {
     );
     const mine = gains.find((g) => g.triplet === SNOTEL_NEAR[slug]);
     if (mine && mine !== top && mine.snow != null) parts.push(`The closest site, ${mine.name}, picked up ${Math.round(mine.snow)}″ from ${mine.water.toFixed(1)}″ of water.`);
-    parts.push("Sensors measure settled depth, so ski-area new-snow reports usually run higher.");
-    return { text: parts.filter(Boolean).join(" "), gains, ongoing };
+    return { text: parts.filter(Boolean).join(" "), note: "Sensors measure settled depth, so ski-area new-snow reports usually run higher.", gains, ongoing, mine: mine?.triplet || null };
   }
   /* SNOTEL sites: lat, lon, elevation (m) — for pulling the earlier forecast at each sensor. */
   const SNOTEL_SITES = {
@@ -385,12 +384,17 @@ const ForecastStory = (() => {
     const out = [];
     const rs = both.map((g) => ({ g, r: g.water / Math.max(0.05, fc[g.triplet]) })).sort((x, y) => y.r - x.r);
     const hi = rs[0], lo = rs.at(-1);
-    const site = (x, w) => `${x.g.name} (${x.g.water.toFixed(1)}″ vs. ${fc[x.g.triplet].toFixed(1)}″)`;
+    const site = (x) => `${x.g.name} (${x.g.water.toFixed(1)}″ vs. ${fc[x.g.triplet].toFixed(1)}″)`;
     if (ratio >= 1.25) out.push(`It came in wetter than forecast: about ${avgO}″ of water per site vs. ${avgF}″ in the model forecast a day earlier.`);
     else if (ratio <= 0.8) out.push(`It came in drier than forecast: about ${avgO}″ of water per site vs. ${avgF}″ in the model forecast a day earlier.`);
-    else out.push(`That was close to the model forecast a day earlier overall (about ${avgO}″ of water per site vs. ${avgF}″)${hi.r >= 1.5 ? `, though ${site(hi)} beat it` : lo.r <= 0.6 ? `, though ${site(lo)} fell short` : ""}.`);
+    else {
+      // Close overall: point out the closest site if it missed, else the biggest single-site miss.
+      const me = rs.find((x) => x.g.triplet === r.mine);
+      const odd = me && (me.r >= 1.5 || me.r <= 0.6) ? me : hi.r >= 1 / lo.r ? (hi.r >= 1.5 ? hi : null) : lo.r <= 0.6 ? lo : null;
+      out.push(`That was close to the model forecast a day earlier overall (about ${avgO}″ of water per site vs. ${avgF}″)${odd ? `, though ${site(odd)} ${odd.r > 1 ? "got more" : "fell short"}` : ""}.`);
+    }
     if (ratio >= 1.25 && hi.r >= 1.5) out.push(`The biggest overperformer was ${site(hi)}.`);
-    if (ratio <= 0.8 && lo.r <= 0.6) out.push(`The biggest miss was ${site(lo)}.`);
+    if (ratio <= 0.8 && lo.r <= 0.6) out.push(`The biggest shortfall was ${site(lo)}.`);
     if (ratio >= 1.25 || ratio <= 0.8 || hi.r >= 1.5 || lo.r <= 0.6) {
       const sent = String(afdText || "").replace(/\s+/g, " ").split(/(?<=[.!?])\s+/).find((x) => AFD_WHY.test(x) && x.length < 260);
       if (sent) out.push(`NWS forecasters: “${sent.trim()}”`);

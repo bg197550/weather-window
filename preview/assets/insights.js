@@ -1280,7 +1280,7 @@ function storyCard(o, kinds, data, section, sum) {
     const k = n?.keys?.[0] || "";
     const st = ForecastStory.build(o, { section, sum, kinds, afdQuote: k.length > 200 ? k.slice(0, 195).replace(/\s\S*$/, "") + "…" : k });
     const rc = section === "utah" && insSnotel && ForecastStory.recap ? ForecastStory.recap(insSnotel, { slug: o.slug, tz: o.tz }) : null;
-    if (rc) st.recap = [rc.text, ForecastStory.verify(rc, insPrevFc, data.afd?.afd?.productText)].filter(Boolean).join(" ");
+    if (rc) st.recap = [rc.text, ForecastStory.verify(rc, insPrevFc, data.afd?.afd?.productText), rc.note].filter(Boolean).join(" ");
     const learn = kinds[0]?.learn;
     return ForecastStory.html(st, {
       esc: escapeHTML,
