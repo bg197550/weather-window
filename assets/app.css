@@ -2402,7 +2402,12 @@ p {
 }
 
 /* Insights */
-.ins { display: grid; gap: 16px; margin-bottom: 16px; }
+.ins { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; margin-bottom: 16px; }
+/* Phones: nothing inside a card (a long word, URL or table) may widen the column past the screen. */
+.ins > * { min-width: 0; max-width: 100%; }
+.ins .card { overflow-wrap: anywhere; }
+.ins .ins-head { flex-wrap: wrap; row-gap: 4px; }
+.ins .model-table-wrap { max-width: 100%; overflow-x: auto; }
 .ins .card { padding: 20px; }
 .ins h3 { margin: 0; font-size: 21px; }
 .ins h4 { color: #f2c780; font-size: 16px; margin: 0 0 6px; }
