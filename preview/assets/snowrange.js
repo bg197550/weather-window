@@ -66,9 +66,14 @@ function drawDays(el, o) {
   }
   const shown = days.slice(0, 10);
   const top = Math.max(4, ...segs.map((s) => s.mid || 0));
+  const maxBarHeight = 64;
+  const barHeight = (s) => {
+    const amount = s?.mid ?? 0;
+    return Math.max(amount > 0.05 ? 6 : 2, Math.round((amount / top) * maxBarHeight));
+  };
   const bar = (s, half) => {
     if (!s) return `<div class="ps-seg is-empty"></div>`;
-    const h = Math.max(s.mid > 0.05 ? 6 : 2, Math.round(((s.mid || 0) / top) * 64));
+    const h = barHeight(s);
     const rng = s.hi > 0.05 ? `${s.lo < 1 ? Math.round(s.lo * 10) / 10 : Math.round(s.lo)}–${Math.round(s.hi)}″` : "0″";
     return `<div class="ps-seg${s.src === "model" ? " is-model" : ""}" title="${half === "day" ? "Day" : "Night"}: ${RNG_IN(s.mid)} (likely ${rng})${s.temp != null ? `, ${half === "day" ? "high" : "low"} ${s.temp}°F` : ""}"><span class="ps-amt">${s.mid >= 0.1 ? RNG_IN(s.mid) : ""}</span><i style="height:${h}px"></i><small>${half === "day" ? "D" : "N"}</small></div>`;
   };
@@ -80,7 +85,7 @@ function drawDays(el, o) {
     .join("")}</div><div class="ps-days" role="list">${shown
     .map(
       (d) =>
-        `<div class="ps-day" role="listitem"><b>${rngLocal(d.date + "T12:00", { weekday: "short" })}</b><small>${rngLocal(d.date + "T12:00", { month: "numeric", day: "numeric" })}</small><div class="ps-bars">${bar(d.day, "day")}${bar(d.night, "night")}</div></div>`,
+        `<div class="ps-day" role="listitem"><b>${rngLocal(d.date + "T12:00", { weekday: "short" })}</b><small>${rngLocal(d.date + "T12:00", { month: "numeric", day: "numeric" })}</small><b style="margin-top:12px;position:relative;top:${maxBarHeight - Math.max(barHeight(d.day), barHeight(d.night)) + 5}px">${RNG_IN((d.day?.mid ?? 0) + (d.night?.mid ?? 0))}</b><div class="ps-bars">${bar(d.day, "day")}${bar(d.night, "night")}</div></div>`,
     )
     .join("")}</div><p class="ins-legend rng-legend"><span class="ps-key"></span>NWS forecast <span class="ps-key is-model"></span>Models (after the NWS forecast ends) · D = 6am–6pm, N = 6pm–6am · numbers are the middle outcome; hover or tap a bar for its range</p>`;
 }
