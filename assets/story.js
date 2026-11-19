@@ -401,12 +401,27 @@ const ForecastStory = (() => {
     }
     return out.join(" ");
   }
+  /* Season scorecard line from data/scorecard.json (scripts/update-scorecard.mjs). */
+  function scorecard(sc, { tz = "America/Denver" } = {}) {
+    const st = sc?.storms || [];
+    if (!st.length) return "";
+    const md = (d) => new Date(d + "T12:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+    const span = (x) => (x.start === x.end ? md(x.start) : x.start.slice(5, 7) === x.end.slice(5, 7) ? `${md(x.start)}–${+x.end.slice(8)}` : `${md(x.start)}–${md(x.end)}`);
+    const last = st.at(-1);
+    const lastTxt = `${st.length > 1 ? "Most recent, " : "The one snow storm scored so far, "}${span(last)}: ${last.measured.toFixed(1)}″ of precipitation measured vs. ${last.forecast.toFixed(1)}″ forecast a day ahead.`;
+    if (st.length < 2) return lastTxt;
+    const m = st.reduce((t, x) => t + x.measured, 0), f = st.reduce((t, x) => t + x.forecast, 0);
+    const within = st.filter((x) => x.forecast > 0 && Math.abs(x.measured / x.forecast - 1) <= 0.25).length;
+    const pct = f > 0 ? Math.round((100 * m) / f) : null;
+    const lean = pct == null ? "" : pct >= 110 ? ", so storms have been beating the forecast" : pct <= 90 ? ", so storms have been coming in under the forecast" : ", about on target";
+    return `${st.length} snow storms so far this season. Measured precipitation has come to ${pct}% of the forecast made a day ahead${lean}; ${within} of ${st.length} landed within 25%. ${lastTxt}`;
+  }
   function html(story, { esc, title = "Forecast story", link = "" } = {}) {
     const e = esc || ((s) => String(s));
     return `<article class="card afd-card ins-story"><div class="ins-head"><h3>${e(title)}</h3>${link}</div>${story.recap ? `<section><h4>Recent snow</h4><p>${e(story.recap)}</p></section>` : ""}<section><h4>Summary</h4><p>${e(story.summary)}</p></section>${
       story.short.length ? `<section><h4>Short term</h4>${story.short.map((s) => `<p><b>${e(s.title)}.</b> ${e(s.text)}</p>`).join("")}</section>` : ""
-    }${story.extended ? `<section><h4>Extended</h4><p>${e(story.extended)}</p></section>` : ""}${story.afdQuote ? `<p class="ins-quote"><b>NWS forecasters:</b> “${e(story.afdQuote)}”</p>` : ""}</article>`;
+    }${story.extended ? `<section><h4>Extended</h4><p>${e(story.extended)}</p></section>` : ""}${story.score ? `<section><h4>Season scorecard</h4><p>${e(story.score)}</p></section>` : ""}${story.afdQuote ? `<p class="ins-quote"><b>NWS forecasters:</b> “${e(story.afdQuote)}”</p>` : ""}</article>`;
   }
-  return { build, html, findStorms, recap, verify, SNOTEL_SITES };
+  return { build, html, findStorms, recap, verify, scorecard, SNOTEL_SITES };
 })();
 if (typeof module === "object" && module.exports) module.exports = ForecastStory;

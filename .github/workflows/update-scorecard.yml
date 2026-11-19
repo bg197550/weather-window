@@ -1,0 +1,40 @@
+name: Refresh forecast scorecard
+
+on:
+  schedule:
+    - cron: '35 14 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: data-branch
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: Score this season's storms (keeps the last scorecard if a source is down)
+        run: |
+          curl -fsSL "https://raw.githubusercontent.com/${{ github.repository }}/data/scorecard.json" -o "$RUNNER_TEMP/prev.json" || true
+          node scripts/update-scorecard.mjs "$RUNNER_TEMP/scorecard.json" "$RUNNER_TEMP/prev.json"
+      - name: Publish to data branch (single commit, keeps the other data files)
+        run: |
+          [ -f "$RUNNER_TEMP/scorecard.json" ] || { echo "Nothing new to publish"; exit 0; }
+          mkdir "$RUNNER_TEMP/data" && cd "$RUNNER_TEMP/data"
+          git init -q -b data
+          git remote add origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          git fetch -q --depth 1 origin data && git checkout -q FETCH_HEAD -- . || true
+          cp "$RUNNER_TEMP/scorecard.json" scorecard.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && { echo "No change"; exit 0; }
+          git commit -q -m "Forecast scorecard $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push -q -f origin data

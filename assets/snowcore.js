@@ -466,7 +466,7 @@ const SnowCore = (() => {
       .filter(fin)
       .sort((x, y) => x - y);
     const m = Math.max(0, (o.mid[b] ?? 0) - (o.mid[a] ?? 0));
-    return { mid: m, lo: Math.min(m, Math.max(0, quant(v, 0.1) ?? m)), hi: Math.max(m, quant(v, 0.9) ?? m) };
+    return { mid: m, lo: Math.min(m, Math.max(0, quant(v, 0.1) ?? m)), hi: Math.max(m, quant(v, 0.9) ?? m), values: v };
   }
   async function outlook(pl, opts = {}) {
     return build(pl, await fetchInputs(pl, opts), opts.now);
