@@ -25,11 +25,17 @@ test("verify compares measured water with the earlier forecast and quotes the NW
   const fc = Object.fromEntries(r.gains.map((g) => [g.triplet, g.triplet === "766:UT:SNTL" ? 0.9 : g.water * 0.95]));
   const afd = "Snow ended this morning. Totals in the Cottonwoods were higher than expected as a band of heavy snow stalled over the area. More snow Thursday.";
   const v = F.verify(r, fc, afd);
-  assert.match(v, /though Snowbird \(2\.0″ vs\. 0\.9″\) beat it/);
+  assert.match(v, /though Snowbird \(2\.0″ vs\. 0\.9″\) got more/);
   const wet = F.verify(r, Object.fromEntries(r.gains.map((g) => [g.triplet, g.water / 2])), "");
   assert.match(wet, /wetter than forecast/);
   assert.match(v, /NWS forecasters: “Totals in the Cottonwoods were higher than expected/);
   const close = F.verify(r, Object.fromEntries(r.gains.map((g) => [g.triplet, g.water])), afd);
   assert.match(close, /close to the model forecast/);
   assert.doesNotMatch(close, /NWS/);
+});
+
+test("verify mentions the closest site when it missed", () => {
+  const r = F.recap(sn, { slug: "deer-valley", now: at("2026-11-18T18:10:00-07:00") });
+  const fc = Object.fromEntries(r.gains.map((g) => [g.triplet, g.triplet === "814:UT:SNTL" ? 1.8 : g.triplet === "684:UT:SNTL" ? 0.5 : g.water]));
+  assert.match(F.verify(r, fc, ""), /though Thaynes Canyon \(0\.7″ vs\. 1\.8″\) fell short/);
 });
