@@ -17,8 +17,7 @@ const insCache = new Map();
 let insKind = "utah",
   insHigh = true,
   insEvents = [],
-  insTrend = null,
-  insTemps = null;
+  insTrend = null;
 const H = 3600000;
 
 function insFetch(p) {
@@ -579,31 +578,27 @@ function fronts(times, temp, dir, section, now) {
   return [...sharp, ...slow].sort((a, b) => a.t - b.t);
 }
 
-function patternCard(data, section, storms) {
+function updatePatternSignals(data, section) {
   const det = data.det,
     t = det.hourly.time.map(insT),
     now = Date.now();
   const ftToM = det.hourly_units?.[`geopotential_height_500hPa_${INS_MODELS[0][1]}`] === "ft" || meanSeries(det, "geopotential_height_500hPa").some((v) => v > 8000);
   const z = meanSeries(det, "geopotential_height_500hPa").map((v) => (v != null && ftToM ? v / 3.28084 : v)),
-    p = meanSeries(det, "pressure_msl"),
-    tUp = meanSeries(det, insHigh ? "temperature_700hPa" : "temperature_850hPa"),
-    t2 = meanSeries(det, "temperature_2m");
+    tUp = meanSeries(det, insHigh ? "temperature_700hPa" : "temperature_850hPa");
   const dirUp = det.hourly.time.map((_, i) => circMean(series(det, "wind_direction_700hPa").map((s) => s.values[i])));
   const fut = t.map((x, i) => (x >= now - 3 * H ? i : -1)).filter((i) => i >= 0);
   const ft = fut.map((i) => t[i]),
-    fz = fut.map((i) => z[i]),
-    fp = fut.map((i) => p[i]);
-  const items = [];
+    fz = fut.map((i) => z[i]);
   insEvents = [];
 
   // Upper air: troughs and ridges at 500 mb.
   const troughs = extrema(ft, fz, 50, 30, "min"),
     ridges = extrema(ft, fz, 50, 30, "max");
   const zs = series(det, "geopotential_height_500hPa").map((q) => ({ ...q, values: q.values.map((v) => (v != null && ftToM ? v / 3.28084 : v)) }));
-  const upper = [...troughs.map((x) => ({ ...x, kind: "trough" })), ...ridges.map((x) => ({ ...x, kind: "ridge" }))]
+  [...troughs.map((x) => ({ ...x, kind: "trough" })), ...ridges.map((x) => ({ ...x, kind: "ridge" }))]
     .sort((a, b) => a.t - b.t)
     .slice(0, 4)
-    .map((x) => {
+    .forEach((x) => {
       const gi = fut[x.i];
       const times = zs
         .map((s) => {
@@ -616,56 +611,21 @@ function patternCard(data, section, storms) {
       const spread = times.length > 1 ? (Math.max(...times.map((q) => q.t)) - Math.min(...times.map((q) => q.t))) / H : 0;
       const fastest = [...times].sort((a, b) => a.t - b.t)[0];
       insEvents.push({ t: x.t, kind: x.kind, spread, fastest: fastest?.name });
-      return `${x.kind === "trough" ? "Trough axis" : "Ridge axis"} overhead ${partOfDay(x.t, section)} (500 mb height ${Math.round(x.v / 10)} dam).${
-        spread >= 12 ? ` Models differ by ~${Math.round(spread)} h on timing; ${fastest.name} is fastest.` : " Models agree on timing."
-      }`;
     });
   if (fz.length > 100) {
     const early = mean(fz.slice(0, 48)),
       late = mean(fz.slice(120, 192));
     const trend = late - early;
     insTrend = trend <= -60 ? "colder" : trend >= 60 ? "warmer" : "steady";
-    const head =
-      trend <= -60
-        ? `Heights fall about ${Math.round(-trend / 10)} dam from the next two days to days 5–8: the pattern trends colder and more active.`
-        : trend >= 60
-          ? `Heights rise about ${Math.round(trend / 10)} dam from the next two days to days 5–8: ridging, warmer and drier.`
-          : "No large change in mean 500 mb heights over the next week: a fairly steady pattern.";
-    items.push(["Upper levels", [head, ...upper]]);
-  } else if (upper.length) items.push(["Upper levels", upper]);
-
-  // Surface: highs and lows from sea-level pressure.
-  const lows = extrema(ft, fp, 4, 18, "min"),
-    highs = extrema(ft, fp, 4, 18, "max");
-  const sfc = [...lows.map((x) => ({ ...x, k: "low" })), ...highs.map((x) => ({ ...x, k: "high" }))]
-    .sort((a, b) => a.t - b.t)
-    .slice(0, 5)
-    .map((x) =>
-      x.k === "low"
-        ? `Low pressure / surface trough passes ${partOfDay(x.t, section)} (≈${Math.round(x.v)} mb at the minimum).`
-        : `High pressure builds ${partOfDay(x.t, section)} (≈${Math.round(x.v)} mb).`,
-    );
-  if (insHigh && sfc.length)
-    sfc.push("Sea-level pressure over Utah is reduced from high terrain, so use it for timing and trend more than exact values.");
-  if (sfc.length) items.push(["Surface highs and lows", sfc]);
+  } else insTrend = null;
 
   // Fronts from temperature change aloft (no daily cycle at 700/850 mb).
-  const fr = fronts(t, tUp, dirUp, section, now)
+  fronts(t, tUp, dirUp, section, now)
     .filter((f) => f.t < now + 8 * 24 * H)
     .slice(0, 4)
-    .map((f) => {
+    .forEach((f) => {
       insEvents.push({ t: f.t, kind: f.kind === "cold" ? "cold" : "warm", dF: Math.round(Math.abs(f.dC) * 1.8), gradual: f.gradual });
-      const lvl = insHigh ? "700 mb" : "850 mb";
-      const shift = f.before != null && f.after != null && compass(f.before) !== compass(f.after) ? `, winds aloft shift ${compass(f.before)} → ${compass(f.after)}` : "";
-      if (f.gradual)
-        return f.kind === "cold"
-          ? `Colder air filters in ${partOfDay(f.t, section)}: ${lvl} temperature falls about ${Math.round(-f.dC)}°C over 24 hours, a gradual post-frontal cooldown rather than a sharp front.`
-          : `Warming aloft ${partOfDay(f.t, section)}: ${lvl} temperature rises about ${Math.round(f.dC)}°C over 24 hours.`;
-      return f.kind === "cold"
-        ? `Cold front ${partOfDay(f.t, section)}: ${lvl} temperature drops about ${Math.round(-f.dC)}°C in 12 hours${shift}.`
-        : `Warm advection ${partOfDay(f.t, section)}: ${lvl} temperature rises about ${Math.round(f.dC)}°C in 12 hours${shift}.`;
     });
-  if (fr.length) items.push(["Fronts", fr]);
 
   // Best snow pattern windows.
   if (insKind === "utah") {
@@ -686,45 +646,8 @@ function patternCard(data, section, storms) {
       }
       const best = runs.sort((a, b) => b[1] - b[0] - (a[1] - a[0]))[0];
       insEvents.push({ t: best[0], kind: "powder", end: best[1] + H });
-      items.push([
-        "Best snow pattern",
-        [
-          `Cold northwest flow with precipitation ${partOfDay(best[0], section)} to ${partOfDay(best[1] + H, section)}: the post-frontal setup that typically produces the Wasatch's best and lightest snow.`,
-        ],
-      ]);
-    } else if (storms.some((s) => s.snowy))
-      items.push(["Best snow pattern", ["No cold northwest-flow window with precipitation in the next 10 days; snow comes mainly with the frontal band."]]);
+    }
   }
-
-  // Temperature trend.
-  const days = [];
-  const zone = regionZone(section);
-  t.forEach((x, i) => {
-    if (x < now - 3 * H || !Number.isFinite(t2[i])) return;
-    const key = new Date(x).toLocaleDateString("en-CA", { timeZone: zone });
-    let d = days.find((q) => q.key === key);
-    if (!d) days.push((d = { key, t: x, hi: -999, lo: 999 }));
-    d.hi = Math.max(d.hi, t2[i]);
-    d.lo = Math.min(d.lo, t2[i]);
-  });
-  const full = days.slice(1, 9);
-  if (full.length >= 4) {
-    const coldest = full.reduce((a, b) => (b.hi < a.hi ? b : a)),
-      warmest = full.reduce((a, b) => (b.hi > a.hi ? b : a));
-    const ambiguous = coldest.key !== warmest.key && new Date(coldest.t).getUTCDay() === new Date(warmest.t).getUTCDay();
-    const name = (d) => new Date(d.t).toLocaleDateString("en-US", ambiguous ? { weekday: "short", month: "short", day: "numeric", timeZone: zone } : { weekday: "short", timeZone: zone });
-    insTemps = { coldest, warmest, name };
-    items.push([
-      "Temperatures",
-      [
-        `Model highs range from ${Math.round(coldest.hi)}° (${name(coldest)}) to ${Math.round(warmest.hi)}° (${name(warmest)}) over the next week; ${warmest.t > coldest.t ? "warming after the cold point" : "cooling into the colder stretch"}.`,
-      ],
-    ]);
-  }
-  if (!items.length) return "";
-  return `<details class="card afd-card ins-pattern ins-tech"><summary><h3>Pattern details</h3><span class="muted">troughs, ridges, fronts, pressure</span></summary>${items
-    .map(([h, list]) => `<section><h4>${escapeHTML(h)}</h4><ul>${list.map((s) => `<li>${escapeHTML(s)}</li>`).join("")}</ul></section>`)
-    .join("")}<p class="source">Mean of GFS, ECMWF, GEM and ICON at this point via <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo ↗</a>. Troughs and ridges come from 500 mb heights, fronts from 12-hour temperature change at ${insHigh ? "700" : "850"} mb.</p></details>`;
 }
 
 /* Forecaster sentences about confidence and the models, for the plain-English summary. */
@@ -1325,7 +1248,7 @@ async function loadInsights(pt, section) {
         if (!x.snowy && w.mid < 1) continue;
         Object.assign(x, { snowy: true, p10: w.lo, p50: w.mid, p90: w.hi, snowRange: [w.lo, w.mid, w.hi], shared: true });
       }
-    const pattern = patternCard(data, section, storms);
+    updatePatternSignals(data, section);
     const story = storyCard(o, storms.map((x) => ({ start: x.start, end: x.end, ...stormStory(x, data, section) })), data, section, sum);
     html += story;
     if (insKind === "utah" && storms.length) {
@@ -1337,7 +1260,6 @@ async function loadInsights(pt, section) {
     html += storms.length
       ? storms.map((s, i) => stormCard(s, section, i)).join("")
       : `<article class="card afd-card ins-storm"><h3>No storm in sight</h3><p>None of the GFS, ECMWF, GEM or ICON models show a meaningful precipitation event (0.05″ liquid or more) in the next 10 days.</p></article>`;
-    html += pattern;
   } else {
     // Insights' own model data failed (often Open-Meteo's free limit); the story only needs the shared snow outlook.
     html += storyCard(o, [], data, section, sum);

@@ -333,7 +333,7 @@ const ForecastStory = (() => {
     // Still snowing: depth up 2″+ over the last 3 hours of readings.
     const recent = withD.filter((x) => x.ms >= last.ms - 3 * H);
     const ongoing = recent.length > 1 && recent.at(-1).depth - Math.min(...recent.map((x) => x.depth)) >= 2;
-    return { triplet: st.triplet, name: st.name || st.near, water, snow, startMs, endMs, ongoing };
+    return { triplet: st.triplet, name: st.name || st.near, water, snow, baseMs: base.ms, startMs, endMs, ongoing };
   }
   function recap(snotel, { slug = "", tz = "America/Denver", now = Date.now() } = {}) {
     if (!snotel?.stations?.length) return null;
@@ -363,8 +363,43 @@ const ForecastStory = (() => {
     );
     const mine = gains.find((g) => g.triplet === SNOTEL_NEAR[slug]);
     if (mine && mine !== top && mine.snow != null) parts.push(`The closest site, ${mine.name}, picked up ${Math.round(mine.snow)}″ from ${mine.water.toFixed(1)}″ of water.`);
-    parts.push("Sensors measure settled depth, so ski-area new-snow reports usually run higher.");
-    return parts.filter(Boolean).join(" ");
+    return { text: parts.filter(Boolean).join(" "), note: "Sensors measure settled depth, so ski-area new-snow reports usually run higher.", gains, ongoing, mine: mine?.triplet || null };
+  }
+  /* SNOTEL sites: lat, lon, elevation (m) — for pulling the earlier forecast at each sensor. */
+  const SNOTEL_SITES = {
+    "814:UT:SNTL": [40.62, -111.53, 2813], "684:UT:SNTL": [40.76, -111.63, 2312], "628:UT:SNTL": [40.66, -111.64, 2731],
+    "366:UT:SNTL": [40.6, -111.58, 2667], "766:UT:SNTL": [40.57, -111.66, 2938], "332:UT:SNTL": [41.38, -111.94, 2438],
+  };
+  /* What fell vs. what was forecast ~a day ahead. fc: {triplet: inches of water forecast over that site's storm window}.
+     afdText: the latest NWS discussion, searched for the forecasters' own explanation. */
+  const AFD_WHY = /(over|under)[- ]?perform|(more|less|higher|lower|heavier|lighter) (than|snow than|precip\w* than|totals than|amounts than)( (was|were))? (expected|forecast|anticipated)|exceed\w* (expectations|forecasts?)|fell short|busted|bust\b/i;
+  function verify(r, fc, afdText = "") {
+    if (!r || r.ongoing || !fc) return "";
+    const both = r.gains.filter((g) => Number.isFinite(fc[g.triplet]));
+    if (both.length < 2) return "";
+    const obs = both.reduce((t, g) => t + g.water, 0), fcs = both.reduce((t, g) => t + fc[g.triplet], 0);
+    if (fcs < 0.1) return "";
+    const ratio = obs / fcs;
+    const avgO = (obs / both.length).toFixed(1), avgF = (fcs / both.length).toFixed(1);
+    const out = [];
+    const rs = both.map((g) => ({ g, r: g.water / Math.max(0.05, fc[g.triplet]) })).sort((x, y) => y.r - x.r);
+    const hi = rs[0], lo = rs.at(-1);
+    const site = (x) => `${x.g.name} (${x.g.water.toFixed(1)}″ vs. ${fc[x.g.triplet].toFixed(1)}″)`;
+    if (ratio >= 1.25) out.push(`It came in wetter than forecast: about ${avgO}″ of water per site vs. ${avgF}″ in the model forecast a day earlier.`);
+    else if (ratio <= 0.8) out.push(`It came in drier than forecast: about ${avgO}″ of water per site vs. ${avgF}″ in the model forecast a day earlier.`);
+    else {
+      // Close overall: point out the closest site if it missed, else the biggest single-site miss.
+      const me = rs.find((x) => x.g.triplet === r.mine);
+      const odd = me && (me.r >= 1.5 || me.r <= 0.6) ? me : hi.r >= 1 / lo.r ? (hi.r >= 1.5 ? hi : null) : lo.r <= 0.6 ? lo : null;
+      out.push(`That was close to the model forecast a day earlier overall (about ${avgO}″ of water per site vs. ${avgF}″)${odd ? `, though ${site(odd)} ${odd.r > 1 ? "got more" : "fell short"}` : ""}.`);
+    }
+    if (ratio >= 1.25 && hi.r >= 1.5) out.push(`The biggest overperformer was ${site(hi)}.`);
+    if (ratio <= 0.8 && lo.r <= 0.6) out.push(`The biggest shortfall was ${site(lo)}.`);
+    if (ratio >= 1.25 || ratio <= 0.8 || hi.r >= 1.5 || lo.r <= 0.6) {
+      const sent = String(afdText || "").replace(/\s+/g, " ").split(/(?<=[.!?])\s+/).find((x) => AFD_WHY.test(x) && x.length < 260);
+      if (sent) out.push(`NWS forecasters: “${sent.trim()}”`);
+    }
+    return out.join(" ");
   }
   function html(story, { esc, title = "Forecast story", link = "" } = {}) {
     const e = esc || ((s) => String(s));
@@ -372,6 +407,6 @@ const ForecastStory = (() => {
       story.short.length ? `<section><h4>Short term</h4>${story.short.map((s) => `<p><b>${e(s.title)}.</b> ${e(s.text)}</p>`).join("")}</section>` : ""
     }${story.extended ? `<section><h4>Extended</h4><p>${e(story.extended)}</p></section>` : ""}${story.afdQuote ? `<p class="ins-quote"><b>NWS forecasters:</b> “${e(story.afdQuote)}”</p>` : ""}</article>`;
   }
-  return { build, html, findStorms, recap };
+  return { build, html, findStorms, recap, verify, SNOTEL_SITES };
 })();
 if (typeof module === "object" && module.exports) module.exports = ForecastStory;
