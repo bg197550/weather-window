@@ -36,7 +36,7 @@ test("all full forecast periods and hourly indices survive grouping",()=>{
  const html=context().detailedPeriods(periods,2,"utah");
  assert.equal((html.match(/data-period-hourly=/g)||[]).length,14);
  for(const [i,q] of periods.entries()){assert.ok(html.includes(q.detailedForecast));assert.ok(html.includes('period-hours-2-'+i));}
- assert.ok(html.includes("0%"));assert.ok(html.includes("Unavailable"));
+ assert.doesNotMatch(html, /High 57°F|Low 56°F|Precip chance|Wind 3 mph|period-metrics/);
 });
 test("NWS text is escaped before insertion",()=>{
  const html=context().detailedPeriods([{...periods[0],name:"<script>bad</script>",detailedForecast:"<img src=x onerror=bad>"}],0,"utah");
