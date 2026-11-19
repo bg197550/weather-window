@@ -5,7 +5,7 @@
 const ForecastStory = (() => {
   const H = 3600000;
   const fin = Number.isFinite;
-  const ft = (v) => `${(Math.round(v / 500) * 500).toLocaleString()} ft`;
+  const ft = (v) => `${(Math.round(v / 100) * 100).toLocaleString()} ft`;
   const inch = (v) => (v < 1 ? "under an inch" : `${Math.round(v)}″`);
   const range = (lo, hi) => (hi < 1 ? "under an inch" : `${Math.max(0, Math.round(lo))}–${Math.round(hi)}″`);
   const water = (v) => `${v < 0.1 ? "a trace" : (Math.round(v * 20) / 20).toFixed(2).replace(/0$/, "")}″`;
@@ -56,7 +56,7 @@ const ForecastStory = (() => {
     const dayName = (ms) => {
       const { date, weekday } = local(ms);
       const dd = dayDiff(date);
-      return dd === 0 ? `today (${weekday})` : dd === 1 ? `tomorrow (${weekday})` : weekday;
+      return dd === 0 ? `today (${weekday})` : dd === 1 ? `tomorrow (${weekday})` : dd >= 7 ? dateName(ms) : weekday;
     };
     const dateName = (ms) => {
       const { date, weekday } = local(ms);
@@ -186,27 +186,71 @@ const ForecastStory = (() => {
     return short ? `${dir} from about ${inch(w.old)} in ${label}` : `That's ${dir} from about ${inch(w.old)} in ${label}${Math.abs(d) >= 6 ? ` — a big ${d > 0 ? "increase" : "drop"}` : ""}.`;
   }
 
+  /* Snow quality in words from the snow-to-water ratio (shared by the story and the storm list). */
+  const qualityWord = (r) => (r == null ? null : r <= 10 ? "Heavy, wet snow" : r <= 13 ? "Medium-weight snow" : "Light, dry snow");
+  /* A storm over a fixed time window (the storm list's window), built from the outlook's 6-hour blocks. */
+  function stormIn(o, fromMs, toMs) {
+    const t0 = Date.parse(o.built);
+    const ha = (fromMs - t0) / H,
+      hb = (toMs - t0) / H;
+    const wet = (b) => (b.chance ?? 0) >= 0.5 && (b.liq ?? 0) >= 0.04;
+    const bl = o.blocks.filter((b) => b.b > ha && b.a < hb);
+    if (!bl.length) return null;
+    const w = bl.filter(wet).length ? bl.filter(wet) : bl;
+    const rounds = [];
+    let prevB = null;
+    for (const b of w) {
+      if (prevB != null && b.a - prevB >= 6) rounds.push([b]);
+      else if (rounds.length) rounds[rounds.length - 1].push(b);
+      else rounds.push([b]);
+      prevB = b.b;
+    }
+    const all = rounds.flat();
+    return {
+      rounds,
+      blocks: all,
+      a: Math.max(all[0].a, 0),
+      b: all[all.length - 1].b,
+      wa: Math.max(ha, 0),
+      wb: hb,
+      liq: bl.reduce((t, b) => t + (b.liq || 0), 0),
+      peak: all.reduce((m, b) => ((b.liq || 0) > (m.liq || 0) ? b : m), all[0]),
+    };
+  }
+  /* Everything the storm list and the story both show for one storm, from one place. */
+  function facts(o, fromMs, toMs) {
+    const s = stormIn(o, fromMs, toMs);
+    if (!s) return null;
+    const first = s.blocks[0],
+      low = s.blocks.reduce((m, b) => (fin(b.med) && (!fin(m.med) || b.med < m.med) ? b : m), first);
+    const r0 = ratioOf(tempAt(o, s.a + 3)),
+      rLow = ratioOf(tempAt(o, low.a + 3));
+    const q0 = qualityWord(r0),
+      q1 = qualityWord(rLow);
+    const quality = q0 && q1 && q0 !== q1 ? `${q0.split(" snow")[0]} → ${q1.toLowerCase()}` : q0;
+    return { ...s, snow: snowBetween(o, s.wa, s.wb), l0: first.med, lMin: low.med, lMinMs: Date.parse(o.built) + low.b * H, r0, rLow, quality, ratio: r0 != null ? (rLow != null && rLow !== r0 ? `${Math.min(r0, rLow)}–${Math.max(r0, rLow)}:1` : `${r0}:1`) : null };
+  }
   /* The story. kinds: Insights' storm descriptions [{start, end, kind, from}] (optional);
      history: earlier runs for this mountain from the region summary, to note meaningful changes. */
   function build(o, { section = "utah", now = Date.now(), sum = null, kinds = [], afdQuote = "", history = null } = {}) {
     const c = clock(o, now);
     const prev = pickPrev(history || sum?.history?.[o.slug], Date.parse(o.built));
     const where = o.ski ? `at the summit (${o.summit.toLocaleString()} ft)` : "here";
-    const storms = findStorms(o, 8 * 24).slice(0, 3);
     const elev = o.elev,
       base = o.base ?? elev;
-    const S = storms.map((s, i) => {
-      const fromMs = c.at(s.a),
-        toMs = c.at(s.b);
-      const snow = snowBetween(o, s.a, s.b);
-      const first = s.blocks[0],
-        low = s.blocks.reduce((m, b) => (fin(b.med) && (!fin(m.med) || b.med < m.med) ? b : m), first);
-      const t0 = tempAt(o, s.a + 3),
-        r0 = ratioOf(t0),
-        rLow = ratioOf(tempAt(o, low.a + 3));
-      const kind = kinds.find((k) => k.end > fromMs && k.start < toMs);
-      return { ...s, i, fromMs, toMs, snow, l0: first.med, lMin: low.med, lMinMs: c.at(low.b), r0, rLow, kind, ongoing: s.a <= 1 };
-    });
+    // Storms: the storm list's windows when Insights passes them (so both show the same storms and numbers),
+    // otherwise the outlook's own wet stretches.
+    const listed = kinds.filter((k) => k.win).slice(0, 3);
+    const S = (listed.length ? listed.map((k) => ({ k, f: facts(o, k.win[0], k.win[1]) })) : findStorms(o, 8 * 24).slice(0, 3).map((x) => ({ k: null, f: facts(o, c.at(x.a), c.at(x.b)) })))
+      .filter((x) => x.f)
+      .map(({ k, f }, i) => {
+        // Timing: the storm list's start and end when it gave them, so both read the same.
+        const ongoing = k ? !!k.current || k.start <= now : f.a <= 1;
+        const fromMs = k ? (ongoing ? now : k.start) : c.at(f.a),
+          toMs = k ? k.end : c.at(f.b);
+        const kind = k || kinds.find((q) => q.end > fromMs && q.start < toMs);
+        return { ...f, i, fromMs, toMs, winEnd: c.at(f.wb), kind, ongoing };
+      });
     const intensity = (s) => ((s.peak.liq || 0) >= 0.3 ? "heavy" : (s.peak.liq || 0) >= 0.12 ? "steady" : "light");
     const what = (s) => (s.snow.mid >= 1 ? (o.ski ? "mountain snow" : "snow") : s.l0 > elev + 250 ? "rain" : "rain and snow");
 
@@ -220,26 +264,17 @@ const ForecastStory = (() => {
           ? `A storm is under way with ${intensity(s)} ${what(s)}, lasting until ${c.when(s.toMs)}.`
           : `Our next storm arrives ${c.dayName(s.fromMs)} with ${intensity(s)} ${what(s)} developing ${c.whenAfter(c.at(s.peak.a), s.fromMs)}.`,
       );
-      if (fin(s.l0) && fin(s.lMin) && s.l0 - s.lMin >= 1000) sum1.push(`Snow levels start around ${ft(s.l0)} but drop to ${ft(s.lMin)} by ${c.when(s.lMinMs)}.`);
-      else if (fin(s.l0)) sum1.push(`Snow levels stay near ${ft(s.l0)}.`);
-      if (S[1]) {
-        const n = S[1];
-        const sameDay = c.dayName(n.fromMs) === c.dayName(n.toMs);
-        sum1.push(`The next storm arrives ${c.dayName(n.fromMs)}${sameDay ? "" : ` and continues into ${c.dayName(n.toMs)}`}, with ${n.snow.mid >= 6 ? "additional significant accumulation likely" : n.snow.mid >= 1 ? "more snow" : "light amounts"}.`);
-      }
-      const last = S[S.length - 1];
-      const tot = snowBetween(o, S[0].ongoing ? 0 : S[0].a, last.b);
-      if (S.length > 1 && tot.hi >= 1) {
-        const ch = changeNote(o, prev, c, S[0].fromMs, last.toMs, true);
-        sum1.push(`Through ${c.dayName(last.toMs)}: ${range(tot.lo, tot.hi)} ${where}${ch ? `, ${ch}` : ""}.`);
-      } else if (S.length === 1) {
-        const ch = changeNote(o, prev, c, S[0].fromMs, S[0].toMs, true);
-        if (ch) sum1.push(`Expect ${range(S[0].snow.lo, S[0].snow.hi)} ${where}, ${ch}.`);
-      }
+      const span = (n) => (c.dayName(n.fromMs) === c.dayName(n.toMs) ? c.dayName(n.fromMs) : `${c.dayName(n.fromMs)} into ${c.dayName(n.toMs)}`);
+      if (S.length === 2) sum1.push(`Another storm follows ${span(S[1])}.`);
+      else if (S.length > 2) sum1.push(`Two more follow: ${span(S[1])}, then ${span(S[2])}.`);
+      // The 10-day total is on the storm card; the summary only mentions it when it moved meaningfully since about a day ago.
+      const t10 = o.totals?.[10];
+      const ch = changeNote(o, prev, c, now, now + 240 * H, true);
+      if (t10 && ch) sum1.push(`The next 10 days add up to ${t10.mid < 1 ? "under an inch" : `about ${inch(t10.mid)}`} ${where}, ${ch}.`);
     }
 
     // Short term: each storm.
-    const short = S.map((s) => {
+    const short = S.slice(0, 1).map((s) => {
       const p = [];
       if (s.kind?.kind) p.push(`${cap(s.kind.kind)}${s.kind.from ? `, ${s.kind.from}` : ""}.`);
       // Timing and rounds.
@@ -263,9 +298,13 @@ const ForecastStory = (() => {
         p.push(lvl);
       }
       // Water and snow.
-      let ws = `About ${water(s.liq)} of water, which works out to about ${inch(s.snow.mid)} ${o.ski ? "at the summit" : "here"}, likely ${range(s.snow.lo, s.snow.hi)}.`;
-      if (s.r0 != null && s.r0 <= 10 && s.snow.mid >= 1) ws += ` The early snow is wet and dense (around ${s.r0}:1), which holds totals down${s.rLow > s.r0 + 3 ? `; colder air later lifts ratios to about ${s.rLow}:1` : ""}.`;
-      else if (s.r0 != null && s.r0 >= 14 && s.snow.mid >= 1) ws += ` Cold air means light, fluffy snow (about ${s.r0}:1).`;
+      const at = o.ski ? "at the summit" : "here";
+      let ws =
+        s.snow.hi < 1
+          ? `About ${water(s.liq)} of water, but less than an inch of snow ${at}.`
+          : `About ${water(s.liq)} of water, which works out to ${s.snow.mid < 1 ? "under an inch" : `about ${inch(s.snow.mid)}`} ${at}, likely ${range(s.snow.lo, s.snow.hi)}.`;
+      if (s.r0 != null && s.r0 <= 10 && s.snow.mid >= 1) ws += ` It starts heavy and wet (around ${s.r0}:1), which holds totals down${s.rLow > s.r0 + 3 ? `; colder air later makes it lighter (about ${s.rLow}:1)` : ""}.`;
+      else if (s.r0 != null && s.r0 >= 14 && s.snow.mid >= 1) ws += ` Cold air means light, dry snow (about ${s.r0}:1).`;
       p.push(ws);
       const ch = changeNote(o, prev, c, s.fromMs, s.toMs, false);
       if (ch) p.push(ch);
@@ -277,12 +316,12 @@ const ForecastStory = (() => {
 
     // Extended: the quiet stretch after these storms, then what the ensemble runs show for days 8–15.
     const ext = [];
-    const lastB = S.length ? S[S.length - 1].b : 0;
+    const lastB = S.length ? Math.max(S[S.length - 1].b, S[S.length - 1].wb) : 0;
     const later = findStorms(o, 15 * 24).filter((s) => s.a > lastB + 6);
     const next = later[0];
     if (S.length) ext.push(next ? `Quieter weather follows from ${c.dayName(c.at(lastB))} until about ${c.dateName(c.at(next.a))}.` : `Quieter weather follows from ${c.dayName(c.at(lastB))}.`);
     const days = [];
-    for (let d = 7; d < 15; d++) {
+    for (let d = Math.max(7, Math.ceil((lastB + 12) / 24)); d < 15; d++) {
       const a = d * 24,
         b = a + 24;
       const idx = (h) => {
@@ -422,6 +461,6 @@ const ForecastStory = (() => {
       story.short.length ? `<section><h4>Short term</h4>${story.short.map((s) => `<p><b>${e(s.title)}.</b> ${e(s.text)}</p>`).join("")}</section>` : ""
     }${story.extended ? `<section><h4>Extended</h4><p>${e(story.extended)}</p></section>` : ""}${story.score ? `<section><h4>Season scorecard</h4><p>${e(story.score)}</p></section>` : ""}${story.afdQuote ? `<p class="ins-quote"><b>NWS forecasters:</b> “${e(story.afdQuote)}”</p>` : ""}</article>`;
   }
-  return { build, html, findStorms, recap, verify, scorecard, SNOTEL_SITES };
+  return { build, html, findStorms, facts, qualityWord, recap, verify, scorecard, SNOTEL_SITES };
 })();
 if (typeof module === "object" && module.exports) module.exports = ForecastStory;
