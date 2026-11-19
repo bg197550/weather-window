@@ -21,12 +21,12 @@ function outlook() {
 test("story tells timing, falling snow levels, water and snow, and the next storm", () => {
   const st = Story.build(outlook(), { section: "utah", now: Date.parse("2026-11-17T13:30:00Z") });
   assert.match(st.summary, /^Our next storm arrives today \(Tuesday\)/);
-  assert.match(st.summary, /Snow levels start around 8,500 ft but drop to 5,000 ft/);
-  assert.match(st.summary, /The next storm arrives Friday/);
-  assert.equal(st.short.length, 2);
+  assert.match(st.short[0].text, /Snow levels start around 8,500 ft and fall to 5,000 ft/);
+  assert.match(st.summary, /Another storm follows Friday/);
+  assert.equal(st.short.length, 1); // later storms live in the storm list
   assert.doesNotMatch(st.short[0].text, /rain or mix/); // 8,500 ft snow level vs an 8,530 ft base: snow
   assert.doesNotMatch(st.short[0].text, /around midday, heaviest around midday/);
-  assert.match(st.short[0].text, /wet and dense/);
+  assert.match(st.short[0].text, /heavy and wet/);
   assert.match(st.short[0].text, /likely \d+–\d+″/);
 });
 test("no storms: says so", () => {
@@ -49,4 +49,14 @@ test("notes a meaningful change from about a day earlier, and stays quiet about 
   assert.match(big.short[0].text, /That's up from about 4″ in yesterday morning's forecast/);
   const small = Story.build(o, { section: "utah", now: t0 + 1800000, history: [{ built: prevBuilt, segs: [["2026-11-17", "day", 6], ["2026-11-17", "night", 4]] }] });
   assert.doesNotMatch(small.short[0].text, /from about/);
+});
+
+test("uses the storm list's windows and shares its numbers", () => {
+  const o = outlook();
+  const t0 = Date.parse(o.built);
+  const win = [t0 - 6 * 3600000, t0 + 30 * 3600000];
+  const st = Story.build(o, { section: "utah", now: t0 + 1800000, kinds: [{ start: t0, end: t0 + 24 * 3600000, win, kind: "a Pacific storm" }] });
+  const f = Story.facts(o, ...win);
+  assert.match(st.short[0].text, new RegExp(`about ${Math.round(f.snow.mid)}″ at the summit, likely ${Math.round(f.snow.lo)}–${Math.round(f.snow.hi)}″`));
+  assert.ok(f.quality && f.ratio);
 });

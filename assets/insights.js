@@ -425,6 +425,11 @@ function likelyText(x) {
     return `${first.label} or ${second.label} (${Math.round(first.pct)}% / ${Math.round(second.pct)}% of ensemble members)`;
   return `${first.label} (${Math.round(first.pct)}% of ensemble members)`;
 }
+function sharedDist(vals) {
+  return SNOW_BINS.map(([lo, hi, label]) => ({ label, lo, hi, pct: (100 * vals.filter((v) => v >= lo && v < hi).length) / vals.length })).filter(
+    (x, i, arr) => x.pct >= 1 || (i > 0 && i < arr.length - 1 && arr.slice(0, i).some((y) => y.pct) && arr.slice(i + 1).some((y) => y.pct)),
+  );
+}
 function fmtAmt(v, snowy) {
   if (v == null) return "–";
   return snowy ? (v < 1 ? v.toFixed(1) : Math.round(v)) + "″" : v.toFixed(2) + "″";
@@ -432,10 +437,11 @@ function fmtAmt(v, snowy) {
 function snowQuality(t700F) {
   if (t700F == null) return null;
   const c = fToC(t700F);
-  if (c > -4) return { label: "Wet, dense snow", ratio: "about 8–10:1", c };
-  if (c > -9) return { label: "Average density", ratio: "about 10–13:1", c };
-  if (c > -16) return { label: "Light, dry snow", ratio: "about 14–18:1", c };
-  return { label: "Very cold, small flakes", ratio: "about 12–15:1", c };
+  // Plain-words snow quality from the 700 mb temperature, with the usual snow-to-water ratio.
+  if (c > -4) return { label: "Heavy, wet snow", ratio: "about 8–10″ of snow per 1″ of water", short: "8–10:1", c };
+  if (c > -9) return { label: "Medium-weight snow", ratio: "about 10–13″ of snow per 1″ of water", short: "10–13:1", c };
+  if (c > -16) return { label: "Light, dry snow", ratio: "about 14–18″ of snow per 1″ of water", short: "14–18:1", c };
+  return { label: "Cold, fine snow", ratio: "about 12–15″ of snow per 1″ of water", short: "12–15:1", c };
 }
 function flowNote(x) {
   if (x.dir700 == null) return null;
@@ -469,7 +475,7 @@ function ptypeNote(x) {
   return `850 mb temperatures around ${Math.round(c)}°C: too warm aloft for snow; expect rain.`;
 }
 
-function stormCard(x, section, idx) {
+function stormCard(x, section, idx, inner = false) {
   const now = Date.now();
   const current = x.current;
   const title = idx === 0 ? (current ? "Current storm · still to come" : "Next storm") : `Storm ${idx + 1}`;
@@ -496,9 +502,9 @@ function stormCard(x, section, idx) {
   const notes = [];
   if (x.snowy && q)
     notes.push(
-      `<b>Snow quality:</b> ${q.label}. 700 mb temperature averages ${Math.round(q.c)}°C during the storm, which suggests snow-to-liquid ratios ${q.ratio}.`,
+      x.f?.quality ? `<b>Snow quality:</b> ${x.f.quality}, about ${x.f.ratio} (inches of snow per inch of water).` : `<b>Snow quality:</b> ${q.label}, ${q.ratio}. 700 mb temperature averages ${Math.round(q.c)}°C during the storm.`,
     );
-  if (x.nws?.level && insKind !== "ne")
+  if (!x.f && x.nws?.level && insKind !== "ne")
     notes.push(
       `<b>Snow level (NWS):</b> ${Math.round(x.nws.level.max / 100) * 100 === Math.round(x.nws.level.min / 100) * 100 ? Math.round(x.nws.level.min / 100) * 100 + " ft" : `${(Math.round(x.nws.level.max / 100) * 100).toLocaleString()} ft falling to ${(Math.round(x.nws.level.min / 100) * 100).toLocaleString()} ft`}${x.elevFt ? ` (this point ≈ ${Math.round(x.elevFt).toLocaleString()} ft)` : ""}.`,
     );
@@ -529,7 +535,9 @@ function stormCard(x, section, idx) {
       ? `<tr class="flag"><th>NWS</th><td data-label="Liquid">${fmtAmt(x.nws.liquid.inches, false)}</td><td data-label="Snow">${x.nws.snow ? fmtAmt(x.nws.snow.inches, true) : "–"}</td><td data-label="${x.current ? "Ends" : "Starts"}">official</td></tr>`
       : ""
   }</tbody></table></div>`;
-  return `<article class="card afd-card ins-storm"><div class="ins-head"><h3>${title}</h3><span class="ins-conf ins-conf-${(x.conf || "na").toLowerCase()}">${x.conf ? x.conf + " confidence" : "Confidence n/a"}</span></div><p class="ins-timing">${escapeHTML(timing)}</p><div class="ins-stats"><div><span>NWS forecast</span><strong>${nwsPart}</strong><small>${unit.toLowerCase()} · official</small></div><div><span>${x.shared ? "Likely range" : "Model range"}</span><strong>${range}</strong><small>10th–90th percentile of ${x.shared ? "the ensemble runs, scaled to NWS" : `${x.members.length} ensemble runs`}</small></div><div><span>Middle outcome</span><strong>${fmtAmt(x.p50, x.snowy)}</strong><small>${x.shared ? "same as Snow forecast" : "ensemble median"}${x.snowy ? ` · ${fmtAmt(x.liqRange[1], false)} liquid` : ""}</small></div></div>${likely ? `<p class="ins-likely"><b>Most likely:</b> ${escapeHTML(likely)}</p>` : ""}<div class="ins-bars" aria-label="Share of ensemble runs by total">${bars}</div><details class="ins-more"><summary>Technical details</summary><ul class="ins-notes">${notes.map((n) => `<li>${n}</li>`).join("")}</ul>${table}</details></article>`;
+  const body = `<div class="ins-stats"><div><span>NWS forecast</span><strong>${nwsPart}</strong><small>${unit.toLowerCase()} · official</small></div><div><span>${x.shared ? "Likely range" : "Model range"}</span><strong>${range}</strong><small>10th–90th percentile of ${x.shared ? "the ensemble runs, scaled to NWS" : `${x.members.length} ensemble runs`}</small></div><div><span>Middle outcome</span><strong>${fmtAmt(x.p50, x.snowy)}</strong><small>${x.shared ? "same as Snow forecast" : "ensemble median"}${x.snowy ? ` · ${fmtAmt(x.f ? x.f.liq : x.liqRange[1], false)} water` : ""}</small></div></div>${likely ? `<p class="ins-likely"><b>Most likely:</b> ${escapeHTML(likely)}</p>` : ""}<div class="ins-bars" aria-label="Share of ensemble runs by total">${bars}</div><details class="ins-more"><summary>Technical details</summary><ul class="ins-notes">${notes.map((n) => `<li>${n}</li>`).join("")}</ul>${table}</details>`;
+  if (inner) return body;
+  return `<article class="card afd-card ins-storm"><div class="ins-head"><h3>${title}</h3><span class="ins-conf ins-conf-${(x.conf || "na").toLowerCase()}">${x.conf ? x.conf + " confidence" : "Confidence n/a"}</span></div><p class="ins-timing">${escapeHTML(timing)}</p>${body}</article>`;
 }
 
 /* ---------- pattern ---------- */
@@ -1083,7 +1091,10 @@ function bandFromOutlook(o) {
 function cycleCard(storms, data, section, elevFt, placeName, o) {
   const list = storms
     .map((x, i) => {
-      const lvl = x.nws?.level
+      const sl = (v) => (Math.round(v / 100) * 100).toLocaleString(); // same rounding as the story
+      const lvl = x.f && Number.isFinite(x.f.l0)
+        ? `Snow level ${sl(x.f.l0)}${Number.isFinite(x.f.lMin) && Math.abs(x.f.l0 - x.f.lMin) >= 300 ? ` → ${sl(x.f.lMin)}` : ""} ft`
+        : x.nws?.level
         ? `Snow level ${(Math.round(x.nws.level.max / 100) * 100).toLocaleString()}${Math.round(x.nws.level.max / 100) !== Math.round(x.nws.level.min / 100) ? ` → ${(Math.round(x.nws.level.min / 100) * 100).toLocaleString()}` : ""} ft (NWS)`
         : x.t700mean != null
           ? `Snow level about ${(Math.round(snowLevelAt(null, 0, x.t700mean) / 100) * 100).toLocaleString()} ft (models)`
@@ -1091,7 +1102,7 @@ function cycleCard(storms, data, section, elevFt, placeName, o) {
       const q = snowQuality(x.t700mean);
       const r = o ? SnowCore.windowSnow(o, ...stormWindow(x)) : cycleRange(data, elevFt, ...stormWindow(x));
       const amt = !r ? "–" : r.lo != null ? `${fmtAmt(r.mid, true)} <small class="rng">(${fmtAmt(r.lo, true)}–${fmtAmt(r.hi, true)})</small>` : fmtAmt(r.mid, true);
-      return `<li><b>Storm ${i + 1}</b><span>${escapeHTML(x.current ? `Now → ${partOfDay(x.end, section)}` : `${cap(partOfDay(x.start, section))} → ${partOfDay(x.end, section)}`)}</span><span class="amt">${amt} here</span><span class="ins-conf ins-conf-${(x.conf || "na").toLowerCase()}">${x.conf ? x.conf + " confidence" : "Confidence n/a"}</span><small>${[lvl, q?.label].filter(Boolean).map(escapeHTML).join(" · ")}</small></li>`;
+      return `<li><details${i === 0 ? " open" : ""}><summary><b>Storm ${i + 1}</b><span>${escapeHTML(x.current ? `Now → ${partOfDay(x.end, section)}` : `${cap(partOfDay(x.start, section))} → ${partOfDay(x.end, section)}`)}</span><span class="amt">${amt} here</span><span class="ins-conf ins-conf-${(x.conf || "na").toLowerCase()}">${x.conf ? x.conf + " confidence" : "Confidence n/a"}</span><small>${[lvl, x.f?.quality && x.snowy !== false ? `${x.f.quality} (${x.f.ratio})` : q && x.snowy !== false ? `${q.label} (${q.short})` : ""].filter(Boolean).map(escapeHTML).join(" · ")}</small><span class="ins-open" aria-hidden="true"></span></summary><div class="ins-storm-body">${stormCard(x, section, i, true)}</div></details></li>`;
     })
     .join("");
   const band = o ? bandFromOutlook(o) : cycleBand(data, elevFt);
@@ -1105,7 +1116,7 @@ function cycleCard(storms, data, section, elevFt, placeName, o) {
     band && last != null
       ? `<h4>10-day total${placeName ? ` · ${escapeHTML(placeName)}` : ""}</h4><div class="ins-stats"><div><span>Low end</span><strong>${fmtAmt(band.p10[last], true)}</strong><small>ensemble spread, 10th percentile</small></div><div><span>Middle</span><strong>${fmtAmt(band.p50[last], true)}</strong><small>${o ? "same as Snow forecast" : "model average"}</small></div><div><span>High end</span><strong>${fmtAmt(band.p90[last], true)}</strong><small>ensemble spread, 90th percentile</small></div></div>${bandChart(band, storms, section)}`
       : "";
-  return `<article class="card afd-card ins-cycle"><div class="ins-head"><h3>Wasatch storm cycle · next 10 days</h3><span class="ins-conf">${storms.length} storm${storms.length === 1 ? "" : "s"}</span></div><ol class="ins-cycle-list">${list}</ol>${totals}<p class="ins-cycle-links"><a class="xlink" href="${o?.ski ? `snow/#mountain/${section}/${o.slug}` : `#${section}/${o ? o.slug : WW.place().slug}/snow`}">Snow forecast: day by day, every model run, snow level ›</a> <a class="xlink" href="snow/#forecast/${section}">Compare all mountains ›</a></p><p class="source">${
+  return `<article class="card afd-card ins-cycle"><div class="ins-head"><h3>${insKind === "utah" ? "Wasatch storm cycle" : "Storms"} · next 10 days</h3><span class="ins-conf">${storms.length} storm${storms.length === 1 ? "" : "s"}</span></div><ol class="ins-cycle-list">${list}</ol>${totals}<p class="ins-cycle-links"><a class="xlink" href="${o?.ski ? `snow/#mountain/${section}/${o.slug}` : `#${section}/${o ? o.slug : WW.place().slug}/snow`}">Snow forecast: day by day, every model run, snow level ›</a> <a class="xlink" href="snow/#forecast/${section}">Compare all mountains ›</a></p><p class="source">${
     o
       ? `Amounts are for ${o.ski ? `the summit (${o.summit.toLocaleString()} ft)` : "ground level"} and match the Snow section (Snow forecast and All mountains): the NWS forecast for its first ~7 days, then the GEFS and ECMWF ensemble median; ranges are the ensemble runs scaled to NWS.`
       : "Amounts use the GFS, ECMWF, GEM and ICON average with snow level and ratio from each model's 700 mb temperature (the shared snow forecast was unavailable)."
@@ -1157,12 +1168,93 @@ async function fillCycleTable(el, key, storms, section, pt) {
 }
 
 /* The forecast story (summary, each storm, extended) from the shared snow outlook; "" when it isn't available. */
-function storyCard(o, kinds, data, section, sum) {
+// Measured snow from the last storm (NRCS SNOTEL, refreshed hourly on the data branch) for the story's "Recent snow".
+let insSnotel = null;
+function loadSnotelRecap() {
+  return fetch("https://raw.githubusercontent.com/bg197550/weather-window/data/snotel.json", { cache: "no-cache" })
+    .then((r) => (r.ok ? r.json() : null))
+    .then((d) => (insSnotel = d))
+    .catch(() => null);
+}
+// The model forecast from ~a day before each hour (Open-Meteo previous-runs API) at the SNOTEL sites, summed over
+// each site's storm window, so the recap can say whether the storm beat or missed the forecast.
+let insPrevFc = null;
+async function loadPrevForecast() {
+  if (insPrevFc || !insSnotel || typeof ForecastStory === "undefined") return;
+  const r = ForecastStory.recap(insSnotel, {});
+  if (!r || r.ongoing) return;
+  const sites = r.gains.filter((g) => ForecastStory.SNOTEL_SITES[g.triplet]);
+  if (sites.length < 2) return;
+  const S = sites.map((g) => ForecastStory.SNOTEL_SITES[g.triplet]);
+  const u = `https://previous-runs-api.open-meteo.com/v1/forecast?latitude=${S.map((x) => x[0]).join(",")}&longitude=${S.map((x) => x[1]).join(",")}&elevation=${S.map((x) => x[2]).join(",")}&hourly=precipitation_previous_day1&past_days=4&forecast_days=1&precipitation_unit=inch&timezone=GMT`;
+  try {
+    const res = await fetch(u);
+    if (!res.ok) return;
+    let j = await res.json();
+    if (!Array.isArray(j)) j = [j];
+    const fc = {};
+    sites.forEach((g, i) => {
+      const h = j[i]?.hourly;
+      if (!h?.time) return;
+      let t = 0, n = 0;
+      h.time.forEach((tm, k) => {
+        const ms = Date.parse(tm + "Z");
+        const v = h.precipitation_previous_day1?.[k];
+        if (ms > g.baseMs && ms <= g.endMs + 3 * 3600e3 && v != null) { t += v; n++; }
+      });
+      if (n >= 3) fc[g.triplet] = t;
+    });
+    insPrevFc = fc;
+  } catch {}
+}
+// Backcountry avalanche danger from the Utah Avalanche Center via avalanche.org's free public map layer.
+let insAvy = null,
+  insScore = null;
+function loadScore() {
+  return fetch("https://raw.githubusercontent.com/bg197550/weather-window/data/scorecard.json", { cache: "no-cache" })
+    .then((r) => (r.ok ? r.json() : null))
+    .then((j) => (insScore = j))
+    .catch(() => null);
+}
+function loadAvy() {
+  return fetch("https://api.avalanche.org/v2/public/products/map-layer/UAC")
+    .then((r) => (r.ok ? r.json() : null))
+    .then((j) => (insAvy = j))
+    .catch(() => null);
+}
+function inRing(lon, lat, ring) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i], [xj, yj] = ring[j];
+    if (yi > lat !== yj > lat && lon < ((xj - xi) * (lat - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+function avyZone(fc, lat, lon) {
+  for (const f of fc?.features || []) {
+    const g = f.geometry;
+    const polys = g?.type === "Polygon" ? [g.coordinates] : g?.type === "MultiPolygon" ? g.coordinates : [];
+    if (polys.some((p) => p[0] && inRing(lon, lat, p[0]))) return f.properties;
+  }
+  return null;
+}
+const AVY_WORD = { 1: "Low", 2: "Moderate", 3: "Considerable", 4: "High", 5: "Extreme" };
+function avyLine(o) {
+  const z = o && o.lat != null && avyZone(insAvy, o.lat, o.lon);
+  if (!z || z.off_season) return "";
+  const lvl = z.danger_level;
+  const what = AVY_WORD[lvl] ? `<b>${AVY_WORD[lvl]}</b> (${lvl} of 5)` : "no danger rating issued today";
+  const warn = z.warning?.product ? " <b>Avalanche warning in effect.</b>" : "";
+  const adv = AVY_WORD[lvl] && z.travel_advice ? ` ${escapeHTML(z.travel_advice)}` : "";
+  return `<p class="ins-avy"><b>Backcountry avalanche danger · ${escapeHTML(z.name)} (UAC):</b> ${what}.${warn}${adv} <a class="xlink" href="${escapeHTML(z.link || "https://utahavalanchecenter.org/")}" target="_blank" rel="noopener">Full forecast ›</a></p>`;
+}
+function storyCard(o, kinds, data, section, sum, pt) {
   if (!o || typeof ForecastStory === "undefined") return "";
   try {
-    const n = afdNotes(data.afd);
-    const k = n?.keys?.[0] || "";
-    const st = ForecastStory.build(o, { section, sum, kinds, afdQuote: k.length > 200 ? k.slice(0, 195).replace(/\s\S*$/, "") + "…" : k });
+    const st = ForecastStory.build(o, { section, sum, kinds, afdQuote: "" }); // NWS key messages have their own card below
+    const rc = section === "utah" && insSnotel && ForecastStory.recap ? ForecastStory.recap(insSnotel, { slug: o.slug, tz: o.tz }) : null;
+    if (section === "utah" && insScore) st.score = ForecastStory.scorecard(insScore);
+    if (rc) st.recap = [rc.text, ForecastStory.verify(rc, insPrevFc, data.afd?.afd?.productText), rc.note].filter(Boolean).join(" ");
     const learn = kinds[0]?.learn;
     return ForecastStory.html(st, {
       esc: escapeHTML,
@@ -1170,7 +1262,7 @@ function storyCard(o, kinds, data, section, sum) {
       link: `<button type="button" class="linkish" data-view="afd">NWS discussion ›</button>`,
     }).replace(
       "</article>",
-      `${learn ? `<p class="ins-learn"><b>Good to know:</b> ${escapeHTML(learn)}</p>` : ""}<p class="source">Written from the same snow forecast as the Snow section, for ${o.ski ? `the summit (${o.summit.toLocaleString()} ft)` : "ground level"}: NWS for its first ~7 days, then the GEFS and ECMWF ensembles.</p></article>`,
+      `${learn ? `<p class="ins-learn"><b>Good to know:</b> ${escapeHTML(learn)}</p>` : ""}${section === "utah" ? avyLine(o.lat != null ? o : { lat: pt?.p?.[0], lon: pt?.p?.[1] }) : ""}</article>`,
     );
   } catch (e) {
     console.warn("Forecast story", e);
@@ -1186,7 +1278,11 @@ async function loadInsights(pt, section) {
   const basis = owner && (owner.p.length === 1 || owner.p[owner.p.length - 1] === owner.p.find((q) => q[0] === pt.p[0] && q[1] === pt.p[1]));
   const outlookP = basis && typeof SnowCore !== "undefined" ? Promise.race([SnowCore.forPlace(owner, section).catch(() => null), new Promise((r) => setTimeout(() => r(null), 12000))]) : Promise.resolve(null);
   const sumP = basis && typeof SnowCore !== "undefined" ? SnowCore.summary().catch(() => null) : Promise.resolve(null);
-  const [data, o, sum] = await Promise.all([insFetch(pt.p), outlookP, sumP]);
+  const snoP =
+    section === "utah"
+      ? Promise.race([Promise.all([(insSnotel ? Promise.resolve() : loadSnotelRecap()).then(loadPrevForecast), insAvy ? null : loadAvy(), insScore ? null : loadScore()]), new Promise((r) => setTimeout(r, 8000))])
+      : Promise.resolve();
+  const [data, o, sum] = await Promise.all([insFetch(pt.p), outlookP, sumP, snoP]);
   if (!el.isConnected || el.dataset.key !== pt.p.slice(0, 2).join(",")) return;
   let html = "",
     cycle = null;
@@ -1203,24 +1299,34 @@ async function loadInsights(pt, section) {
     if (o)
       for (const x of storms) {
         const w = SnowCore.windowSnow(o, ...stormWindow(x));
+        // The story and this list read one set of storm facts (amounts, snow level, quality, water).
+        const f = typeof ForecastStory !== "undefined" ? ForecastStory.facts(o, ...stormWindow(x)) : null;
+        if (f) Object.assign(w, { lo: f.snow.lo, mid: f.snow.mid, hi: f.snow.hi });
+        x.f = f;
         if (!x.snowy && w.mid < 1) continue;
         Object.assign(x, { snowy: true, p10: w.lo, p50: w.mid, p90: w.hi, snowRange: [w.lo, w.mid, w.hi], shared: true });
+        // Bucket shares from the same runs, centered on the middle outcome, so "most likely" agrees with the range.
+        if (w.values?.length >= 5) {
+          const med = w.values[Math.floor(w.values.length / 2)];
+          const k = med > 0.05 ? w.mid / med : 1;
+          x.dist = sharedDist(w.values.map((v) => v * k));
+        }
       }
     updatePatternSignals(data, section);
-    const story = storyCard(o, storms.map((x) => ({ start: x.start, end: x.end, ...stormStory(x, data, section) })), data, section, sum);
+    const story = storyCard(o, storms.map((x) => ({ start: x.start, end: x.end, win: o ? stormWindow(x) : null, current: x.current, ...stormStory(x, data, section) })), data, section, sum, pt);
     html += story;
-    if (insKind === "utah" && storms.length) {
+    if (storms.length) {
       const which = place && !place.searched ? `${place.name}${place.p.length > 1 ? ` ${pt.p[2]?.split(" · ")[0]?.toLowerCase() || ""}` : ""}` : "";
       html += cycleCard(storms, data, section, elevOf(pt.p[2]) ?? elevFt, which.trim(), o);
       cycle = storms;
     }
     if (!story) html += summaryCard(storms, data, section);
     html += storms.length
-      ? storms.map((s, i) => stormCard(s, section, i)).join("")
+      ? ""
       : `<article class="card afd-card ins-storm"><h3>No storm in sight</h3><p>None of the GFS, ECMWF, GEM or ICON models show a meaningful precipitation event (0.05″ liquid or more) in the next 10 days.</p></article>`;
   } else {
     // Insights' own model data failed (often Open-Meteo's free limit); the story only needs the shared snow outlook.
-    html += storyCard(o, [], data, section, sum);
+    html += storyCard(o, [], data, section, sum, pt);
     html += '<article class="card afd-card"><h3>Model guidance</h3><div class="error">Model data is temporarily unavailable.</div></article>';
   }
   html += afdCard(data.afd, section);
