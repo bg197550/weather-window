@@ -585,8 +585,9 @@ function detailedPeriods(periods, pointIndex, section) {
   });
   return '<div class="forecast-day-groups">' + groups.map(g => {
     const date = regionTime(g.lead.startTime, section, { weekday: "long", month: "short", day: "numeric" });
-    return `<section class="forecast-day-group"><h3 class="forecast-date">${escapeHTML(date)}</h3><div class="forecast-day-pair">${g.periods.map(({q, index}) => {
-      return `<section class="discussion-period ${q.isDaytime ? "daytime" : "nighttime"}"><h4><button type="button" class="period-day-toggle discussion-heading" data-period-hourly="${index}" aria-expanded="false" aria-controls="period-hours-${pointIndex}-${index}" title="Show NOAA hourly forecast"><span class="period-title">${q.isDaytime ? "Day" : "Night"}</span><span class="period-hour-label">Hourly</span></button></h4><p>${escapeHTML(q.detailedForecast || q.shortForecast || "No description available.")}</p><div class="period-hourly-body" id="period-hours-${pointIndex}-${index}" hidden><div class="state">Loading NOAA hourly forecast…</div></div></section>`;
+    return `<section class="forecast-day-group"><div class="forecast-day-pair">${g.periods.map(({q, index}, position) => {
+      const label = position === 0 ? date + (q.isDaytime ? "" : " · Overnight") : "Overnight";
+      return `<section class="discussion-period ${q.isDaytime ? "daytime" : "nighttime"}"><h4><button type="button" class="period-day-toggle discussion-heading" data-period-hourly="${index}" aria-expanded="false" aria-controls="period-hours-${pointIndex}-${index}" title="Show NOAA hourly forecast"><span class="period-title">${escapeHTML(label)}</span><span class="period-hour-label">Hourly</span></button></h4><p>${escapeHTML(q.detailedForecast || q.shortForecast || "No description available.")}</p><div class="period-hourly-body" id="period-hours-${pointIndex}-${index}" hidden><div class="state">Loading NOAA hourly forecast…</div></div></section>`;
     }).join("")}</div></section>`;
   }).join("") + '</div>';
 }
