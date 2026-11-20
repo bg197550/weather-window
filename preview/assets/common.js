@@ -590,9 +590,9 @@ function utahResorts() {
 
 function regionTime(value, section, options = {}) {
   return new Date(value).toLocaleString("en-US", {
+    timeZoneName: "short",
     ...options,
     timeZone: regionZone(section),
-    timeZoneName: "short",
   });
 }
 

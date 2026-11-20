@@ -460,7 +460,7 @@ function nwsLink(p) {
   return `https://forecast.weather.gov/MapClick.php?lat=${p[0]}&lon=${p[1]}`;
 }
 function issuedLine(data, p, section) {
-  return `<div class="source">NWS forecast issued ${regionTime(data.forecast.updateTime, section, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })} · <a href="${nwsLink(p)}" target="_blank" rel="noopener">Full NWS forecast ↗</a></div>`;
+  return `<div class="source">NWS forecast issued ${regionTime(data.forecast.updateTime, section, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: undefined })} · <a href="${nwsLink(p)}" target="_blank" rel="noopener">Full NWS forecast ↗</a></div>`;
 }
 function pointError(label, p) {
   return `<h3>${escapeHTML(label)}</h3><div class="error">NWS forecast is temporarily unavailable.</div><a href="${nwsLink(p)}" target="_blank" rel="noopener">Open forecast at weather.gov ↗</a>`;
@@ -584,9 +584,10 @@ function detailedPeriods(periods, pointIndex, section) {
     group.periods.push({ q, index });
   });
   return '<div class="forecast-day-groups">' + groups.map(g => {
-    const date = regionTime(g.lead.startTime, section, { weekday: "long", month: "short", day: "numeric" });
-    return `<section class="forecast-day-group"><div class="forecast-day-pair">${g.periods.map(({q, index}, position) => {
-      const label = position === 0 ? date + (q.isDaytime ? "" : " · Overnight") : "Overnight";
+    const date = regionTime(g.lead.startTime, section, { weekday: "long", month: "short", day: "numeric", timeZoneName: undefined });
+    return `<section class="forecast-day-group"><div class="forecast-day-pair">${g.periods.map(({q, index}) => {
+      const label = q.isDaytime ? date :
+        regionTime(q.startTime, section, { weekday: "long", timeZoneName: undefined }) + " Night";
       return `<section class="discussion-period ${q.isDaytime ? "daytime" : "nighttime"}"><h4><button type="button" class="period-day-toggle discussion-heading" data-period-hourly="${index}" aria-expanded="false" aria-controls="period-hours-${pointIndex}-${index}" title="Show NOAA hourly forecast"><span class="period-title">${escapeHTML(label)}</span><span class="period-hour-label">Hourly</span></button></h4><p>${escapeHTML(q.detailedForecast || q.shortForecast || "No description available.")}</p><div class="period-hourly-body" id="period-hours-${pointIndex}-${index}" hidden><div class="state">Loading NOAA hourly forecast…</div></div></section>`;
     }).join("")}</div></section>`;
   }).join("") + '</div>';
@@ -1357,9 +1358,9 @@ async function loadPeriodHourly(p, period, section, el) {
           month: "short",
           day: "numeric",
           hour: "numeric",
-          timeZoneName: "short",
+          timeZoneName: undefined,
         });
-    el.innerHTML = `<p class="hourly-period-caption">${escapeHTML(p[2])} · ${escapeHTML(fmt(period.startTime))}–${escapeHTML(regionTime(period.endTime, section, { hour: "numeric", timeZoneName: "short" }))}</p>${rows.length ? `<table class="period-hourly-table"><caption class="sr-only">NOAA hourly forecast for ${escapeHTML(period.name)} at ${escapeHTML(p[2])}</caption><thead><tr><th scope="col">Hour</th><th scope="col">Weather</th><th scope="col">Temp</th><th scope="col">Precip. chance</th><th scope="col">Wind</th></tr></thead><tbody>${rows.map((q) => `<tr><th scope="row">${escapeHTML(regionTime(q.startTime, section, { weekday: "short", hour: "numeric", timeZoneName: "short" }))}</th><td data-label="Weather">${escapeHTML(q.shortForecast || "–")}</td><td data-label="Temp">${q.temperature ?? "–"}°${escapeHTML(q.temperatureUnit || "F")}</td><td data-label="Precip. chance">${q.probabilityOfPrecipitation?.value != null ? q.probabilityOfPrecipitation.value + "%" : "–"}</td><td data-label="Wind">${escapeHTML(q.windDirection || "")} ${escapeHTML(q.windSpeed || "–")}</td></tr>`).join("")}</tbody></table>` : '<p class="muted">NOAA has not provided hourly data for this period yet.</p>'}<p class="source">NOAA / National Weather Service · issued ${escapeHTML(regionTime(d.updateTime, section, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }))} · <a href="${link}" target="_blank" rel="noopener">Open NWS point forecast ↗</a></p>`;
+    el.innerHTML = `<p class="hourly-period-caption">${escapeHTML(p[2])} · ${escapeHTML(fmt(period.startTime))}–${escapeHTML(regionTime(period.endTime, section, { hour: "numeric", timeZoneName: undefined }))}</p>${rows.length ? `<table class="period-hourly-table"><caption class="sr-only">NOAA hourly forecast for ${escapeHTML(period.name)} at ${escapeHTML(p[2])}</caption><thead><tr><th scope="col">Hour</th><th scope="col">Weather</th><th scope="col">Temp</th><th scope="col">Precip. chance</th><th scope="col">Wind</th></tr></thead><tbody>${rows.map((q) => `<tr><th scope="row">${escapeHTML(regionTime(q.startTime, section, { weekday: "short", hour: "numeric", timeZoneName: undefined }))}</th><td data-label="Weather">${escapeHTML(q.shortForecast || "–")}</td><td data-label="Temp">${q.temperature ?? "–"}°${escapeHTML(q.temperatureUnit || "F")}</td><td data-label="Precip. chance">${q.probabilityOfPrecipitation?.value != null ? q.probabilityOfPrecipitation.value + "%" : "–"}</td><td data-label="Wind">${escapeHTML(q.windDirection || "")} ${escapeHTML(q.windSpeed || "–")}</td></tr>`).join("")}</tbody></table>` : '<p class="muted">NOAA has not provided hourly data for this period yet.</p>'}<p class="source">NOAA / National Weather Service · issued ${escapeHTML(regionTime(d.updateTime, section, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: undefined }))} · <a href="${link}" target="_blank" rel="noopener">Open NWS point forecast ↗</a></p>`;
   } catch {
     if (el?.isConnected)
       el.innerHTML = `<p class="error">NOAA hourly data is temporarily unavailable.</p><a href="${link}" target="_blank" rel="noopener">Open NWS point forecast ↗</a>`;
