@@ -586,8 +586,7 @@ function detailedPeriods(periods, pointIndex, section) {
   return '<div class="forecast-day-groups">' + groups.map(g => {
     const date = regionTime(g.lead.startTime, section, { weekday: "long", month: "short", day: "numeric" });
     return `<section class="forecast-day-group"><h3 class="forecast-date">${escapeHTML(date)}</h3><div class="forecast-day-pair">${g.periods.map(({q, index}) => {
-      const pop = q.probabilityOfPrecipitation?.value;
-      return `<section class="discussion-period ${q.isDaytime ? "daytime" : "nighttime"}"><h4><button type="button" class="period-day-toggle discussion-heading" data-period-hourly="${index}" aria-expanded="false" aria-controls="period-hours-${pointIndex}-${index}" title="Show NOAA hourly forecast"><span class="period-title">${escapeHTML(q.name)}<strong>${q.isDaytime ? "High" : "Low"} ${q.temperature ?? "–"}°${escapeHTML(q.temperatureUnit || "F")}</strong></span><span class="period-hour-label">Hourly</span></button></h4><div class="period-metrics"><span>Precip chance <b>${pop == null ? "Unavailable" : pop + "%"}</b></span><span>Wind <b>${escapeHTML([q.windDirection, q.windSpeed].filter(Boolean).join(" ") || "Unavailable")}</b></span></div><p>${escapeHTML(q.detailedForecast || q.shortForecast || "No description available.")}</p><div class="period-hourly-body" id="period-hours-${pointIndex}-${index}" hidden><div class="state">Loading NOAA hourly forecast…</div></div></section>`;
+      return `<section class="discussion-period ${q.isDaytime ? "daytime" : "nighttime"}"><h4><button type="button" class="period-day-toggle discussion-heading" data-period-hourly="${index}" aria-expanded="false" aria-controls="period-hours-${pointIndex}-${index}" title="Show NOAA hourly forecast"><span class="period-title">${escapeHTML(q.name)}</span><span class="period-hour-label">Hourly</span></button></h4><p>${escapeHTML(q.detailedForecast || q.shortForecast || "No description available.")}</p><div class="period-hourly-body" id="period-hours-${pointIndex}-${index}" hidden><div class="state">Loading NOAA hourly forecast…</div></div></section>`;
     }).join("")}</div></section>`;
   }).join("") + '</div>';
 }
@@ -1221,11 +1220,25 @@ async function loadAlertBanner(place) {
 /* Latest observation near a point: resort stations from OBS_STATIONS first, then the NWS list.
    Readings older than OBS_MAX_AGE are not shown, because a stale reading looks like current conditions. */
 const OBS_MAX_AGE = 2 * 3600000;
+function observedWeather(o) {
+  const description = o.textDescription?.trim();
+  if (description) return description;
+  const reports = (o.presentWeather || []).map(({ weather, intensity }) =>
+    weather ? [intensity, weather].filter(Boolean).join(" ") : ""
+  ).filter(Boolean);
+  if (reports.length) return [...new Set(reports)].join(", ");
+  const layers = new Set((o.cloudLayers || []).map(({ amount }) => amount));
+  return [
+    ["OVC", "Overcast"], ["BKN", "Mostly cloudy"], ["SCT", "Partly cloudy"],
+    ["FEW", "Few clouds"], ["CLR", "Clear"], ["SKC", "Clear"],
+  ].find(([code]) => layers.has(code))?.[1] || "";
+}
 async function latestObs(id, name, elevM) {
   const o = (await getJSON(`https://api.weather.gov/stations/${id}/observations/latest?require_qc=false`))
     .properties;
   const t = cToF(o.temperature?.value);
-  if (t == null) return null;
+  const text = observedWeather(o);
+  if (t == null && !text) return null;
   return {
     station: name || o.stationName || id,
     id,
@@ -1236,7 +1249,7 @@ async function latestObs(id, name, elevM) {
         : null,
     time: Date.parse(o.timestamp),
     temp: t,
-    text: o.textDescription,
+    text,
     wind: kmhToMph(o.windSpeed?.value),
     gust: kmhToMph(o.windGust?.value),
     dir: o.windDirection?.value,
@@ -1271,8 +1284,8 @@ async function observation(p) {
     } catch {}
     const list = [...preferred, ...nws.filter((x) => !preferred.some((y) => y.id === x.id))];
     const found = await Promise.all(list.map((s) => latestObs(s.id, s.name, s.elev).catch(() => null)));
-    const fresh = found.find((o) => o && Date.now() - o.time <= OBS_MAX_AGE);
-    if (fresh) return fresh;
+    const fresh = found.filter((o) => o && Date.now() - o.time <= OBS_MAX_AGE);
+    if (fresh.length) return fresh.find((o) => o.temp != null) || fresh[0];
     const newest = found.filter(Boolean).sort((a, b) => b.time - a.time)[0];
     if (newest) return { ...newest, stale: true };
     throw Error("No observations");
@@ -1298,10 +1311,12 @@ function obsLine(o) {
     ["Sea-level pressure", Number.isFinite(o.seaLevelPressure) ? (o.seaLevelPressure / 3386.389).toFixed(2) + " inHg" : null],
     ...o.precipitation.map(([label, value]) => [label, Number.isFinite(value) ? (value / 25.4).toFixed(2) + " in" : null]),
   ].filter(([, value]) => value != null);
-  const details = metrics.length ? `<div class="period-metrics">${metrics.map(([label, value]) =>
-    `<span>${label} <b>${escapeHTML(value)}</b></span>`
-  ).join("")}</div>` : "";
-  return `<div class="obs"><span class="obs-label">Current conditions</span> <b>${o.temp}°F</b>${o.text ? " · " + escapeHTML(o.text) : ""}${details}<div class="muted">${escapeHTML(o.station)} (${escapeHTML(o.id)}${o.elevFt ? `, ${o.elevFt.toLocaleString()} ft` : ""}) · ${ago(o.time)}</div></div>`;
+  const details = metrics.length ? `<dl class="obs-metrics">${metrics.map(([label, value]) =>
+    `<div><dt>${label}</dt><dd>${escapeHTML(value)}</dd></div>`
+  ).join("")}</dl>` : "";
+  const temperature = o.temp == null ? "" : `<strong class="obs-temp">${o.temp}°F</strong>`;
+  const weather = o.text ? `<span class="obs-weather">${escapeHTML(o.text)}</span>` : "";
+  return `<div class="obs"><span class="obs-label">Current conditions</span><div class="obs-summary">${temperature}${weather}</div>${details}<div class="muted obs-station">${escapeHTML(o.station)} (${escapeHTML(o.id)}${o.elevFt ? `, ${o.elevFt.toLocaleString()} ft` : ""}) · ${ago(o.time)}</div></div>`;
 }
 async function loadObs(p, target) {
   try {
