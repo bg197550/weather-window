@@ -8,11 +8,12 @@ const at = (s) => Date.parse(s);
 
 test("recap names yesterday's storm, range, top site and the closest site", () => {
   const t = F.recap(sn, { slug: "deer-valley", now: at("2026-11-18T18:10:00-07:00") }).text;
-  assert.match(t, /^Yesterday's storm added \d+–\d+″ of snow depth/);
+  assert.match(t, /^Tuesday's storm \(Nov 17, ended overnight\) added \d+–\d+″ of snow depth/);
   assert.match(t, /the most at Snowbird \(\+1[5-9]″\)/);
   assert.match(t, /closest site, Thaynes Canyon/);
 });
 test("recap says snow is still falling mid-storm", () => {
+  assert.match(F.recap(sn, { slug: "alta", now: at("2026-11-17T21:00:00-07:00") }).text, /^Snow is still falling\. Since Tuesday \(Nov 17\)/);
   assert.match(F.recap(sn, { slug: "alta", now: at("2026-11-17T21:00:00-07:00") }).text, /^Snow is still falling/);
 });
 test("recap stays quiet with stale data or nothing new", () => {
@@ -38,4 +39,8 @@ test("verify mentions the closest site when it missed", () => {
   const r = F.recap(sn, { slug: "deer-valley", now: at("2026-11-18T18:10:00-07:00") });
   const fc = Object.fromEntries(r.gains.map((g) => [g.triplet, g.triplet === "814:UT:SNTL" ? 1.8 : g.triplet === "684:UT:SNTL" ? 0.5 : g.water]));
   assert.match(F.verify(r, fc, ""), /though Thaynes Canyon \(0\.7″ vs\. 1\.8″\) fell short/);
+});
+
+test("recap drops a storm that ended more than two days ago", () => {
+  assert.equal(F.recap(sn, { slug: "alta", now: at("2026-11-20T05:00:00-07:00") }), null);
 });

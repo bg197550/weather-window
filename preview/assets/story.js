@@ -240,7 +240,7 @@ const ForecastStory = (() => {
       base = o.base ?? elev;
     // Storms: the storm list's windows when Insights passes them (so both show the same storms and numbers),
     // otherwise the outlook's own wet stretches.
-    const listed = kinds.filter((k) => k.win).slice(0, 3);
+    const listed = kinds.filter((k) => k.win).slice(0, 6);
     const S = (listed.length ? listed.map((k) => ({ k, f: facts(o, k.win[0], k.win[1]) })) : findStorms(o, 8 * 24).slice(0, 3).map((x) => ({ k: null, f: facts(o, c.at(x.a), c.at(x.b)) })))
       .filter((x) => x.f)
       .map(({ k, f }, i) => {
@@ -252,21 +252,29 @@ const ForecastStory = (() => {
         return { ...f, i, fromMs, toMs, winEnd: c.at(f.wb), kind, ongoing };
       });
     const intensity = (s) => ((s.peak.liq || 0) >= 0.3 ? "heavy" : (s.peak.liq || 0) >= 0.12 ? "steady" : "light");
-    const what = (s) => (s.snow.mid >= 1 ? (o.ski ? "mountain snow" : "snow") : s.l0 > elev + 250 ? "rain" : "rain and snow");
+    const what = (s) => (s.snow.mid >= 1 ? (o.ski ? "mountain snow" : "snow") : !fin(s.l0) || s.l0 <= base ? "snow showers" : s.l0 > elev + 250 ? "rain" : "rain and snow");
 
     // Summary.
     const sum1 = [];
     if (!S.length) sum1.push(`No significant storms in the next week ${where}. ${afdQuote ? "" : ""}`.trim());
     else {
+      // One line per storm, in the same order and with the same amounts as the storm list below.
+      const amt = (n, at = "") =>
+        n.snow.hi < 1
+          ? `little or nothing${at}`
+          : n.snow.mid < 1
+            ? `under an inch${at}, up to ${inch(n.snow.hi)}`
+            : `about ${inch(n.snow.mid)}${at}${n.snow.hi - n.snow.mid >= 2 ? `, up to ${inch(n.snow.hi)}` : ""}`;
+      const span = (n) => (c.dayName(n.fromMs) === c.dayName(n.toMs) ? c.dayName(n.fromMs) : `${c.dayName(n.fromMs)} into ${c.dayName(n.toMs)}`);
       const s = S[0];
       sum1.push(
         s.ongoing
-          ? `A storm is under way with ${intensity(s)} ${what(s)}, lasting until ${c.when(s.toMs)}.`
-          : `Our next storm arrives ${c.dayName(s.fromMs)} with ${intensity(s)} ${what(s)} developing ${c.whenAfter(c.at(s.peak.a), s.fromMs)}.`,
+          ? `A storm is under way with ${intensity(s)} ${what(s)} until ${c.when(s.toMs)}: ${amt(s, ` ${where}`)}.`
+          : `Next up: ${intensity(s)} ${what(s)} ${span(s)}, ${amt(s, ` ${where}`)}.`,
       );
-      const span = (n) => (c.dayName(n.fromMs) === c.dayName(n.toMs) ? c.dayName(n.fromMs) : `${c.dayName(n.fromMs)} into ${c.dayName(n.toMs)}`);
-      if (S.length === 2) sum1.push(`Another storm follows ${span(S[1])}.`);
-      else if (S.length > 2) sum1.push(`Two more follow: ${span(S[1])}, then ${span(S[2])}.`);
+      const rest = S.slice(1).map((n) => `${span(n)} (${amt(n)})`);
+      if (rest.length === 1) sum1.push(`After that: ${rest[0]}.`);
+      else if (rest.length > 1) sum1.push(`After that: ${rest.slice(0, -1).join("; ")}; and ${rest.at(-1)}.`);
       // The 10-day total is on the storm card; the summary only mentions it when it moved meaningfully since about a day ago.
       const t10 = o.totals?.[10];
       const ch = changeNote(o, prev, c, now, now + 240 * H, true);
@@ -383,15 +391,28 @@ const ForecastStory = (() => {
     const dd = (ms) => Math.round((Date.parse(c.local(ms).date) - Date.parse(today)) / 86400000);
     const ongoing = gains.filter((g) => g.ongoing).length >= Math.max(2, Math.ceil(gains.length / 2));
     const med = (a) => [...a].sort((x, y) => x - y)[Math.floor(a.length / 2)];
-    const st = c.local(med(gains.map((g) => g.startMs))), en = c.local(med(gains.map((g) => g.endMs)));
-    const sdd = dd(med(gains.map((g) => g.startMs)));
+    const startMs = med(gains.map((g) => g.startMs)),
+      endMs = med(gains.map((g) => g.endMs));
+    // Old news after two days: the recap only covers a storm that ended within the last 48 hours.
+    if (!ongoing && now - endMs > 48 * H) return null;
+    const st = c.local(startMs),
+      en = c.local(endMs);
+    // A storm that ends before dawn the next day still belongs to the day it started.
+    const overnight = st.date !== en.date && en.hour < 6 && dd(endMs) - dd(startMs) === 1;
+    if (overnight) en.date = st.date, en.weekday = st.weekday, en.overnight = true;
+    const md = (x) => new Date(x.date + "T12:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+    const dates = st.date === en.date ? md(st) : st.date.slice(5, 7) === en.date.slice(5, 7) ? `${md(st)}–${+en.date.slice(8)}` : `${md(st)}–${md(en)}`;
+    const days = st.date === en.date ? `${st.weekday}'s` : `The ${st.weekday}–${en.weekday}`;
+    const ended = (() => {
+      const d = dd(endMs);
+      if (en.overnight) return "ended overnight";
+      if (d === 0) return en.hour < 12 ? "ended this morning" : "ended this afternoon";
+      if (d === -1) return en.hour < 12 ? "ended yesterday morning" : en.hour < 18 ? "ended yesterday afternoon" : "ended last night";
+      return `ended ${en.weekday}`;
+    })();
     const label = ongoing
-      ? "Snow is still falling. So far, the storm has added"
-      : sdd === 0
-        ? en.hour < 7 && st.hour < 7 ? "Overnight snow added" : "Today's snow has added"
-        : sdd === -1
-          ? st.hour >= 17 ? "Last night's storm added" : "Yesterday's storm added"
-          : `${st.weekday}'s storm added`;
+      ? `Snow is still falling. Since ${st.weekday} (${md(st)}), the storm has added`
+      : `${days} storm (${dates}, ${ended}) added`;
     const r1 = (x) => Math.round(x * 10) / 10;
     const rng = (a, u, f = (x) => x) => (f(Math.min(...a)) === f(Math.max(...a)) ? `${f(a[0])}${u}` : `${f(Math.min(...a))}–${f(Math.max(...a))}${u}`);
     const withSnow = gains.filter((g) => g.snow != null);

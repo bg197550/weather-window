@@ -20,9 +20,9 @@ function outlook() {
 }
 test("story tells timing, falling snow levels, water and snow, and the next storm", () => {
   const st = Story.build(outlook(), { section: "utah", now: Date.parse("2026-11-17T13:30:00Z") });
-  assert.match(st.summary, /^Our next storm arrives today \(Tuesday\)/);
+  assert.match(st.summary, /^Next up: \w+ mountain snow today \(Tuesday\) into tomorrow \(Wednesday\), about \d+″ at the summit/);
   assert.match(st.short[0].text, /Snow levels start around 8,500 ft and fall to 5,000 ft/);
-  assert.match(st.summary, /Another storm follows Friday/);
+  assert.match(st.summary, /After that: Friday into Saturday \(about \d+″/);
   assert.equal(st.short.length, 1); // later storms live in the storm list
   assert.doesNotMatch(st.short[0].text, /rain or mix/); // 8,500 ft snow level vs an 8,530 ft base: snow
   assert.doesNotMatch(st.short[0].text, /around midday, heaviest around midday/);
