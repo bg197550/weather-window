@@ -1,0 +1,157 @@
+{
+  "generatedAt": "2026-11-20T21:55:45.611Z",
+  "season": "2026-10-01",
+  "basis": "SNOTEL precipitation gauges near the Wasatch resorts vs. the Open-Meteo best-match forecast made about 24 hours ahead",
+  "storms": [
+    {
+      "start": "2026-10-10",
+      "end": "2026-10-14",
+      "measured": 4.93,
+      "forecast": 3.39,
+      "sites": [
+        {
+          "triplet": "814:UT:SNTL",
+          "name": "Thaynes Canyon",
+          "measured": 4.1,
+          "forecast": 3.62,
+          "snow": 0
+        },
+        {
+          "triplet": "684:UT:SNTL",
+          "name": "Parleys Summit",
+          "measured": 2.9,
+          "forecast": 0.83,
+          "snow": 1
+        },
+        {
+          "triplet": "628:UT:SNTL",
+          "name": "Mill-D North",
+          "measured": 3.8,
+          "forecast": 1.46,
+          "snow": 4
+        },
+        {
+          "triplet": "366:UT:SNTL",
+          "name": "Brighton",
+          "measured": 6.3,
+          "forecast": 3.55,
+          "snow": 3
+        },
+        {
+          "triplet": "766:UT:SNTL",
+          "name": "Snowbird",
+          "measured": 8.5,
+          "forecast": 5.97,
+          "snow": 9
+        },
+        {
+          "triplet": "332:UT:SNTL",
+          "name": "Ben Lomond Peak",
+          "measured": 4,
+          "forecast": 4.91,
+          "snow": 0
+        }
+      ]
+    },
+    {
+      "start": "2026-11-01",
+      "end": "2026-11-02",
+      "measured": 1.55,
+      "forecast": 1.85,
+      "sites": [
+        {
+          "triplet": "814:UT:SNTL",
+          "name": "Thaynes Canyon",
+          "measured": 1.4,
+          "forecast": 2.31,
+          "snow": 4
+        },
+        {
+          "triplet": "684:UT:SNTL",
+          "name": "Parleys Summit",
+          "measured": 1.2,
+          "forecast": 0.98,
+          "snow": 0
+        },
+        {
+          "triplet": "628:UT:SNTL",
+          "name": "Mill-D North",
+          "measured": 1,
+          "forecast": 1.39,
+          "snow": 1
+        },
+        {
+          "triplet": "366:UT:SNTL",
+          "name": "Brighton",
+          "measured": 1.6,
+          "forecast": 2.02,
+          "snow": 2
+        },
+        {
+          "triplet": "766:UT:SNTL",
+          "name": "Snowbird",
+          "measured": 2.3,
+          "forecast": 2.48,
+          "snow": 8
+        },
+        {
+          "triplet": "332:UT:SNTL",
+          "name": "Ben Lomond Peak",
+          "measured": 1.8,
+          "forecast": 1.93,
+          "snow": 0
+        }
+      ]
+    },
+    {
+      "start": "2026-11-14",
+      "end": "2026-11-14",
+      "measured": 0.58,
+      "forecast": 1.17,
+      "sites": [
+        {
+          "triplet": "814:UT:SNTL",
+          "name": "Thaynes Canyon",
+          "measured": 0.5,
+          "forecast": 0.95,
+          "snow": 6
+        },
+        {
+          "triplet": "684:UT:SNTL",
+          "name": "Parleys Summit",
+          "measured": 0.4,
+          "forecast": 1.03,
+          "snow": 0
+        },
+        {
+          "triplet": "628:UT:SNTL",
+          "name": "Mill-D North",
+          "measured": 0.4,
+          "forecast": 1.1,
+          "snow": 4
+        },
+        {
+          "triplet": "366:UT:SNTL",
+          "name": "Brighton",
+          "measured": 0.4,
+          "forecast": 1,
+          "snow": 3
+        },
+        {
+          "triplet": "766:UT:SNTL",
+          "name": "Snowbird",
+          "measured": 0.6,
+          "forecast": 1.32,
+          "snow": 6
+        },
+        {
+          "triplet": "332:UT:SNTL",
+          "name": "Ben Lomond Peak",
+          "measured": 1.2,
+          "forecast": 1.64,
+          "snow": 1
+        }
+      ]
+    }
+  ]
+}

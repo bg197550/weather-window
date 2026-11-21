@@ -1,0 +1,214 @@
+{
+  "generatedAt": "2026-11-21T10:57:17.700Z",
+  "checkedAt": "2026-11-21T10:57:17.701Z",
+  "sources": {
+    "medium": "https://www.cpc.ncep.noaa.gov/products/predictions/610day/fxus06.html",
+    "extended": "https://www.cpc.ncep.noaa.gov/products/predictions/WK34/"
+  },
+  "periods": [
+    {
+      "name": "Days 6–10",
+      "start": 5,
+      "end": 10,
+      "source": "https://www.cpc.ncep.noaa.gov/products/predictions/610day/fxus06.html",
+      "utah": {
+        "temperature": "The temperature outlook favors above normal temperatures over the northern and western CONUS, as well as a small part of southeast Florida.",
+        "precipitation": "The precipitation outlook favors wetter-than-normal conditions across much of the western CONUS, related to the upstream mid-level trough, and consistent with the reforecast tools."
+      },
+      "ne": {
+        "temperature": "The temperature outlook favors above normal temperatures over the northern and western CONUS, as well as a small part of southeast Florida.",
+        "precipitation": "Above normal precipitation amounts are also favored from southern Texas eastward along the Gulf Coast and then northward to include the Appalachians and East Coast states, with maximum chances of 50-60 percent depicted over the southern half of the Florida Peninsula."
+      }
+    },
+    {
+      "name": "Days 8–14",
+      "start": 7,
+      "end": 14,
+      "source": "https://www.cpc.ncep.noaa.gov/products/predictions/610day/fxus06.html",
+      "utah": {
+        "temperature": "The week-2 temperature outlook favors above normal temperatures over most of the Lower 48 states, with the greatest probabilities (70-80 percent) over northern Minnesota, which diminish in the southward direction.",
+        "precipitation": "Above normal precipitation continues to be favored for the West, and for southern and eastern Texas east-northeastward across the Lower Mississippi Valley, the southern Ohio and Tennessee Valleys, the Southeast, Mid-Atlantic, and Northeast."
+      },
+      "ne": {
+        "temperature": "The week-2 temperature outlook favors above normal temperatures over most of the Lower 48 states, with the greatest probabilities (70-80 percent) over northern Minnesota, which diminish in the southward direction.",
+        "precipitation": "Above normal precipitation continues to be favored for the West, and for southern and eastern Texas east-northeastward across the Lower Mississippi Valley, the southern Ohio and Tennessee Valleys, the Southeast, Mid-Atlantic, and Northeast."
+      }
+    },
+    {
+      "name": "Weeks 3–4",
+      "start": 14,
+      "end": 28,
+      "source": "https://www.cpc.ncep.noaa.gov/products/predictions/WK34/",
+      "utah": {
+        "temperature": "The Week 3-4 Temperature Outlook favors above-normal temperatures across the western coastline and northern tier of the CONUS consistent with the El Nino signature in temperatures.",
+        "precipitation": null
+      },
+      "ne": {
+        "temperature": "The Week 3-4 Temperature Outlook favors above-normal temperatures across the western coastline and northern tier of the CONUS consistent with the El Nino signature in temperatures.",
+        "precipitation": null
+      }
+    }
+  ],
+  "guidance": {
+    "utah": [
+      {
+        "period": "Days 6–10",
+        "models": [
+          {
+            "name": "GEFS",
+            "values": {
+              "temp": 33.4,
+              "precip": 0.39
+            }
+          },
+          {
+            "name": "ECMWF ENS",
+            "values": {
+              "temp": 30,
+              "precip": 0.79
+            }
+          },
+          {
+            "name": "GEM ENS",
+            "values": {
+              "temp": 31.8,
+              "precip": 0.84
+            }
+          }
+        ]
+      },
+      {
+        "period": "Days 8–14",
+        "models": [
+          {
+            "name": "GEFS",
+            "values": {
+              "temp": 28.7,
+              "precip": 0.88
+            }
+          },
+          {
+            "name": "ECMWF ENS",
+            "values": {
+              "temp": 24.8,
+              "precip": 0.9
+            }
+          },
+          {
+            "name": "GEM ENS",
+            "values": {
+              "temp": 27.2,
+              "precip": 1.02
+            }
+          }
+        ]
+      },
+      {
+        "period": "Weeks 3–4",
+        "models": [
+          {
+            "name": "GEFS",
+            "values": {
+              "temp": 22.8,
+              "precip": 1.54
+            }
+          },
+          {
+            "name": "ECMWF ENS",
+            "values": null
+          },
+          {
+            "name": "GEM ENS",
+            "values": {
+              "temp": 23.2,
+              "precip": 2.43
+            }
+          }
+        ]
+      }
+    ],
+    "ne": [
+      {
+        "period": "Days 6–10",
+        "models": [
+          {
+            "name": "GEFS",
+            "values": {
+              "temp": 41.5,
+              "precip": 1.34
+            }
+          },
+          {
+            "name": "ECMWF ENS",
+            "values": {
+              "temp": 42.2,
+              "precip": 2.01
+            }
+          },
+          {
+            "name": "GEM ENS",
+            "values": {
+              "temp": 40.9,
+              "precip": 1.95
+            }
+          }
+        ]
+      },
+      {
+        "period": "Days 8–14",
+        "models": [
+          {
+            "name": "GEFS",
+            "values": {
+              "temp": 41.9,
+              "precip": 0.92
+            }
+          },
+          {
+            "name": "ECMWF ENS",
+            "values": {
+              "temp": 42.1,
+              "precip": 1.54
+            }
+          },
+          {
+            "name": "GEM ENS",
+            "values": {
+              "temp": 42.5,
+              "precip": 1.92
+            }
+          }
+        ]
+      },
+      {
+        "period": "Weeks 3–4",
+        "models": [
+          {
+            "name": "GEFS",
+            "values": {
+              "temp": 37.8,
+              "precip": 2.79
+            }
+          },
+          {
+            "name": "ECMWF ENS",
+            "values": null
+          },
+          {
+            "name": "GEM ENS",
+            "values": {
+              "temp": 35.6,
+              "precip": 3.24
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "modelNote": null,
+  "warnings": [],
+  "places": {
+    "utah": "Park City, UT",
+    "ne": "Boston, MA"
+  }
+}
