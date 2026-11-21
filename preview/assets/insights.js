@@ -214,6 +214,33 @@ function findStorms(det) {
     .filter((s) => s.total >= 0.05 && s.end > now)
     .slice(0, 4);
 }
+/* Storm timing from the official NWS grid where it covers (about 7 days), so the storm list and the story
+   match the NWS forecast and discussion; the model average only finds the storms and times the later ones.
+   Each storm takes the NWS hours with measurable rain or snow (0.005″/h or more) within 12 hours of its model
+   window, kept clear of its neighbours. Storms the NWS grid shows dry keep the model timing. */
+function nwsTiming(storms, grid) {
+  const vals = grid?.quantitativePrecipitation?.values;
+  if (!vals?.length) return storms;
+  const hours = [];
+  let covered = 0;
+  for (const q of vals) {
+    const [stamp, dur] = q.validTime.split("/");
+    const from = Date.parse(stamp),
+      m = dur.match(/P(?:(\d+)D)?T?(?:(\d+)H)?/),
+      n = (+(m?.[1] || 0)) * 24 + +(m?.[2] || 0) || 1;
+    covered = Math.max(covered, from + n * H);
+    if (Number.isFinite(q.value) && q.value / 25.4 / n >= 0.005) for (let k = 0; k < n; k++) hours.push(from + k * H);
+  }
+  const now = Date.now();
+  return storms.map((s, i) => {
+    if (s.end + 12 * H > covered) return s;
+    const lo = Math.max(s.start - 12 * H, i ? storms[i - 1].end : -Infinity),
+      hi = Math.min(s.end + 12 * H, storms[i + 1]?.start ?? Infinity);
+    const wet = hours.filter((t) => t >= lo && t < hi && t + H > now);
+    if (!wet.length) return s;
+    return { ...s, start: Math.min(...wet), end: Math.max(...wet) + H, modelStart: s.start, modelEnd: s.end };
+  });
+}
 function sumWindow(times, values, a, b) {
   let tot = 0,
     any = false;
@@ -1293,7 +1320,7 @@ async function loadInsights(pt, section) {
     const place = (section === "utah" ? utah : ne).find((x) => x.p.some((q) => q[0] === lat && q[1] === lon));
     insKind = place?.searched ? (wasatch ? "utah" : "other") : section;
     insHigh = insKind === "utah" || (elevFt ?? 0) > 4500;
-    const storms = findStorms(data.det)
+    const storms = nwsTiming(findStorms(data.det), data.nws?.grid)
       .map((s) => analyzeStorm(s, data, section, elevFt))
       .filter((x) => (x.liqRange[1] ?? 0) >= 0.03 || x.models.filter((m) => m.liquid >= 0.05).length >= 2);
     if (o)

@@ -259,9 +259,12 @@ const ForecastStory = (() => {
     if (!S.length) sum1.push(`No significant storms in the next week ${where}. ${afdQuote ? "" : ""}`.trim());
     else {
       // One line per storm, in the same order and with the same amounts as the storm list below.
+      // A rain storm reads as rain, not "little or nothing": snow amounts only when snow is in play.
       const amt = (n, at = "") =>
         n.snow.hi < 1
-          ? `little or nothing${at}`
+          ? n.liq >= 0.1
+            ? `about ${water(n.liq)} of ${what(n) === "rain" ? "rain" : "precipitation"}${at}`
+            : `little or nothing${at}`
           : n.snow.mid < 1
             ? `under an inch${at}, up to ${inch(n.snow.hi)}`
             : `about ${inch(n.snow.mid)}${at}${n.snow.hi - n.snow.mid >= 2 ? `, up to ${inch(n.snow.hi)}` : ""}`;
@@ -286,9 +289,23 @@ const ForecastStory = (() => {
       if (t10 && ch) sum1.push(`The next 10 days add up to ${t10.mid < 1 ? "under an inch" : `about ${inch(t10.mid)}`} ${where}, ${ch}.`);
     }
 
-    // Short term: each storm.
-    const short = S.slice(0, 1).map((s) => {
+    // Whole local days with no storm between two times ("Tuesday and Wednesday"), for the gap between storms.
+    const dryDays = (fromMs, toMs) => {
+      const hours = new Map();
+      for (let t = Math.ceil(fromMs / H) * H; t < toMs; t += H) {
+        const { date, weekday } = c.local(t);
+        hours.set(date, { weekday, n: (hours.get(date)?.n || 0) + 1 });
+      }
+      const out = [...hours.values()].filter((d) => d.n >= 23).map((d) => d.weekday);
+      return out.length > 2 ? `${out[0]} through ${out.at(-1)}` : out.join(" and ");
+    };
+    // Short term: every storm in the coming week (the first one always), each with what comes before it.
+    const short = S.filter((s, i) => i === 0 || s.fromMs - now < 7 * 24 * H).map((s, i, all) => {
       const p = [];
+      if (i > 0) {
+        const gap = dryDays(all[i - 1].toMs, s.fromMs);
+        if (gap) p.push(`${gap} ${gap.includes(" ") ? "look" : "looks"} mostly dry between storms.`);
+      }
       if (s.kind?.kind) p.push(`${cap(s.kind.kind)}${s.kind.from ? `, ${s.kind.from}` : ""}.`);
       // Timing and rounds.
       if (s.rounds.length > 1) {
@@ -332,7 +349,14 @@ const ForecastStory = (() => {
     const lastB = S.length ? Math.max(S[S.length - 1].b, S[S.length - 1].wb) : 0;
     const later = findStorms(o, 15 * 24).filter((s) => s.a > lastB + 6);
     const next = later[0];
-    if (S.length) ext.push(next ? `Quieter weather follows from ${c.dayName(c.at(lastB))} until about ${c.dateName(c.at(next.a))}.` : `Quieter weather follows from ${c.dayName(c.at(lastB))}.`);
+    // Say which storm the quiet stretch follows, so it never reads as if it starts right after the first one.
+    if (S.length) {
+      const L = S[S.length - 1];
+      const wd = (ms) => (c.dayName(ms).includes(",") ? c.dayName(ms) : c.local(ms).weekday);
+      const name = wd(L.fromMs) === wd(L.toMs) ? `${wd(L.fromMs)}'s` : `the ${wd(L.fromMs)}–${wd(L.toMs)}`;
+      const after = S.length > 1 ? `After ${name} storm clears ${c.when(L.toMs)}, quieter` : "Quieter";
+      ext.push(next ? `${after} weather follows until about ${c.dateName(c.at(next.a))}.` : S.length > 1 ? `${after} weather follows.` : `Quieter weather follows from ${c.dayName(c.at(lastB))}.`);
+    }
     const days = [];
     for (let d = Math.max(7, Math.ceil((lastB + 12) / 24)); d < 15; d++) {
       const a = d * 24,

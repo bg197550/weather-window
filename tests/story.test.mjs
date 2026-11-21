@@ -23,7 +23,10 @@ test("story tells timing, falling snow levels, water and snow, and the next stor
   assert.match(st.summary, /^Next up: \w+ mountain snow today \(Tuesday\) into tomorrow \(Wednesday\), about \d+″ at the summit/);
   assert.match(st.short[0].text, /Snow levels start around 8,500 ft and fall to 5,000 ft/);
   assert.match(st.summary, /After that: Friday into Saturday \(about \d+″/);
-  assert.equal(st.short.length, 1); // later storms live in the storm list
+  assert.equal(st.short.length, 2); // every storm in the coming week gets its own paragraph
+  assert.match(st.short[1].title, /^Storm 2 · Friday → Saturday/);
+  assert.match(st.short[1].text, /^Thursday looks mostly dry between storms\./);
+  assert.match(st.extended, /^After the Friday–Saturday storm clears Saturday/); // the quiet stretch names the storm it follows
   assert.doesNotMatch(st.short[0].text, /rain or mix/); // 8,500 ft snow level vs an 8,530 ft base: snow
   assert.doesNotMatch(st.short[0].text, /around midday, heaviest around midday/);
   assert.match(st.short[0].text, /heavy and wet/);
@@ -59,4 +62,13 @@ test("uses the storm list's windows and shares its numbers", () => {
   const f = Story.facts(o, ...win);
   assert.match(st.short[0].text, new RegExp(`about ${Math.round(f.snow.mid)}″ at the summit, likely ${Math.round(f.snow.lo)}–${Math.round(f.snow.hi)}″`));
   assert.ok(f.quality && f.ratio);
+});
+test("a rain storm's summary gives the rain, not 'little or nothing'", () => {
+  const o = outlook();
+  Object.assign(o, { ski: false, elev: 200, base: 200, tz: "America/New_York", mid: o.mid.map(() => 0), members: o.members.map((m) => ({ cum: m.cum.map(() => 0) })) });
+  o.blocks.forEach((b) => (b.med = 9900));
+  const st = Story.build(o, { section: "ne", now: Date.parse("2026-11-17T13:30:00Z") });
+  assert.match(st.summary, /about 0\.75″ of rain here/);
+  assert.match(st.summary, /After that: Friday into Saturday \(about 1\.25″ of rain\)/);
+  assert.doesNotMatch(st.summary, /little or nothing/);
 });
