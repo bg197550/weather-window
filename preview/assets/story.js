@@ -265,7 +265,12 @@ const ForecastStory = (() => {
           : n.snow.mid < 1
             ? `under an inch${at}, up to ${inch(n.snow.hi)}`
             : `about ${inch(n.snow.mid)}${at}${n.snow.hi - n.snow.mid >= 2 ? `, up to ${inch(n.snow.hi)}` : ""}`;
-      const span = (n) => (c.dayName(n.fromMs) === c.dayName(n.toMs) ? c.dayName(n.fromMs) : `${c.dayName(n.fromMs)} into ${c.dayName(n.toMs)}`);
+      const span = (n) => {
+        // Both ends as dates once either is a week out, so a span never mixes "Thursday" with "Fri, Nov 27".
+        const dated = c.dayName(n.toMs).includes(",");
+        const nm = (ms) => (dated ? c.dateName(ms) : c.dayName(ms));
+        return nm(n.fromMs) === nm(n.toMs) ? nm(n.fromMs) : `${nm(n.fromMs)} into ${nm(n.toMs)}`;
+      };
       const s = S[0];
       sum1.push(
         s.ongoing
