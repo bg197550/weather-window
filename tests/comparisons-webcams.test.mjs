@@ -96,3 +96,20 @@ test("Park City combines all seven cameras with Canyons first and keeps autoplay
  assert.equal(s.cameraLoading({embed:"https://www.youtube-nocookie.com/embed/example"}),"lazy");
  assert.equal(s.cameraLoading({snapshot:"https://example.com/image.jpg"}),"lazy");
 });
+
+test("Snow Park uses Deer Valley's current player and both webcam views render autoplay embeds",()=>{
+ const s=cams(),deerValley=s.resorts.find(r=>r.id==="deer-valley");
+ const snowPark=deerValley.cams.find(c=>c.name==="Snow Park Lodge");
+ const player=new URL(snowPark.embed);
+ assert.equal(player.origin,"https://camstreamer.com");
+ assert.equal(player.searchParams.get("autoplay"),"1");
+ assert.equal(player.searchParams.get("mute"),"1");
+ const resort=s.cameraCard(deerValley,snowPark);
+ const regional=s.groupedResorts([deerValley]);
+ for(const html of [resort,regional]){
+  assert.match(html,/<iframe src="https:\/\//);
+  assert.match(html,/autoplay=1&amp;mute=1/);
+  assert.match(html,/allow="autoplay;/);
+  assert.doesNotMatch(html,/yt-facade/);
+ }
+});
