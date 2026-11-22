@@ -4,9 +4,6 @@ const RESORTS = [
     name: "Deer Valley",
     area: "Park City",
     source: "https://www.deervalley.com/explore-the-mountain/webcams",
-    // CamStreamer links belong to each camera and survive Deer Valley restarting its YouTube streams
-    // (the YouTube links changed in Nov 2026 and went "unavailable").
-    // Highest first, as on Deer Valley's page. YouTube live streams, embedded; the footer links to each on YouTube.
     cams: [
       { name: "Empire Express", embed: "https://www.youtube.com/embed/r8qiPv9XCOM?autoplay=1&mute=1&playsinline=1&rel=0", watch: "https://www.youtube.com/watch?v=r8qiPv9XCOM" },
       { name: "Revelator Express", embed: "https://www.youtube.com/embed/XZjubaPbamE?autoplay=1&mute=1&playsinline=1&rel=0", watch: "https://www.youtube.com/watch?v=XZjubaPbamE" },
@@ -16,7 +13,7 @@ const RESORTS = [
       { name: "Park Peak Snow Stake", embed: "https://www.youtube.com/embed/k8NiVrlQACQ?autoplay=1&mute=1&playsinline=1&rel=0", watch: "https://www.youtube.com/watch?v=k8NiVrlQACQ" },
       { name: "Silver Lake Lodge", embed: "https://www.youtube.com/embed/uE_ent5rC3Y?autoplay=1&mute=1&playsinline=1&rel=0", watch: "https://www.youtube.com/watch?v=uE_ent5rC3Y" },
       { name: "Galena Express", embed: "https://www.youtube.com/embed/0shWeR7Fvpg?autoplay=1&mute=1&playsinline=1&rel=0", watch: "https://www.youtube.com/watch?v=0shWeR7Fvpg" },
-      { name: "Snow Park Lodge", embed: "https://www.youtube.com/embed/QozKoFs-hL0?autoplay=1&mute=1&playsinline=1&rel=0", watch: "https://www.youtube.com/watch?v=QozKoFs-hL0" },
+      { name: "Snow Park Lodge", embed: "https://camstreamer.com/embed/M5ToybhwNTDP6Y5Yt6lIr9hylOONXTv892poZIyH?autoplay=1&mute=1&playsinline=1&rel=0" },
       { name: "Hoodoo Express", embed: "https://www.youtube.com/embed/RaX_MhXETq4?autoplay=1&mute=1&playsinline=1&rel=0", watch: "https://www.youtube.com/watch?v=RaX_MhXETq4" },
     ],
     region: "utah",
@@ -571,18 +568,6 @@ const RESORTS = [
   },
 ];
 const content = document.querySelector("#content");
-// Tap a YouTube still to load its player in place.
-content.addEventListener("click", (e) => {
-  const b = e.target.closest(".yt-facade");
-  if (!b) return;
-  const f = document.createElement("iframe");
-  f.src = b.dataset.embed;
-  f.title = b.getAttribute("aria-label").replace(/^Play /, "");
-  f.allow = "autoplay; encrypted-media; picture-in-picture; fullscreen";
-  f.allowFullscreen = true;
-  f.referrerPolicy = "strict-origin-when-cross-origin";
-  b.replaceWith(f);
-});
 let active = "utah",
   players = [],
   observer = null;
@@ -624,19 +609,11 @@ function groupedResorts(list) {
 function cameraLoading(c) {
   return c.embed?.startsWith("https://player.brownrice.com/embed/") ? "eager" : "lazy";
 }
-/* YouTube players are heavy: show the stream's live still and load the player when it is tapped. */
-const ytId = (u) => (String(u || "").match(/youtube(?:-nocookie)?\.com\/embed\/([\w-]{11})/) || [])[1] || "";
-function ytFacade(r, c, id) {
-  const src = c.embed.replace(/autoplay=0/, "autoplay=1");
-  return `<button type="button" class="yt-facade" data-embed="${safe(src)}" aria-label="Play ${safe(r.name + " · " + c.name)} live"><img src="https://i.ytimg.com/vi/${id}/hqdefault_live.jpg?t=${Math.floor(Date.now() / 300000)}" alt="${safe(r.name + " · " + c.name + " webcam")}" loading="lazy" referrerpolicy="no-referrer"><span class="cam-play" aria-hidden="true">▶ Play live</span></button>`;
-}
 function camera(r, c) {
   if (c.external)
     return `<div class="cam"><div class="cam-failure"><strong>${safe(c.name)} only plays on ${safe(r.name)}'s website</strong><a href="${safe(r.source)}" target="_blank" rel="noopener">Watch it on ${safe(r.name)}'s webcam page ↗</a></div></div>`;
   if (c.offline)
     return `<div class="cam"><div class="cam-failure"><strong>${safe(c.name)} is currently offline</strong><a href="${safe(r.source)}" target="_blank" rel="noopener">Check resort camera updates ↗</a></div></div>`;
-  const yt = !c.hls && !c.snapshot && ytId(c.embed);
-  if (yt) return `<div class="cam">${ytFacade(r, c, yt)}<span class="badge" data-state="loading" role="status" hidden></span><div class="cam-failure" hidden><strong>Camera feed unavailable</strong><a href="${safe(r.source)}" target="_blank" rel="noopener">Open resort webcams ↗</a></div></div>`;
   return `<div class="cam">${c.hls ? `<video data-hls="${safe(c.hls)}" data-fallback="${safe(c.snapshot)}" poster="${safe(c.snapshot)}" muted autoplay playsinline controls aria-label="${safe(r.name + " · " + c.name + " webcam")}"></video>` : c.snapshot ? `${c.watch ? `<a class="cam-watch" href="${safe(c.watch)}" target="_blank" rel="noopener" aria-label="Watch ${safe(c.name)} live on YouTube">` : ""}<img data-snapshot="${safe(c.snapshot)}" src="${safe(snapshotURL(c.snapshot))}" alt="${safe(r.name + " · " + c.name + " webcam")}" loading="lazy" referrerpolicy="no-referrer">${c.watch ? `<span class="cam-play" aria-hidden="true">▶ Live</span></a>` : ""}` : `<iframe ${c.embed.includes("{W}") ? "data-sized" : "src"}="${safe(c.embed)}"${c.wetmet ? ' class="crop" scrolling="no"' : ""} title="${safe(r.name + " · " + c.name + " webcam")}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen loading="${cameraLoading(c)}" referrerpolicy="strict-origin-when-cross-origin"></iframe>`}<span class="badge" data-state="loading" role="status"${c.snapshot && !c.hls ? "" : " hidden"}>${safe(cameraStatus(c))}</span><div class="cam-failure" hidden><strong>Camera feed unavailable</strong><a href="${safe(r.source)}" target="_blank" rel="noopener">Open resort webcams ↗</a></div></div>`;
 }
 function footer(r, c) {
