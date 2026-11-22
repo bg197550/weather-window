@@ -138,7 +138,7 @@ const RESORTS = [
       },
       {
         name: "Moonbeam Parking Lot",
-        embed: "https://www.youtube-nocookie.com/embed/gfHReYIuydU?autoplay=1&mute=1&playsinline=1&rel=0",
+        embed: "https://www.youtube-nocookie.com/embed/jZ09h9qo-Vs?autoplay=1&mute=1&playsinline=1&rel=0",
       },
       {
         name: "Moonbeam Express Lift Line",
@@ -154,7 +154,7 @@ const RESORTS = [
       },
       {
         name: "Summit Express Lift Line",
-        embed: "https://www.youtube-nocookie.com/embed/rUXoOLxKKX4?autoplay=1&mute=1&playsinline=1&rel=0",
+        embed: "https://www.youtube-nocookie.com/embed/Yblyfl97Mhc?autoplay=1&mute=1&playsinline=1&rel=0",
       },
       {
         name: "Powderhorn II Lift Line",
