@@ -249,7 +249,10 @@ const ForecastStory = (() => {
         const fromMs = k ? (ongoing ? now : k.start) : c.at(f.a),
           toMs = k ? k.end : c.at(f.b);
         const kind = k || kinds.find((q) => q.end > fromMs && q.start < toMs);
-        return { ...f, i, fromMs, toMs, winEnd: c.at(f.wb), kind, ongoing };
+        // Rain storms use the official NWS water total when the storm list has one (snow storms keep the
+        // outlook's water so water and snow stay consistent).
+        const liq = k && fin(k.nwsLiq) && f.snow.hi < 1 && k.nwsLiq >= 0.05 ? k.nwsLiq : f.liq;
+        return { ...f, liq, nwsLiq: liq !== f.liq, i, fromMs, toMs, winEnd: c.at(f.wb), kind, ongoing };
       });
     const intensity = (s) => ((s.peak.liq || 0) >= 0.3 ? "heavy" : (s.peak.liq || 0) >= 0.12 ? "steady" : "light");
     const what = (s) => (s.snow.mid >= 1 ? (o.ski ? "mountain snow" : "snow") : !fin(s.l0) || s.l0 <= base ? "snow showers" : s.l0 > elev + 250 ? "rain" : "rain and snow");
@@ -331,7 +334,9 @@ const ForecastStory = (() => {
       const at = o.ski ? "at the summit" : "here";
       let ws =
         s.snow.hi < 1
-          ? `About ${water(s.liq)} of water, but less than an inch of snow ${at}.`
+          ? what(s) === "rain"
+            ? `About ${water(s.liq)} of rain${s.nwsLiq ? " in the NWS forecast" : ""}${s.snow.hi >= 0.1 ? `, with less than an inch of snow ${at}` : ""}.`
+            : `About ${water(s.liq)} of water${s.nwsLiq ? " in the NWS forecast" : ""}, but less than an inch of snow ${at}.`
           : `About ${water(s.liq)} of water, which works out to ${s.snow.mid < 1 ? "under an inch" : `about ${inch(s.snow.mid)}`} ${at}, likely ${range(s.snow.lo, s.snow.hi)}.`;
       if (s.r0 != null && s.r0 <= 10 && s.snow.mid >= 1) ws += ` It starts heavy and wet (around ${s.r0}:1), which holds totals down${s.rLow > s.r0 + 3 ? `; colder air later makes it lighter (about ${s.rLow}:1)` : ""}.`;
       else if (s.r0 != null && s.r0 >= 14 && s.snow.mid >= 1) ws += ` Cold air means light, dry snow (about ${s.r0}:1).`;

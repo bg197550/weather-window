@@ -72,3 +72,17 @@ test("a rain storm's summary gives the rain, not 'little or nothing'", () => {
   assert.match(st.summary, /After that: Friday into Saturday \(about 1\.25″ of rain\)/);
   assert.doesNotMatch(st.summary, /little or nothing/);
 });
+test("rain storms use the NWS water total the storm list passes", () => {
+  const o = outlook();
+  Object.assign(o, { ski: false, elev: 200, base: 200, tz: "America/New_York", mid: o.mid.map(() => 0), members: o.members.map((m) => ({ cum: m.cum.map(() => 0) })) });
+  o.blocks.forEach((b) => (b.med = 9900));
+  const t0 = Date.parse(o.built), H = 3600e3;
+  const kinds = [
+    { start: t0 + 5 * H, end: t0 + 23 * H, win: [t0 + 5 * H, t0 + 23 * H], nwsLiq: 1.69 },
+    { start: t0 + 72 * H, end: t0 + 102 * H, win: [t0 + 72 * H, t0 + 102 * H] },
+  ];
+  const st = Story.build(o, { section: "ne", kinds, now: Date.parse("2026-11-17T13:30:00Z") });
+  assert.match(st.summary, /about 1\.7″ of rain here/);
+  assert.match(st.short[0].text, /About 1\.7″ of rain in the NWS forecast\./);
+  assert.match(st.short[1].text, /About 1\.25″ of rain\./); // no NWS figure: outlook water
+});

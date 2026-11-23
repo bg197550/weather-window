@@ -1128,7 +1128,13 @@ function cycleCard(storms, data, section, elevFt, placeName, o) {
           : "";
       const q = snowQuality(x.t700mean);
       const r = o ? SnowCore.windowSnow(o, ...stormWindow(x)) : cycleRange(data, elevFt, ...stormWindow(x));
-      const amt = !r ? "–" : r.lo != null ? `${fmtAmt(r.mid, true)} <small class="rng">(${fmtAmt(r.lo, true)}–${fmtAmt(r.hi, true)})</small>` : fmtAmt(r.mid, true);
+      // A rain storm's header gives rain (NWS amount where it covers, else the ensemble median) with the ensemble
+      // range, instead of 0.0″ of snow.
+      const rainLiq = Number.isFinite(x.nws?.liquid?.inches) ? x.nws.liquid.inches : x.liqRange?.[1];
+      const rainy = x.snowy === false && (!r || (r.hi ?? r.mid ?? 0) < 1) && Number.isFinite(rainLiq) && rainLiq >= 0.05;
+      const amt = rainy
+        ? `${fmtAmt(rainLiq, false)} rain${Number.isFinite(x.liqRange?.[0]) && Number.isFinite(x.liqRange?.[2]) ? ` <small class="rng">(${fmtAmt(x.liqRange[0], false)}–${fmtAmt(x.liqRange[2], false)})</small>` : ""}`
+        : !r ? "–" : r.lo != null ? `${fmtAmt(r.mid, true)} <small class="rng">(${fmtAmt(r.lo, true)}–${fmtAmt(r.hi, true)})</small>` : fmtAmt(r.mid, true);
       return `<li><details${i === 0 ? " open" : ""}><summary><b>Storm ${i + 1}</b><span>${escapeHTML(x.current ? `Now → ${partOfDay(x.end, section)}` : `${cap(partOfDay(x.start, section))} → ${partOfDay(x.end, section)}`)}</span><span class="amt">${amt} here</span><span class="ins-conf ins-conf-${(x.conf || "na").toLowerCase()}">${x.conf ? x.conf + " confidence" : "Confidence n/a"}</span><small>${[lvl, x.f?.quality && x.snowy !== false ? `${x.f.quality} (${x.f.ratio})` : q && x.snowy !== false ? `${q.label} (${q.short})` : ""].filter(Boolean).map(escapeHTML).join(" · ")}</small><span class="ins-open" aria-hidden="true"></span></summary><div class="ins-storm-body">${stormCard(x, section, i, true)}</div></details></li>`;
     })
     .join("");
@@ -1340,7 +1346,7 @@ async function loadInsights(pt, section) {
         }
       }
     updatePatternSignals(data, section);
-    const story = storyCard(o, storms.map((x) => ({ start: x.start, end: x.end, win: o ? stormWindow(x) : null, current: x.current, ...stormStory(x, data, section) })), data, section, sum, pt);
+    const story = storyCard(o, storms.map((x) => ({ start: x.start, end: x.end, win: o ? stormWindow(x) : null, current: x.current, nwsLiq: x.nws?.liquid?.inches, ...stormStory(x, data, section) })), data, section, sum, pt);
     html += story;
     if (storms.length) {
       const which = place && !place.searched ? `${place.name}${place.p.length > 1 ? ` ${pt.p[2]?.split(" · ")[0]?.toLowerCase() || ""}` : ""}` : "";
