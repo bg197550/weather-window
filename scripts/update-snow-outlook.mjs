@@ -28,7 +28,24 @@ const NAMES = {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const prev = prevPath && existsSync(prevPath) ? JSON.parse(readFileSync(prevPath, "utf8")) : { places: {} };
 mkdirSync(`${out}/outlook`, { recursive: true });
-const summary = { updated: new Date().toISOString(), places: { ...prev.places }, cells: { ...(prev.cells || {}) }, history: { ...(prev.history || {}) } };
+const summary = { updated: new Date().toISOString(), places: { ...prev.places }, cells: { ...(prev.cells || {}) }, history: { ...(prev.history || {}) }, ratios: { ...(prev.ratios || {}) } };
+/* Long-run terrain correction per mountain: NWS ÷ ensemble median over the NWS days, averaged (in logs) across
+   runs, each run weighted by how much snow it rests on. Consecutive runs see the same storms, so each counts only a
+   little; W (total weight) is capped so the average keeps following the season. w (0–1) is how far to trust it. */
+const RATIO_STEP = 0.15,
+  RATIO_CAP = 3,
+  RATIO_FULL = 1.5;
+function learnRatio(slug, nws) {
+  if (!nws || !Number.isFinite(nws.nwsIn) || !Number.isFinite(nws.ensIn) || nws.ensIn < 1) return;
+  const S = Math.max(nws.nwsIn, nws.ensIn),
+    k = RATIO_STEP * (S / (S + 6));
+  const L = Math.log(Math.min(3, Math.max(1 / 3, nws.nwsIn / nws.ensIn)));
+  const old = summary.ratios[slug];
+  const W0 = old?.W || 0,
+    W = Math.min(RATIO_CAP, W0 + k),
+    l = old ? Math.log(old.r) + (L - Math.log(old.r)) * (k / W) : L;
+  summary.ratios[slug] = { r: Math.round(Math.exp(l) * 1000) / 1000, W: Math.round(W * 1000) / 1000, w: Math.round(Math.min(1, W / RATIO_FULL) * 100) / 100, updated: new Date().toISOString() };
+}
 // Summit NWS squares first: GitHub reaches NWS reliably, and browsers use these when they build an outlook themselves.
 for (const [slug, [name, section]] of Object.entries(NAMES)) {
   try {
@@ -46,7 +63,7 @@ async function buildOne(slug, name, section, tries) {
   const pl = SnowCore.placeFor({ name, slug }, section);
   for (let attempt = 1; attempt <= tries; attempt++) {
     try {
-      return await SnowCore.outlook(pl, { nwsUA: UA, nwsCell: summary.cells[slug] || null, nwsSearch: summary.cells[slug] ? 0 : 1 });
+      return await SnowCore.outlook(pl, { nwsUA: UA, nwsCell: summary.cells[slug] || null, nwsSearch: summary.cells[slug] ? 0 : 1, ratio: summary.ratios[slug] || null });
     } catch (e) {
       const wait = 30000 * attempt;
       console.log(`${slug}: ${why(e)}${attempt < tries ? `, retrying in ${wait / 1000} s` : ""}`);
@@ -66,15 +83,18 @@ function save(slug, o) {
     summary.history[slug] = hist.filter((x, i, a) => Date.now() - Date.parse(x.built) < 72 * 3600000 && a.findIndex((y) => y.built === x.built) === i).slice(0, 16);
   }
   summary.places[slug] = meta;
+  learnRatio(slug, o.nws);
   ok++;
-  console.log(`${slug}: 10-day ${o.totals[10].mid}″ (${o.totals[10].lo}–${o.totals[10].hi}), NWS ${o.nws ? `${o.nws.cell} at ${o.nws.elev} ft, scale ${o.nws.scale}` : "none"}`);
+  console.log(`${slug}: 10-day ${o.totals[10].mid}″ (${o.totals[10].lo}–${o.totals[10].hi}), NWS ${o.nws ? `${o.nws.cell} at ${o.nws.elev} ft, scale ${o.nws.scale}` : "none"}, terrain correction ${o.carry} (long run ${summary.ratios[slug]?.r ?? "–"})`);
 }
 const failed = [];
 let streak = 0;
 for (const [slug, [name, section]] of Object.entries(NAMES)) {
   if (streak >= 3) {
-    failed.push(slug); // Open-Meteo is refusing this runner; browsers build these themselves.
-    continue;
+    // Open-Meteo has timed out three times in a row: pause, then keep going rather than skipping the rest.
+    console.log("Three failures in a row; pausing 2 minutes");
+    await sleep(120000);
+    streak = 0;
   }
   const o = await buildOne(slug, name, section, 2);
   if (o) {
@@ -87,12 +107,12 @@ for (const [slug, [name, section]] of Object.entries(NAMES)) {
   await sleep(15000); // stay well under Open-Meteo's per-minute limit
 }
 // One more pass for any mountain that failed, after a longer pause.
-if (failed.length && ok && streak < 3) {
+if (failed.length) {
   console.log(`Second pass: ${failed.join(", ")}`);
   await sleep(90000);
   for (const slug of failed) {
     const [name, section] = NAMES[slug];
-    const o = await buildOne(slug, name, section, 3);
+    const o = await buildOne(slug, name, section, failed.length > 6 ? 2 : 3); // keep a bad run inside the job's time limit
     if (o) save(slug, o);
     await sleep(20000);
   }

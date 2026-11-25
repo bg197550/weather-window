@@ -53,3 +53,31 @@ test("without NWS the middle is the ensemble median", () => {
   const ms = o.members.map((m) => m.cum[60]).sort((a, b) => a - b);
   assert.ok(Math.abs(o.mid[60] - SnowCore.quant(ms, 0.5)) < 0.02);
 });
+test("after the NWS days the ensemble median carries the mountain's terrain correction", () => {
+  const pl = SnowCore.placeFor({ name: "Alta" }, "utah");
+  const inp = inputs();
+  // Two storms: one inside the NWS days (hours 8–18), one after (hours 31–39, from inputs()).
+  for (const k of Object.keys(inp.ens.hourly)) if (k.startsWith("precipitation")) inp.ens.hourly[k] = inp.ens.hourly[k].map((v, i) => (i > 8 && i < 18 ? 0.05 : v));
+  const start = Date.UTC(2026, 10, 12, 7);
+  const iso = (h) => new Date(start + h * 3600000).toISOString().replace(".000Z", "+00:00");
+  const plain = SnowCore.build(pl, { ...inp, nws: null }, start); // raw ensemble, no correction
+  const ensFirst = plain.members.map((m) => m.cum[24]).sort((a, b) => a - b);
+  const e1 = SnowCore.quant(ensFirst, 0.5); // ensemble median over the NWS day
+  // NWS says twice the ensemble over its day.
+  inp.nws = { elevM: 3100, snow: [{ validTime: `${iso(0)}/PT24H`, value: 2 * e1 * 25.4 }] };
+  const o = SnowCore.build(pl, inp, start);
+  const want = SnowCore.carryRatio(2 * e1, e1, null);
+  assert.ok(want > 1.2 && want < 2, "this run's ratio counts, shrunk toward 1 by how little snow it rests on");
+  assert.equal(o.carry, Math.round(want * 100) / 100);
+  const after = (x) => x.mid[60] - x.mid[24];
+  assert.ok(Math.abs(after(o) - after(plain) * want) < 0.05, "storm after the NWS days is scaled by the correction");
+  // A trusted long-run ratio pulls the correction toward it.
+  const long = SnowCore.build(pl, inp, start, { ratio: { r: 3, w: 1 } });
+  assert.ok(long.carry > o.carry);
+});
+test("terrain correction: little snow means little correction; history alone works without NWS", () => {
+  assert.equal(SnowCore.carryRatio(0.2, 0.1, null), 1);
+  assert.equal(SnowCore.carryRatio(null, null, null), 1);
+  assert.ok(Math.abs(SnowCore.carryRatio(null, null, { r: 2, w: 0.5 }) - Math.SQRT2) < 1e-9);
+  assert.ok(SnowCore.carryRatio(3, 6.8, null) < 0.7 && SnowCore.carryRatio(9.2, 5.8, null) > 1.3);
+});

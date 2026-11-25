@@ -3,8 +3,14 @@
    dashboard mountains every 3 hours, so every page reads the same numbers).
 
    Basis: ski areas are forecast at their summit; towns at ground level.
-   Middle number: the NWS gridded snowfall while it lasts (about 7 days), then the ensemble median added on top.
-   Range: every GEFS and ECMWF ensemble run, scaled so their middle matches NWS over the NWS days.
+   Middle number: the NWS gridded snowfall while it lasts (about 7 days), then the ensemble median added on top,
+   times the mountain's terrain correction.
+   Range: every GEFS and ECMWF ensemble run, scaled so their middle matches NWS over the NWS days, and by the same
+   terrain correction after that.
+   Terrain correction: the 18–25 km ensembles can't tell Little Cottonwood from the Park City ridgeline; the 2.5 km
+   NWS grid can. Each run compares NWS with the ensemble median over the NWS days at that mountain. The correction
+   blends this run's ratio (trusted more the more snow it is based on) with the mountain's long-run ratio from earlier
+   runs (opts.ratio, kept by the outlook job), so a light week doesn't swing it.
    Snow from rain: each run's liquid × a snow ratio from its temperature, counted as snow when its snow level
    (freezing level − 1,100 ft) is below the basis elevation (half within ±250 ft). */
 const SnowCore = (() => {
@@ -190,7 +196,21 @@ const SnowCore = (() => {
   }
 
   /* ---------- the outlook ---------- */
-  function build(pl, { ens, g05, det, nws }, nowMs = Date.now()) {
+  /* Terrain correction for after the NWS days: this run's NWS/ensemble ratio, weighted by how much snow it rests
+     on (half weight at 6″), blended with the long-run ratio ({r, w}: geometric mean ratio and its weight, 0–1). */
+  const RUN_HALF = 6;
+  function carryRatio(nwsIn, ensIn, longRun) {
+    const parts = [];
+    if (fin(nwsIn) && fin(ensIn) && ensIn >= 0.3) {
+      const S = Math.max(nwsIn, ensIn);
+      parts.push([Math.log(Math.min(3, Math.max(1 / 3, nwsIn / ensIn))), S / (S + RUN_HALF)]);
+    }
+    if (longRun && fin(longRun.r) && longRun.r > 0 && fin(longRun.w) && longRun.w > 0) parts.push([Math.log(Math.min(3, Math.max(1 / 3, longRun.r))), Math.min(1, longRun.w)]);
+    const w = parts.reduce((t, p) => t + p[1], 0);
+    // Weight left over (little snow, no history) stays at 1: no correction.
+    return w ? Math.exp(parts.reduce((t, p) => t + p[0] * p[1], 0) / Math.max(1, w)) : 1;
+  }
+  function build(pl, { ens, g05, det, nws }, nowMs = Date.now(), { ratio: longRun = null } = {}) {
     const times = ens?.hourly?.time;
     if (!times?.length) throw Error("No ensemble data");
     const tz = TZ[pl.section] || ens.timezone || "UTC";
@@ -297,25 +317,29 @@ const SnowCore = (() => {
 
     // Blend. A run that ends within a day of the end keeps its last total so window totals stay comparable.
     const val = (m, k) => (m.cum[k] != null ? m.cum[k] : m.last >= Math.min(k, n - 1) - 24 ? m.cum[m.last] : null);
-    let scale = 1;
+    let scale = 1,
+      ensNws = null;
     if (e > 0) {
-      const em = med(members.map((m) => val(m, e)));
+      ensNws = med(members.map((m) => val(m, e)));
       const nv = nwsCum[e];
-      scale = em != null && em >= 0.3 ? Math.min(3, Math.max(1 / 3, nv / em)) : nv < 0.3 ? 1 : 1;
+      scale = ensNws != null && ensNws >= 0.3 ? Math.min(3, Math.max(1 / 3, nv / ensNws)) : 1;
     }
+    // After the NWS days: the terrain correction (this run and the long run blended), or the long run alone
+    // when there is no NWS grid this time.
+    const carry = e > 0 ? carryRatio(nwsCum[e], ensNws, longRun) : carryRatio(null, null, longRun);
     const adj = (m, k) => {
       const v = val(m, k);
       if (v == null) return null;
       if (k <= e) return v * scale;
       const ve = val(m, e);
-      return ve == null ? null : ve * scale + (v - ve);
+      return ve == null ? null : ve * scale + (v - ve) * carry;
     };
     const mid = new Array(n).fill(null);
     for (let k = 0; k < n; k++) {
       if (k <= e && nwsCum) mid[k] = nwsCum[k];
       else {
         const inc = med(members.map((m) => (val(m, k) != null && val(m, e) != null ? val(m, k) - val(m, e) : null)));
-        mid[k] = inc == null ? (k > 0 ? mid[k - 1] : 0) : (nwsCum ? nwsCum[e] : 0) + inc;
+        mid[k] = inc == null ? (k > 0 ? mid[k - 1] : 0) : (nwsCum ? nwsCum[e] : 0) + inc * carry;
       }
     }
     const adjCum = members.map((m) => Array.from({ length: n }, (_, k) => adj(m, k)));
@@ -420,7 +444,8 @@ const SnowCore = (() => {
       dets: dets.map((d) => ({ ...d, cum: d.cum.map(r2) })),
       levels: levels.map((s) => ({ fam: s.fam, det: !!s.det, level: s.level.map((v) => (v == null ? null : Math.round(v))) })),
       temp: tempMed.map((v) => (v == null ? null : Math.round(v))),
-      nws: e > 0 ? { endIndex: e, elev: nwsElev, scale: r2(scale), cell: nws.cell || null } : null,
+      nws: e > 0 ? { endIndex: e, elev: nwsElev, scale: r2(scale), cell: nws.cell || null, nwsIn: r2(nwsCum[e]), ensIn: r2(ensNws) } : null,
+      carry: r2(carry),
       segments: segOut,
       blocks: blockOut,
       totals,
@@ -469,7 +494,7 @@ const SnowCore = (() => {
     return { mid: m, lo: Math.min(m, Math.max(0, quant(v, 0.1) ?? m)), hi: Math.max(m, quant(v, 0.9) ?? m), values: v };
   }
   async function outlook(pl, opts = {}) {
-    return build(pl, await fetchInputs(pl, opts), opts.now);
+    return build(pl, await fetchInputs(pl, opts), opts.now, { ratio: opts.ratio || null });
   }
   /* ---------- browser loading ----------
      1. The outlook job's file, when it is fresh (built within STALE).
@@ -538,7 +563,7 @@ const SnowCore = (() => {
       }
       const local = readLocal(key);
       if (local) return local;
-      const o = thin(await limited(() => outlook(pl, { nwsCell: sum?.cells?.[pl.slug] || null })));
+      const o = thin(await limited(() => outlook(pl, { nwsCell: sum?.cells?.[pl.slug] || null, ratio: sum?.ratios?.[pl.slug] || null })));
       writeLocal(key, o);
       return o;
     });
@@ -550,6 +575,6 @@ const SnowCore = (() => {
   const clear = () => cache.clear();
   /* Is a summary entry fresh enough to use as is? */
   const isFresh = fresh;
-  return { MOUNTAINS, DET, TZ, placeFor, fetchInputs, nwsGrid, build, outlook, forPlace, summary, clear, isFresh, STALE, thin, windowSnow, snowRatio, snowShare, hourSnow, freezingFt, heightToFt, seriesOf, quant, localHourKey, slugOf };
+  return { MOUNTAINS, DET, TZ, placeFor, carryRatio, fetchInputs, nwsGrid, build, outlook, forPlace, summary, clear, isFresh, STALE, thin, windowSnow, snowRatio, snowShare, hourSnow, freezingFt, heightToFt, seriesOf, quant, localHourKey, slugOf };
 })();
 if (typeof module === "object" && module.exports) module.exports = SnowCore;

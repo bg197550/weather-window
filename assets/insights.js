@@ -1151,7 +1151,7 @@ function cycleCard(storms, data, section, elevFt, placeName, o) {
       : "";
   return `<article class="card afd-card ins-cycle"><div class="ins-head"><h3>${insKind === "utah" ? "Wasatch storm cycle" : "Storms"} · next 10 days</h3><span class="ins-conf">${storms.length} storm${storms.length === 1 ? "" : "s"}</span></div><ol class="ins-cycle-list">${list}</ol>${totals}<p class="ins-cycle-links"><a class="xlink" href="${o?.ski ? `snow/#mountain/${section}/${o.slug}` : `#${section}/${o ? o.slug : WW.place().slug}/snow`}">Snow forecast: day by day, every model run, snow level ›</a> <a class="xlink" href="snow/#forecast/${section}">Compare all mountains ›</a></p><p class="source">${
     o
-      ? `Amounts are for ${o.ski ? `the summit (${o.summit.toLocaleString()} ft)` : "ground level"} and match the Snow section (Snow forecast and All mountains): the NWS forecast for its first ~7 days, then the GEFS and ECMWF ensemble median; ranges are the ensemble runs scaled to NWS.`
+      ? `Amounts are for ${o.ski ? `the summit (${o.summit.toLocaleString()} ft)` : "ground level"} and match the Snow section (Snow forecast and All mountains): the NWS forecast for its first ~7 days, then the GEFS and ECMWF ensemble median adjusted for this mountain\u2019s terrain (from how the NWS forecast compares with the ensembles here); ranges are the ensemble runs scaled the same way.`
       : "Amounts use the GFS, ECMWF, GEM and ICON average with snow level and ratio from each model's 700 mb temperature (the shared snow forecast was unavailable)."
   }</p></article>`;
 }
