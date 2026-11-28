@@ -192,11 +192,11 @@ const RESORTS = [
       },
       {
         name: "Milly Express",
-        embed: "https://www.youtube-nocookie.com/embed/7FqDxizb_hs?autoplay=1&mute=1&playsinline=1&rel=0",
+        embed: "https://www.youtube-nocookie.com/embed/N-d3MuOagLg?autoplay=1&mute=1&playsinline=1&rel=0",
       },
       {
         name: "Majestic Lift",
-        embed: "https://www.youtube-nocookie.com/embed/XLzKPufaAts?autoplay=1&mute=1&playsinline=1&rel=0",
+        embed: "https://www.youtube-nocookie.com/embed/Y4jUF38n3gM?autoplay=1&mute=1&playsinline=1&rel=0",
       },
     ],
     region: "utah",
