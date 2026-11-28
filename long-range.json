@@ -1,0 +1,214 @@
+{
+  "generatedAt": "2026-11-28T03:18:52.181Z",
+  "checkedAt": "2026-11-28T03:18:52.181Z",
+  "sources": {
+    "medium": "https://www.cpc.ncep.noaa.gov/products/predictions/610day/fxus06.html",
+    "extended": "https://www.cpc.ncep.noaa.gov/products/predictions/WK34/"
+  },
+  "periods": [
+    {
+      "name": "Days 6–10",
+      "start": 5,
+      "end": 10,
+      "source": "https://www.cpc.ncep.noaa.gov/products/predictions/610day/fxus06.html",
+      "utah": {
+        "temperature": "Probabilities exceed 80% across most of the eastern CONUS, while odds drop further to the west due to troughing over the western CONUS, and near- to below-normal temperatures are most likely along the West Coast and western Great Basin.",
+        "precipitation": "Persistent troughing over the western CONUS results in a tilt towards above-normal precipitation across much of the Lower 48."
+      },
+      "ne": {
+        "temperature": "Positive height anomalies over the North Pacific and eastern CONUS pair to keep cold Arctic air confined to higher latitudes and favor above-normal temperatures across most of the Lower 48.",
+        "precipitation": "-Canada border is likely to focus incoming moisture from the Pacific southward, resulting in near-normal precipitation favored over the Pacific Northwest, Northern Rockies, and Northern Plains, while increased moisture influx and low climatologies push odds of above-normal precipitation above 50% over portions of the Desert Southwest, as well as much of the central and eastern CONUS due to enhanced baroclinic instability and abundant Gulf moisture."
+      }
+    },
+    {
+      "name": "Days 8–14",
+      "start": 7,
+      "end": 14,
+      "source": "https://www.cpc.ncep.noaa.gov/products/predictions/610day/fxus06.html",
+      "utah": {
+        "temperature": "As troughing moves further east into the West Coast, an increasing tilt towards below-normal temperatures is indicated for much of the West Coast and Great Basin, with chances exceeding 50% for portions of southern Nevada.",
+        "precipitation": "-Canada border keeps near-normal precipitation most likely for the Pacific Northwest, Northern Rockies, and Northern Plains."
+      },
+      "ne": {
+        "temperature": "Otherwise, above-normal temperatures continue to be favored across the CONUS, with odds continuing to exceed 80% for portions of New England and at least above 50% for most areas east of the Rockies.",
+        "precipitation": "Above-normal precipitation remains most likely across much of the CONUS due to continued troughing over the West and weakening ridging over the East."
+      }
+    },
+    {
+      "name": "Weeks 3–4",
+      "start": 14,
+      "end": 28,
+      "source": "https://www.cpc.ncep.noaa.gov/products/predictions/WK34/",
+      "utah": {
+        "temperature": "Enhanced below-normal temperature probabilities are forecast over the Hawaiian Islands, and over parts of the southwestern CONUS, extending across Texas and southern Louisiana.",
+        "precipitation": null
+      },
+      "ne": {
+        "temperature": "The Temperature Outlook for weeks 3-4 indicates enhanced probabilities of warmer-than-normal temperatures along the West Coast of CONUS, and extending across the northern tier of CONUS, with maximum probabilities over New England.",
+        "precipitation": null
+      }
+    }
+  ],
+  "guidance": {
+    "utah": [
+      {
+        "period": "Days 6–10",
+        "models": [
+          {
+            "name": "GEFS",
+            "values": {
+              "temp": 30.1,
+              "precip": 0.48
+            }
+          },
+          {
+            "name": "ECMWF ENS",
+            "values": {
+              "temp": 27.6,
+              "precip": 0.61
+            }
+          },
+          {
+            "name": "GEM ENS",
+            "values": {
+              "temp": 28.1,
+              "precip": 0.51
+            }
+          }
+        ]
+      },
+      {
+        "period": "Days 8–14",
+        "models": [
+          {
+            "name": "GEFS",
+            "values": {
+              "temp": 25.3,
+              "precip": 1.11
+            }
+          },
+          {
+            "name": "ECMWF ENS",
+            "values": {
+              "temp": 22.7,
+              "precip": 1.2
+            }
+          },
+          {
+            "name": "GEM ENS",
+            "values": {
+              "temp": 22.4,
+              "precip": 0.69
+            }
+          }
+        ]
+      },
+      {
+        "period": "Weeks 3–4",
+        "models": [
+          {
+            "name": "GEFS",
+            "values": {
+              "temp": 20.6,
+              "precip": 2.02
+            }
+          },
+          {
+            "name": "ECMWF ENS",
+            "values": null
+          },
+          {
+            "name": "GEM ENS",
+            "values": {
+              "temp": 20.6,
+              "precip": 1.56
+            }
+          }
+        ]
+      }
+    ],
+    "ne": [
+      {
+        "period": "Days 6–10",
+        "models": [
+          {
+            "name": "GEFS",
+            "values": {
+              "temp": 44.8,
+              "precip": 0.7
+            }
+          },
+          {
+            "name": "ECMWF ENS",
+            "values": {
+              "temp": 42,
+              "precip": 0.47
+            }
+          },
+          {
+            "name": "GEM ENS",
+            "values": {
+              "temp": 42.6,
+              "precip": 0.6
+            }
+          }
+        ]
+      },
+      {
+        "period": "Days 8–14",
+        "models": [
+          {
+            "name": "GEFS",
+            "values": {
+              "temp": 44.3,
+              "precip": 1.46
+            }
+          },
+          {
+            "name": "ECMWF ENS",
+            "values": {
+              "temp": 42.3,
+              "precip": 1.23
+            }
+          },
+          {
+            "name": "GEM ENS",
+            "values": {
+              "temp": 42.2,
+              "precip": 1.34
+            }
+          }
+        ]
+      },
+      {
+        "period": "Weeks 3–4",
+        "models": [
+          {
+            "name": "GEFS",
+            "values": {
+              "temp": 38.4,
+              "precip": 2.89
+            }
+          },
+          {
+            "name": "ECMWF ENS",
+            "values": null
+          },
+          {
+            "name": "GEM ENS",
+            "values": {
+              "temp": 35.4,
+              "precip": 2.6
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "modelNote": null,
+  "warnings": [],
+  "places": {
+    "utah": "Park City, UT",
+    "ne": "Boston, MA"
+  }
+}
